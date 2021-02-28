@@ -1,0 +1,614 @@
+ICCAD Contest B
+Input:  testcase/case1.txt
+Output: result/case1.out
+
+Parsing input...
+Non complete
+Cell complete
+Extra complete
+Instance complete
+Net complete
+parser route complete
+Design boundary: 5 x 5
+Number of layer: 3
+Number of cell: 3
+Number of instance: 8
+Number of net: 6
+Maximum of Cell Movement: 8
+Total wire length: 64
+
+Call RCM Router...
+Initial routing engine
+Loading design information..............complete
+Creating routing graph..................complete
+Creating forced model...................complete
+Creating network........................complete
+Linking network.........................complete
+
+Start Routing Optimization
+Pick: C2
+Collect nets: N2 N3 N5 
+Candidates: 6
+C5 4
+C8 5
+C7 2
+C4 3
+C6 2
+C3 5
+
+	additional move 6
+at moveCell
+at multipleCellMovement
+6
+6
+6
+place instance
+Place C2
+Place at: 2, 3, 1
+Place C5
+Place at: 4, 1, 1
+Place C8
+Place at: 1, 5, 1
+Place C7
+Place at: 3, 5, 1
+Place C4
+Place at: 2, 3, 1
+Place C6
+Place at: 3, 5, 1
+Place C3
+Place at: 4, 1, 1
+route net: 6
+->route: N6
+->route: N5
+->route: N4
+N4: 1->route: N3
+->route: N2
+->route: N1
+recover information
+HAHAHAHAHA
+4
+N44
+return  multipleCellMovement result
+return moveCell result
+Pick: C1
+Collect nets: N1 N4 
+Candidates: 3
+C5 1
+C4 4
+C3 3
+
+	additional move 3
+at moveCell
+at multipleCellMovement
+5
+5
+5
+place instance
+Place C1
+Place at: 2, 4, 1
+Place C5
+Place at: 4, 4, 1
+Place C4
+Place at: 2, 2, 1
+Place C3
+Place at: 2, 2, 1
+route net: 5
+->route: N4
+N4: 3->route: N5
+->route: N3
+->route: N2
+->route: N1
+update model
+return  multipleCellMovement result
+return moveCell result
+Pick: C1
+Collect nets: N1 N4 
+Candidates: 3
+C5 0
+C4 2
+C3 2
+
+	additional move 2
+at moveCell
+at multipleCellMovement
+4
+4
+4
+place instance
+Place C1
+Place at: 4, 2, 1
+Place C4
+Place at: 5, 2, 1
+Place C3
+Place at: 5, 2, 1
+route net: 4
+->route: N4
+N4: 4->route: N5
+->route: N3
+->route: N1
+update model
+return  multipleCellMovement result
+return moveCell result
+Pick: C1
+Collect nets: N1 N4 
+Candidates: 3
+C5 0
+C4 2
+C3 0
+
+	additional move 1
+at moveCell
+at multipleCellMovement
+3
+3
+3
+place instance
+Place C1
+Place at: 5, 4, 1
+Place C4
+Place at: 5, 2, 1
+route net: 3
+->route: N4
+N4: 3->route: N3
+->route: N1
+update model
+return  multipleCellMovement result
+return moveCell result
+Pick: C1
+Collect nets: N1 N4 
+Candidates: 3
+C5 0
+C4 2
+C3 0
+
+	additional move 1
+at moveCell
+at multipleCellMovement
+3
+3
+3
+place instance
+Place C1
+Place at: 5, 2, 1
+Place C4
+Place at: 4, 2, 1
+route net: 3
+->route: N4
+N4: 1->route: N3
+->route: N1
+update model
+return  multipleCellMovement result
+return moveCell result
+Pick: C8
+Collect nets: N2 N6 
+Candidates: 4
+C2 1
+C5 3
+C7 0
+C6 4
+
+	additional move 3
+at moveCell
+at multipleCellMovement
+5
+5
+5
+place instance
+Place C8
+Place at: 3, 5, 1
+Place C2
+Place at: 5, 2, 1
+Place C5
+Place at: 5, 4, 1
+Place C6
+Place at: 5, 4, 1
+route net: 5
+->route: N5
+->route: N6
+->route: N3
+->route: N1
+->route: N2
+update model
+return  multipleCellMovement result
+return moveCell result
+Pick: C8
+Collect nets: N2 N6 
+Candidates: 4
+C2 0
+C5 3
+C7 0
+C6 3
+
+	additional move 2
+at moveCell
+at multipleCellMovement
+4
+4
+4
+place instance
+Place C8
+Place at: 3, 5, 1
+Place C5
+Place at: 5, 4, 1
+Place C6
+Place at: 5, 4, 1
+route net: 4
+->route: N3
+->route: N6
+->route: N1
+->route: N2
+recover information
+return  multipleCellMovement result
+return moveCell result
+Pick: C1
+Collect nets: N1 N4 
+Candidates: 3
+C5 1
+C4 3
+C3 0
+
+	additional move 2
+at moveCell
+at multipleCellMovement
+4
+4
+4
+place instance
+Place C1
+Place at: 5, 4, 1
+Place C5
+Place at: 5, 4, 1
+Place C4
+Place at: 5, 2, 1
+route net: 4
+->route: N4
+N4: 3->route: N3
+->route: N1
+->route: N2
+update model
+return  multipleCellMovement result
+return moveCell result
+Pick: C1
+Collect nets: N1 N4 
+Candidates: 3
+C5 1
+C4 1
+C3 0
+
+	additional move 2
+at moveCell
+at multipleCellMovement
+4
+4
+4
+place instance
+Place C1
+Place at: 5, 2, 1
+Place C5
+Place at: 5, 4, 1
+Place C4
+Place at: 5, 2, 1
+route net: 4
+->route: N4
+N4: 1->route: N3
+->route: N1
+recover information
+C1: 5, 4
+HAHAHAHAHA
+1
+N41
+return  multipleCellMovement result
+return moveCell result
+Pick: C8
+Collect nets: N2 N6 
+Candidates: 4
+C2 0
+C5 1
+C7 0
+C6 2
+
+	additional move 2
+at moveCell
+at multipleCellMovement
+4
+4
+4
+place instance
+Place C8
+Place at: 3, 5, 1
+Place C5
+Place at: 5, 4, 1
+Place C6
+Place at: 5, 4, 1
+route net: 4
+->route: N3
+->route: N1
+->route: N6
+->route: N2
+recover information
+return  multipleCellMovement result
+return moveCell result
+Pick: C2
+Collect nets: N2 N3 N5 
+Candidates: 6
+C5 1
+C8 2
+C7 3
+C4 2
+C6 3
+C3 2
+
+	additional move 2
+at moveCell
+at multipleCellMovement
+5
+5
+5
+place instance
+Place C2
+Place at: 5, 2, 1
+Place C5
+Place at: 5, 4, 1
+Place C8
+Place at: 3, 5, 1
+route net: 5
+->route: N5
+->route: N3
+->route: N1
+->route: N6
+->route: N2
+recover information
+return  multipleCellMovement result
+return moveCell result
+Pick: C3
+Collect nets: N4 N5 
+Candidates: 2
+C1 1
+C2 4
+
+	additional move 2
+at moveCell
+at multipleCellMovement
+5
+5
+5
+place instance
+Place C3
+Place at: 5, 2, 1
+Place C1
+Place at: 5, 4, 1
+Place C2
+Place at: 5, 2, 1
+route net: 5
+->route: N5
+->route: N4
+N4: 3->route: N3
+->route: N1
+->route: N2
+recover information
+C1: 5, 4
+HAHAHAHAHA
+1
+N41
+return  multipleCellMovement result
+return moveCell result
+Pick: C7
+Collect nets: N2 N6 
+Candidates: 4
+C2 0
+C5 1
+C8 0
+C6 2
+
+	additional move 2
+at moveCell
+at multipleCellMovement
+4
+4
+4
+place instance
+Place C7
+Place at: 5, 4, 1
+Place C5
+Place at: 5, 4, 1
+Place C6
+Place at: 5, 4, 1
+route net: 4
+->route: N3
+->route: N1
+->route: N6
+->route: N2
+update model
+return  multipleCellMovement result
+return moveCell result
+Pick: C1
+Collect nets: N1 N4 
+Candidates: 3
+C5 1
+C4 1
+C3 0
+
+	additional move 1
+at moveCell
+at multipleCellMovement
+3
+3
+3
+place instance
+Place C1
+Place at: 5, 4, 1
+Place C5
+Place at: 5, 4, 1
+route net: 3
+->route: N4
+N4: 3->route: N1
+->route: N2
+recover information
+C1: 5, 4
+HAHAHAHAHA
+1
+N41
+return  multipleCellMovement result
+return moveCell result
+Pick: C8
+Collect nets: N2 N6 
+Candidates: 4
+C2 0
+C5 1
+C7 0
+C6 2
+
+	additional move 1
+at moveCell
+at multipleCellMovement
+3
+3
+3
+place instance
+Place C8
+Place at: 5, 5, 1
+Place C5
+Place at: 5, 4, 1
+route net: 3
+->route: N6
+->route: N1
+->route: N2
+recover information
+return  multipleCellMovement result
+return moveCell result
+Pick: C4
+Collect nets: N1 N3 
+Candidates: 4
+C1 3
+C5 1
+C2 1
+C6 2
+
+	additional move 1
+at moveCell
+at multipleCellMovement
+3
+3
+3
+place instance
+Place C4
+Place at: 5, 2, 1
+Place C1
+Place at: 5, 4, 1
+route net: 3
+->route: N4
+N4: 3->route: N3
+->route: N1
+recover information
+C1: 5, 4
+HAHAHAHAHA
+1
+N41
+return  multipleCellMovement result
+return moveCell result
+Pick: C2
+Collect nets: N2 N3 N5 
+Candidates: 6
+C5 1
+C8 4
+C7 2
+C4 2
+C6 2
+C3 2
+
+	additional move 1
+at moveCell
+at multipleCellMovement
+4
+4
+4
+place instance
+Place C2
+Place at: 5, 2, 1
+Place C5
+Place at: 5, 4, 1
+route net: 4
+->route: N5
+->route: N3
+->route: N1
+->route: N2
+recover information
+return  multipleCellMovement result
+return moveCell result
+Pick: C6
+Collect nets: N3 N6 
+Candidates: 4
+C2 1
+C4 2
+C7 1
+C8 4
+
+	additional move 1
+at moveCell
+at multipleCellMovement
+4
+4
+4
+place instance
+Place C6
+Place at: 5, 4, 1
+Place C2
+Place at: 5, 2, 1
+route net: 4
+->route: N5
+->route: N3
+->route: N6
+->route: N2
+recover information
+return  multipleCellMovement result
+return moveCell result
+Pick: C7
+Collect nets: N2 N6 
+Candidates: 4
+C2 0
+C5 1
+C8 0
+C6 2
+
+	additional move 1
+at moveCell
+at multipleCellMovement
+3
+3
+3
+place instance
+Place C7
+Place at: 5, 4, 1
+Place C5
+Place at: 5, 4, 1
+route net: 3
+->route: N6
+->route: N1
+->route: N2
+recover information
+return  multipleCellMovement result
+return moveCell result
+
+Start post-routing optimization
+End optimization
+
+SUMMARY
+Number of Iteration:                    19
+Number of success movement:             7
+Number of failed movement:              12
+Number of routing refinement:           0
+Number of moved instance:               6
+Additional Information for debug
+Number of routing failed:               0
+Number of placed failed:                0
+Writing to output...
+Check Info: 
+CellInst C1 5 4
+CellInst C2 5 2
+CellInst C3 5 2
+CellInst C4 5 2
+CellInst C5 5 4
+CellInst C6 5 4
+CellInst C7 5 4
+CellInst C8 3 5
+Spend time: 0

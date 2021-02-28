@@ -1,0 +1,7767 @@
+#include "routing.h"
+#include <iostream>
+#include <algorithm>
+#include <climits>
+#include <stdlib.h>
+#include <set>
+#include <iomanip>
+#include <fstream>
+#include <ctime>
+#include <sstream>
+#include "flute.h"
+#include "3Dresult.h"
+
+using namespace std;
+
+extern time_t start;
+extern time_t endt;
+
+#define _DEBUG_MODE
+
+#ifdef _DEBUG_MODE
+int nTmpFailedRoute = 0;
+int nTmpCantPlaced = 0;
+#endif
+
+#define COUTWIDTH 40
+#define TIMECONST 3550
+
+bool router_C::showSummary()
+{
+	cout<<"SUMMARY"<<endl;
+	cout<< setw( COUTWIDTH )<<left<<setfill(' ')<<"Number of Iteration: " << m_nIteration<<endl;
+	cout<< setw( COUTWIDTH )<<left<<setfill(' ')<<"Number of success movement: " << m_nSuccess<<endl;
+	cout<< setw( COUTWIDTH )<<left<<setfill(' ')<<"Number of failed movement: " << m_nFailed<<endl;
+	cout<< setw( COUTWIDTH )<<left<<setfill(' ')<<"Number of routing refinement: " << m_nNumRefinement<<endl;
+	cout<< setw( COUTWIDTH )<<left<<setfill(' ')<<"Number of moved instance: " << m_vMovedInstance.size()<<endl;
+#ifdef _DEBUG_MODE
+	cout<<"Additional Information for debug"<<endl;
+	cout<< setw( COUTWIDTH )<<left<<setfill(' ')<<"Number of routing failed: " << nTmpFailedRoute<<endl;
+	cout<< setw( COUTWIDTH )<<left<<setfill(' ')<<"Number of placed failed: " << nTmpCantPlaced<<endl;
+#endif 
+	return true;
+}
+
+bool router_C::init()
+{
+	cout<<"Initial routing engine"<<endl;
+
+	cout<<setw(COUTWIDTH)<<left<<setfill('.')<<"Loading design information";
+	if( loadDesign() )
+		cout<<"complete"<<endl;
+
+	cout<<setw(COUTWIDTH)<<left<<setfill('.')<<"Creating routing graph";
+	if( createHistoryGraph() && createRoutingGraph() )
+		cout<<"complete"<<endl;
+
+// create forced model
+	cout<<setw(COUTWIDTH)<<left<<setfill('.')<<"Creating forced model";
+	if( createForcedModel() )
+		cout<<"complete"<<endl;
+
+	cout<<setw(COUTWIDTH)<<left<<setfill('.')<<"Creating network";
+	if( createForcedNetwork() )
+		cout<<"complete"<<endl;
+	
+	cout<<setw(COUTWIDTH)<<left<<setfill('.')<<"Linking network";
+	if( linkForcedModel() )
+		cout<<"complete"<<endl;
+
+	//cout<<setw(COUTWIDTH)<<left<<setfill('.')<<"Creating net forced model";
+	//if( createNetForcedModel() )
+	//	cout<<"complete"<<endl;
+	
+	for( int i=0; i<m_vNetworkForced.size(); i++ )
+	{
+		calForcedNetwork( m_vNetworkForced[i] );
+	}
+	for( int i=0; i<m_vForced.size(); i++ )
+	{
+		calForcedModel( m_vForced[i] );
+	}
+
+	//for( int i=0; i<m_vNetForced.size(); i++ )
+	//{
+	//	calNetForcedModel( m_vNetForced[i] );
+		//cout<<m_vNetForced[i].m_pInstance->getName()<<" ";
+		//cout<<m_vNetForced[i].m_pInstance->getPlacedX()<<" "<<m_vNetForced[i].m_pInstance->getPlacedY()<<endl;
+	//}
+	//readLUT();
+	// check information
+	/*
+	cout<<"Check net information"<<endl;
+	vector< net_C* > vNet = m_pDesign->getNet();
+	for( int i=0; i<vNet.size(); i++ )
+	{
+		//estimateHPWLwithoutLayer( vNet[i] );
+		
+		estimateHPWL( vNet[i] );
+		calWireLength( vNet[i] );
+		cout<<endl;
+	}
+	cout<<endl;
+	cout<<"Check Networl model"<<endl;
+	for( int i=0; i<m_vNetworkForced.size(); i++ )
+	{
+		networkForced_C &cNF = m_vNetworkForced[i];
+		cout<<cNF.m_pNet->getName()<<endl;
+		cout<<"X: "<<cNF.m_nCenterX<<"."<<cNF.m_nXHalf<<" Y: "<<cNF.m_nCenterY<<"."<<cNF.m_nYHalf<<endl;
+	}
+	cout<<endl;
+
+	cout<<"Check forced model"<<endl;
+	for( int i=0; i<m_vForced.size(); i++ )
+	{
+		forced_C &cF = m_vForced[i];
+		cout<<cF.m_pInstance->getName()<<endl;
+		cout<<"T: "<<cF.m_nT<<" D: "<<cF.m_nD<<" R: "<<cF.m_nR<<" L: "<<cF.m_nL<<endl;
+	}
+	cout<<endl;
+	*/
+	//pickInstanceToMove();
+}
+
+bool router_C::createRoutingGraph()
+{
+	for( int z=m_nDZ; z<=m_nTZ; z++ )
+	{
+		vector< vector< rGrid_C* > > vMap;
+		for( int y=m_nDY; y<=m_nTY; y++ )
+		{
+			vector< rGrid_C* > vRow;
+			for( int x=m_nDX; x<=m_nTX; x++ )
+			{
+				rGrid_C* pRGrid = new rGrid_C;
+				pRGrid->m_nX = x;
+				pRGrid->m_nY = y;
+				pRGrid->m_nZ = z;
+				pRGrid->m_nH = 0;
+				pRGrid->m_nMH = 0;
+				pRGrid->m_nG = 0;
+				pRGrid->m_nCost = 0;
+				pRGrid->m_nBend = 0;
+				pRGrid->m_pFrom = NULL;
+				pRGrid->isRouted = false;
+				pRGrid->isPath = false;
+				pRGrid->isTarget = false;
+				pRGrid->isObstacle = false;
+				pRGrid->m_cDir = m_pDesign->getLayer()[ z - m_nDZ ]->getDir();
+				vRow.push_back( pRGrid );
+			}
+			vMap.push_back( vRow );
+		}
+		m_vRoutingGraph.push_back( vMap );
+	}
+	return true;
+}
+
+_history router_C::getHGrid( int nX, int nY, int nZ )
+{
+	nX = nX - m_nOffsetX;
+	nY = nY - m_nOffsetY;
+	nZ = nZ - m_nOffsetZ;
+	return m_vHistoryGraph[nZ][nY][nZ];
+}
+
+rGrid_C* router_C::getRGrid( int nX, int nY, int nZ )
+{
+	nX = nX - m_nOffsetX;
+	nY = nY - m_nOffsetY;
+	nZ = nZ - m_nOffsetZ;
+	// added at 07/14 20:30
+	if( nX < 0 || nX >= m_vRoutingGraph[0][0].size() )
+		return NULL;
+	if( nY < 0 || nY >= m_vRoutingGraph[0].size() )
+		return NULL;
+	if( nZ < 0 || nZ >= m_vRoutingGraph.size() )
+		return NULL;
+	// end added at 07/14 20:30
+	return m_vRoutingGraph[nZ][nY][nX];
+}
+
+bool router_C::loadDesign()
+{
+	m_pDesign->getGraph( m_vGraph );
+	vector< layer_C* > vLayer = m_pDesign->getLayer();
+	m_pDesign->getBoundary( m_nDX, m_nDY, m_nTX, m_nTY );
+	m_nDZ = vLayer.front()->getId();
+	m_nTZ = vLayer.back()->getId();
+
+	m_nOffsetX = m_nDX;
+	m_nOffsetY = m_nDY;
+	m_nOffsetZ = m_nDZ;
+	return true;
+}
+
+bool router_C::createHistoryGraph()
+{
+	for( int z = m_nDZ; z <= m_nTZ; z++ )
+	{
+		vector< vector< _history > > vHMap;
+		for( int y = m_nDY; y <= m_nTY; y++ )
+		{
+			vector< _history > vHRow;
+			for( int x = m_nDX; x <= m_nTX; x++ )
+			{
+				_history nH = 0;
+				vHRow.push_back( nH );
+			}
+			vHMap.push_back( vHRow );
+		}
+		m_vHistoryGraph.push_back( vHMap );
+	}
+	return true;
+}
+
+int router_C::calWireLength( net_C* pNet )
+{
+	/*
+	set< gGrid_C* > sGrid;
+	
+	vector< layer_C* > vLayer = m_pDesign->getLayer();
+		
+	int nDX, nDY, nTX, nTY, nDZ, nTZ;
+	m_pDesign->getBoundary( nDX, nDY, nTX, nTY );
+	nDZ = vLayer.front()->getId();
+	nTZ = vLayer.back()->getId();
+	for( int l=nDZ; l<=nTZ; l++ )
+	{
+		for( int y= nDY; y<=nTY; y++ )
+		{
+			for( int x=nDX; x<=nTX; x++ )
+			{
+				gGrid_C* pGrid = getGrid( m_pDesign, x, y, l);
+				if( pGrid->findNet( pNet ) )
+					sGrid.insert( pGrid );
+			}
+		}
+	}
+	//cout<<"Net "<<pNet->getName()<<" wire length = "<<sGrid.size()<<endl;
+	return sGrid.size();
+	*/
+	vector< gGrid_C* > vGrid;
+	vector< wire_C* > vSegment;
+	vSegment = pNet->getWire();	
+	//cout<<"test"<<endl;
+	for( int i=0; i<vSegment.size(); i++ )
+	{
+		wire_C* pWire = vSegment[i];
+		gGrid_C* pGrid1 = pWire->getGrid1();
+		gGrid_C* pGrid2 = pWire->getGrid2();
+		net_C* pNet = pWire->getNet();
+		
+		int nX1, nY1, nZ1;
+		int nX2, nY2, nZ2;
+		pGrid1->getPosition( nX1, nY1, nZ1 );
+		pGrid2->getPosition( nX2, nY2, nZ2 );
+		int ndX, ndY, ndZ;
+		ndX = nX2 - nX1;
+		ndY = nY2 - nY1;
+		ndZ = nZ2 - nZ1;
+
+		if( ndX != 0 )
+			ndX = ndX / abs( ndX );
+		if( ndY != 0 )
+			ndY = ndY / abs( ndY );
+		if( ndZ != 0 )
+			ndZ = ndZ / abs( ndZ );
+		//cout<<ndX<<" "<<ndY<<" "<<ndZ<<endl;
+		gGrid_C* pCurGrid = pGrid1;	
+		if( !pCurGrid->isRouted() )
+		{
+			pCurGrid->setRouted();
+			vGrid.push_back( pCurGrid );
+		}
+
+		while( pCurGrid != pGrid2 )
+		{
+			pCurGrid = graphTravel( m_pDesign, pCurGrid, ndX, ndY, ndZ );
+			if( !pCurGrid->isRouted() )
+			{
+				pCurGrid->setRouted();
+				vGrid.push_back( pCurGrid );
+			}
+		}
+	}
+	
+	for( int g=0; g<vGrid.size(); g++ )
+	{
+		vGrid[g]->setUnrouted();
+	}
+	return vGrid.size();
+}
+
+int router_C::estimateHPWLwithoutLayer( net_C* pNet )
+{
+	vector< pin_C* > vPin = pNet->getPin();
+	int nMinX = INT_MAX;
+	int nMaxX = INT_MIN;
+	int nMinY = INT_MAX;
+	int nMaxY = INT_MIN;
+	for( int i=0; i<vPin.size(); i++ )
+	{
+		pin_C* pPin = vPin[i];
+		int nX, nY, nZ;
+		instance_C* pInst = (instance_C*)pPin->getCell();
+		nX = pInst->getPlacedX();
+		nY = pInst->getPlacedY();
+		nZ = pPin->getLayerId();
+		nMinX = min( nMinX, nX );
+		nMaxX = max( nMaxX, nX );
+		nMinY = min( nMinY, nY );
+		nMaxY = max( nMaxY, nY );
+	}
+	int nHPWL = 0;
+	vector< pin_C* > vInnerPin;
+	vector< pin_C* > vBoundPin;
+
+	for( int i=0; i<vPin.size(); i++ )
+	{	
+		pin_C* pPin = vPin[i];
+		int nX, nY;
+		instance_C* pInst = (instance_C*)pPin->getCell();
+		nX = pInst->getPlacedX();
+		nY = pInst->getPlacedY();
+		if( nX - nMaxX == 0 || nX - nMinX == 0 || nY - nMinY == 0 || nY - nMaxY == 0  )
+			vBoundPin.push_back( pPin );
+		else
+			vInnerPin.push_back( pPin );
+	}
+
+	/*
+	for( int i=0; i<vPin.size(); i++ )
+	{
+		pin_C* pPin = vPin[i];
+		int nX, nY, nZ;
+		instance_C* pInst = (instance_C*)pPin->getCell();
+		nX = pInst->getPlacedX();
+		nY = pInst->getPlacedY();
+		nZ = pPin->getLayerId();
+		nHPWL = nHPWL + (nMaxX - nX) + (nX - nMinX) + (nMaxY - nY) + (nY - nMinY) + (nMaxZ - nZ) + (nZ - nMinZ);
+	}
+	*/
+
+	for( int i=0; i<vInnerPin.size(); i++ )
+	{
+		pin_C* pInnerPin = vInnerPin[i];
+		int nInX, nInY;
+		instance_C* pInst = (instance_C*)pInnerPin->getCell();
+		nInX = pInst->getPlacedX();
+		nInY = pInst->getPlacedY();
+		for( int j=0; j<vBoundPin.size(); j++ )
+		{
+			
+			pin_C* pBoundPin = vBoundPin[j];
+			int nBoX, nBoY;
+			instance_C* pInst = (instance_C*)pBoundPin->getCell();
+			nBoX = pInst->getPlacedX();
+			nBoY = pInst->getPlacedY();
+
+			nHPWL = nHPWL + abs(nInX - nBoX) + abs(nInY - nBoY) + 1;
+		}
+		//nHPWL++;
+	}
+		
+	for( int i=0; i<vBoundPin.size()-1; i++ )
+	{
+		pin_C* pBoundPin1 = vBoundPin[i];
+		int nBoX1, nBoY1;
+		instance_C* pInst = (instance_C*)pBoundPin1->getCell();
+		nBoX1 = pInst->getPlacedX();
+		nBoY1 = pInst->getPlacedY();
+		for( int j=i+1; j<vBoundPin.size(); j++ )
+		{
+			
+			pin_C* pBoundPin2 = vBoundPin[j];
+			int nBoX2, nBoY2;
+			instance_C* pInst = (instance_C*)pBoundPin2->getCell();
+			nBoX2 = pInst->getPlacedX();
+			nBoY2 = pInst->getPlacedY();
+
+			nHPWL = nHPWL + abs(nBoX1 - nBoX2) + abs(nBoY1 - nBoY2) + 1;
+		}
+		//nHPWL++;
+	}
+
+	if( vPin.size() > 0 )
+	{	
+		nHPWL = nHPWL - ( vPin.size() - 2 ) * vBoundPin.size() - ( vBoundPin.size() - 1 ) * vInnerPin.size();
+		cout<<"Net "<<pNet->getName()<<" estimated HPWL = "<<nHPWL*2 / vPin.size()<<endl;
+		return nHPWL*2 / vPin.size();
+	}
+	else
+	{
+		cout<<"Net "<<pNet->getName()<<" has no pin!!"<<endl;
+		return 0;
+	}
+}
+int router_C::estimateHPWL( net_C* pNet )
+{
+	vector< pin_C* > vPin = pNet->getPin();
+	int nMinX = INT_MAX;
+	int nMaxX = INT_MIN;
+	int nMinY = INT_MAX;
+	int nMaxY = INT_MIN;
+	int nMinZ = INT_MAX;
+	int nMaxZ = INT_MIN;
+	for( int i=0; i<vPin.size(); i++ )
+	{
+		pin_C* pPin = vPin[i];
+		int nX, nY, nZ;
+		instance_C* pInst = (instance_C*)pPin->getCell();
+		nX = pInst->getPlacedX();
+		nY = pInst->getPlacedY();
+		nZ = pPin->getLayerId();
+		nMinX = min( nMinX, nX );
+		nMaxX = max( nMaxX, nX );
+		nMinY = min( nMinY, nY );
+		nMaxY = max( nMaxY, nY );
+		nMinZ = min( nMinZ, nZ );
+		nMaxZ = max( nMaxZ, nZ );
+	}
+	int nHPWL = 0;
+	vector< pin_C* > vInnerPin;
+	vector< pin_C* > vBoundPin;
+
+	for( int i=0; i<vPin.size(); i++ )
+	{	
+		pin_C* pPin = vPin[i];
+		int nX, nY, nZ;
+		instance_C* pInst = (instance_C*)pPin->getCell();
+		nX = pInst->getPlacedX();
+		nY = pInst->getPlacedY();
+		nZ = pPin->getLayerId();
+		if( nX - nMaxX == 0 || nX - nMinX == 0 || nY - nMinY == 0 || nY - nMaxY == 0 || nZ - nMinZ == 0 || nZ - nMaxZ == 0 )
+			vBoundPin.push_back( pPin );
+		else
+			vInnerPin.push_back( pPin );
+	}
+
+	/*
+	for( int i=0; i<vPin.size(); i++ )
+	{
+		pin_C* pPin = vPin[i];
+		int nX, nY, nZ;
+		instance_C* pInst = (instance_C*)pPin->getCell();
+		nX = pInst->getPlacedX();
+		nY = pInst->getPlacedY();
+		nZ = pPin->getLayerId();
+		nHPWL = nHPWL + (nMaxX - nX) + (nX - nMinX) + (nMaxY - nY) + (nY - nMinY) + (nMaxZ - nZ) + (nZ - nMinZ);
+	}
+	*/
+
+	for( int i=0; i<vInnerPin.size(); i++ )
+	{
+		pin_C* pInnerPin = vInnerPin[i];
+		int nInX, nInY, nInZ;
+		instance_C* pInst = (instance_C*)pInnerPin->getCell();
+		nInX = pInst->getPlacedX();
+		nInY = pInst->getPlacedY();
+		nInZ = pInnerPin->getLayerId();
+		for( int j=0; j<vBoundPin.size(); j++ )
+		{
+			
+			pin_C* pBoundPin = vBoundPin[j];
+			int nBoX, nBoY, nBoZ;
+			instance_C* pInst = (instance_C*)pBoundPin->getCell();
+			nBoX = pInst->getPlacedX();
+			nBoY = pInst->getPlacedY();
+			nBoZ = pBoundPin->getLayerId();
+
+			nHPWL = nHPWL + abs(nInX - nBoX) + abs(nInY - nBoY) + abs(nInZ - nBoZ) + 1;
+		}
+		//nHPWL++;
+	}
+		
+	for( int i=0; i<vBoundPin.size()-1; i++ )
+	{
+		pin_C* pBoundPin1 = vBoundPin[i];
+		int nBoX1, nBoY1, nBoZ1;
+		instance_C* pInst = (instance_C*)pBoundPin1->getCell();
+		nBoX1 = pInst->getPlacedX();
+		nBoY1 = pInst->getPlacedY();
+		nBoZ1 = pBoundPin1->getLayerId();
+		for( int j=i+1; j<vBoundPin.size(); j++ )
+		{
+			
+			pin_C* pBoundPin2 = vBoundPin[j];
+			int nBoX2, nBoY2, nBoZ2;
+			instance_C* pInst = (instance_C*)pBoundPin2->getCell();
+			nBoX2 = pInst->getPlacedX();
+			nBoY2 = pInst->getPlacedY();
+			nBoZ2 = pBoundPin2->getLayerId();
+
+			nHPWL = nHPWL + abs(nBoX1 - nBoX2) + abs(nBoY1 - nBoY2) + abs(nBoZ1 - nBoZ2) + 1;
+		}
+		//nHPWL++;
+	}
+
+	if( vPin.size() > 0 )
+	{	
+		nHPWL = nHPWL - ( vPin.size() - 2 ) * vBoundPin.size() - ( vBoundPin.size() - 1 ) * vInnerPin.size();
+		cout<<"Net "<<pNet->getName()<<" estimated HPWL = "<<nHPWL*2 / vPin.size()<<endl;
+		return nHPWL*2 / vPin.size();
+	}
+	else
+	{
+		cout<<"Net "<<pNet->getName()<<" has no pin!!"<<endl;
+		return 0;
+	}
+}
+
+bool router_C::removeInstOnGraph( instance_C* pInst )
+{
+	// delete the block demand
+	// remove the instance 
+	// recalculate the demand caused by neighbor
+	delCellOnGraph( m_pDesign, pInst );
+	int nX = pInst->getPlacedX();
+	int nY = pInst->getPlacedY();
+	int nZ = m_nOffsetZ;
+	gGrid_C* pGrid = getGrid( m_pDesign, nX, nY, nZ );
+	calNeighborCellDemand( m_pDesign, pGrid );
+	gGrid_C* pNGrid;
+	pNGrid = graphTravel( m_pDesign, pGrid, 1, 0, 0 );
+	if( pNGrid != NULL )
+		calNeighborCellDemand( m_pDesign, pNGrid );
+	
+	pNGrid = graphTravel( m_pDesign, pGrid, -1, 0, 0 );	
+	if( pNGrid != NULL )
+		calNeighborCellDemand( m_pDesign, pNGrid );
+	
+	pNGrid = graphTravel( m_pDesign, pGrid, 0, 1, 0 );
+	if( pNGrid != NULL )
+		calNeighborCellDemand( m_pDesign, pNGrid );
+	
+	pNGrid = graphTravel( m_pDesign, pGrid, 0, -1, 0 );
+	if( pNGrid != NULL )
+		calNeighborCellDemand( m_pDesign, pNGrid );	
+	
+	return true;
+}
+
+bool router_C::putInstOnGraph( instance_C* pInst, int nX, int nY, int nZ )
+{
+	/*
+	string strInstName = pInst->getName();
+	string strInfo = "Put " + strInstName + " on graph";
+	cout<<setw(COUTWIDTH)<<left<<setfill('.')<<strInfo;
+	*/
+// put the instance on graph
+// add the instance demand on grid
+// recalculate the demand caused by neighbor
+	pInst->setPlaced( nX, nY );
+	addCellOnGraph( m_pDesign, pInst );
+	nZ = m_nOffsetZ;
+	gGrid_C* pGrid = getGrid( m_pDesign, nX, nY, nZ );
+	calNeighborCellDemand( m_pDesign, pGrid );
+	gGrid_C* pNGrid;
+	pNGrid = graphTravel( m_pDesign, pGrid, 1, 0, 0 );
+	if( pNGrid != NULL )
+		calNeighborCellDemand( m_pDesign, pNGrid );
+	
+	pNGrid = graphTravel( m_pDesign, pGrid, -1, 0, 0 );	
+	if( pNGrid != NULL )
+		calNeighborCellDemand( m_pDesign, pNGrid );
+	
+	pNGrid = graphTravel( m_pDesign, pGrid, 0, 1, 0 );
+	if( pNGrid != NULL )
+		calNeighborCellDemand( m_pDesign, pNGrid );
+	
+	pNGrid = graphTravel( m_pDesign, pGrid, 0, -1, 0 );
+	if( pNGrid != NULL )
+		calNeighborCellDemand( m_pDesign, pNGrid );
+	
+//	cout<<endl;
+	return true;
+}
+
+bool router_C::backupInstance( instance_C* pInst )
+{
+	//version 1
+	m_cBackupInstance.setPlaced( pInst->getPlacedX(), pInst->getPlacedY() );
+	
+	//version 2
+	/*
+	instance_C cBackupInstance;
+	cBackupInstance.setName( pInst->getName() );
+	cBackupInstance.setPlaced( pInst->getPlacedX(), pInst->getPlacedY() );
+	m_vBackupInstance.push_back( cBackupInstance );
+	*/
+	return true;
+}
+
+bool router_C::recoverInstance( instance_C* pInst )
+{
+	//version 1
+	pInst->setPlaced( m_cBackupInstance.getPlacedX(), m_cBackupInstance.getPlacedY() );
+	
+	//version 2
+	/*
+	for( int i=0; i<m_vBackupInstance.size(); i++ )
+	{
+		if( m_vBackupInstance[i].getName() == pInst->getName() )
+		{
+			pInst->setPlaced( m_vBackupInstance[i].getPlacedX(), m_vBackupInstance[i].getPlacedY() );
+			break;
+		}
+	}
+	*/
+	return true;
+}
+
+bool router_C::backupNet( vector< net_C* > &vNet )
+{
+	for( int i=0; i<vNet.size(); i++ )
+	{
+		net_C cNet;
+		net_C* pNet = vNet[i];
+		vector< wire_C* > vWire = pNet->getWire();
+		cNet.setName( pNet->getName() );
+		for( int j=0; j<vWire.size(); j++ )
+		{
+			wire_C* pWire = vWire[j];
+			wire_C* pNewWire = new wire_C;
+			//pNewWire->setId( pWire->getId() );
+			pNewWire->setGrid1( pWire->getGrid1() );
+			pNewWire->setGrid2( pWire->getGrid2() );
+			pNewWire->setNet( pWire->getNet() );
+			cNet.addWire( pNewWire );
+		}
+		m_vBackupNet.push_back( cNet );
+	}
+}
+
+bool router_C::recoverNet( vector< net_C* > &vNet )
+{
+	bool bFind = false;
+	for( int i=0; i<vNet.size(); i++ )
+	{
+		bFind = false;
+		net_C* pNet = vNet[i];
+		for( int j=0; j<m_vBackupNet.size(); j++ )
+		{
+			net_C &cBNet = m_vBackupNet[j];
+			if( pNet->getName() == cBNet.getName() )
+			{
+				bFind = true;
+				pNet->cleanWire();
+				vector< wire_C* > vBWire = cBNet.getWire();
+				for( int k=0; k<vBWire.size(); k++ )
+				{
+					pNet->addWire( vBWire[k] );	
+				}
+				break;
+			}
+		}
+		if( !bFind )
+			cout<<"Error: Net" << pNet->getName() <<" failed to recover"<<endl;
+	}
+	
+	m_vBackupNet.clear();
+	return bFind;
+}
+
+bool router_C::calForceDirection( vector< instance_C* > &vInst )
+{
+	
+}
+
+bool router_C::cleanWire( vector< net_C* > &vNet )
+{
+	for( int i=0; i<vNet.size(); i++ )
+		vNet[i]->cleanWire();
+	return true;
+}
+
+bool router_C::ripupNet( vector< net_C* > &vNet )
+{
+// store the grid that the net pass in the vector
+// decrease the demand grid stored in vector
+// remove the net on the grid
+	for( int i=0; i<vNet.size(); i++ )
+	{
+		net_C* pNet = vNet[i];
+		//cout<<pNet->getName()<<endl;
+		delNetOnGraph( m_pDesign, pNet );
+		//cout<<"complete"<<endl;
+	}
+	return true;
+}
+
+vector< gGrid_C* > router_C::routeNet( gGrid_C* pSource, gGrid_C* pTarget )
+{
+
+}
+
+vector< gGrid_C* > router_C::routeNet( vector< gGrid_C* > &vSource, vector< gGrid_C* > &vTarget )
+{
+
+}
+
+vector< gGrid_C* > router_C::routeNet( net_C* pNet, vector< gGrid_C* > &vObs )
+{
+	setRoutingConstraint( pNet );
+	int nLConstraint = m_nConstraintLayerId;
+	//cout<<nLConstraint<<endl;
+
+	vector< gGrid_C* > vTerminal;
+	vector< pin_C* > vPin = pNet->getPin();
+	//vector< wire_C* > vWire;
+	vector< gGrid_C* > vResult;
+
+	for( int i=0; i<vPin.size(); i++ )
+	{
+		pin_C* pPin = vPin[i];
+		int nX, nY, nZ;
+		instance_C* pInst = (instance_C*)pPin->getCell();
+		nX = pInst->getPlacedX();
+		nY = pInst->getPlacedY();
+		// project the z to the constraint layer
+		nZ = pPin->getLayerId();
+		if( nZ < nLConstraint )
+		{
+			for( int l = nZ; l<=nLConstraint; l++ )
+			{
+				gGrid_C* pGrid = getGrid( m_pDesign, nX, nY, l );
+				vResult.push_back( pGrid );
+			}
+			nZ = nLConstraint;
+		}
+
+		gGrid_C* pTerminal = getGrid( m_pDesign, nX, nY, nZ );
+		rGrid_C* pRGrid = getRGrid( nX, nY, nZ );
+		pRGrid->isTarget = true;
+		vTerminal.push_back( pTerminal );
+	}
+
+	// check same position of terminal 
+	//cout<<"Check terminal"<<endl;
+	for( int i=0; i<vTerminal.size(); i++ )
+	{
+		for( int j=i+1; j<vTerminal.size(); j++ )
+		{
+			if( vTerminal[i] == vTerminal[j] )
+			{
+				vTerminal.erase( vTerminal.begin() + j );
+				j--;
+			}
+		}
+	}
+	//cout<<"Num of terminals: "<<vTerminal.size()<<endl;
+	if( vTerminal.size() == 1 )
+	{
+		if( vTerminal[0]->getRemand() <= 0 )
+		{
+			
+			int nX, nY, nZ;
+			vTerminal[0]->getPosition( nX, nY, nZ );
+			rGrid_C* pRGrid = getRGrid( nX, nY, nZ );
+			pRGrid->isTarget = false;	
+			return vResult;
+		}
+		int nX, nY, nZ;
+		vTerminal[0]->getPosition( nX, nY, nZ );
+		rGrid_C* pRGrid = getRGrid( nX, nY, nZ );
+		pRGrid->isTarget = false;	
+		
+		bool bTisObs = false;
+		for( int i=0; i<vObs.size(); i++ )
+		{
+			if( vObs[i] == vTerminal[0] )
+			{
+				bTisObs = true;
+				break;
+			}
+		}
+
+		if( bTisObs )
+			return vResult;
+		else
+		{
+			vResult.push_back( vTerminal[0] );
+			return vResult;
+		}
+	}
+	else 
+	{
+		bool bFindOverflow = false;
+		for( int i=0; i<vTerminal.size(); i++ )
+		{
+			if( vTerminal[i]->getRemand() <= 0 )
+			{
+				bFindOverflow = true;
+				break;
+			}
+		}
+	
+		if( bFindOverflow )
+		{
+			for( int i=0; i<vTerminal.size(); i++ )
+			{
+				int nX, nY, nZ;
+				vTerminal[i]->getPosition( nX, nY, nZ );
+				rGrid_C* pRGrid = getRGrid( nX, nY, nZ );
+				pRGrid->isTarget = false;	
+			}
+			if( vResult.size() != 0 )
+				vResult.clear();
+
+			return vResult;
+		}
+	}
+	
+	vector< rGrid_C* > vRoutedGrid;
+	//vector< rGrid_C* > vPriorityQueue;
+	vector< rGrid_C* > vHistory;
+	vector< rGrid_C* > vNotInPath;
+	// find first terminal
+	gGrid_C* pFirst;
+	int nMinX = m_nTX;
+	for( int i=0; i<vTerminal.size(); i++ )
+	{
+		gGrid_C* pGrid = vTerminal[i];	
+		int nX, nY, nZ;
+		pGrid->getPosition( nX, nY, nZ );
+		if( nX <= nMinX )
+			nMinX = nX;
+	}
+
+	int nMinY = m_nTY;
+	for( int i=0; i<vTerminal.size(); i++ )
+	{
+		gGrid_C* pGrid = vTerminal[i];	
+		int nX, nY, nZ;
+		pGrid->getPosition( nX, nY, nZ );
+		if( nX == nMinX && nY <= nMinY )
+		{
+			nMinY = nY;
+			pFirst = vTerminal[i];	
+		}
+	}
+	//cout<<"Here"<<endl;
+	int nX, nY, nZ;
+	pFirst->getPosition( nX, nY, nZ );
+	rGrid_C* pCurRGrid = getRGrid( nX, nY, nZ );
+	gGrid_C* pGGrid = pFirst;
+	if( pGGrid->getRemand() <= 0 )
+	{
+		pCurRGrid->isTarget = false;
+		vResult.clear();
+		return vResult;
+	}
+
+	vHistory.push_back( pCurRGrid );
+	pCurRGrid->isPath = true;
+	for( int i=0; i<vTerminal.size(); i++ )
+	{
+		if( vTerminal[i] == pGGrid )
+		{
+			vTerminal.erase( vTerminal.begin() + i );
+			break;
+		}
+	}
+	int nNumTermanals = vTerminal.size();
+	//nNumTermanals--; // because the first grid is a termianl
+	vector< layer_C* > vLayer = m_pDesign->getLayer();
+	//cout<<"Start routing"<<endl;
+	
+	// setting obstacle
+	for( int i=0; i<vObs.size(); i++ )
+	{
+		int nX, nY, nZ; 
+		gGrid_C* pGrid = vObs[i];
+		pGrid->getPosition( nX, nY, nZ );
+		rGrid_C* pRGrid = getRGrid( nX, nY, nZ );
+		pRGrid->isObstacle = true;
+	}
+	
+	vector< rGrid_C* > vHaveAddTarget;
+	while( nNumTermanals > 0 )
+	{
+		//cout<<nNumTermanals<<endl;
+		//cout<<pCurRGrid->m_nX<<" "<<pCurRGrid->m_nY<<" "<<pCurRGrid->m_nZ<<endl;
+		// A* propogation
+		if( vHistory.size() == 0 )
+		{
+			vResult.clear();
+			break;
+		}
+
+		cout<<vHistory.size()<<endl;
+
+		vector< rGrid_C* > vToPropogate;
+		int nMinCost = 0;
+		bool bPick = false;
+		for( int i=0; i<vHistory.size(); i++ )
+		{
+			if( !vHistory[i]->isRouted )	
+			{
+				nMinCost = vHistory[i]->m_nCost;
+				bPick = true;
+				break;
+			}
+		}
+		if( !bPick )
+		{
+			vResult.clear();
+			//cout<<"Can't find result"<<endl;
+			break;
+		}
+		/*
+		cout<<nMinCost<<" "<<vHistory.size()<<endl;
+		for( int i=0; i<vHistory.size(); i++ )
+		{
+			if( !vHistory[i]->isRouted )	
+			{
+				cout << vHistory[i]->m_nCost <<" ";
+			}
+		}
+		//cout<<endl;
+		*/
+		for( int i=0; i<vHistory.size(); i++ )
+		{
+			if( !vHistory[i]->isRouted )	
+			{
+				if( vHistory[i]->m_nCost == nMinCost )
+				{
+					vToPropogate.push_back( vHistory[i] );
+				}
+				else
+					break;
+			}
+		}
+	
+		vector< rGrid_C* > vAddGrid;
+
+		for( int i=0; i<vToPropogate.size(); i++ )
+		{
+			pCurRGrid = vToPropogate[i];
+			pCurRGrid->isRouted = true;
+			int nCurDistance = pCurRGrid->m_nG;
+			int nNewDistance = nCurDistance + 1;
+			int nX, nY, nZ;
+			nX = pCurRGrid->m_nX;
+			nY = pCurRGrid->m_nY;
+			nZ = pCurRGrid->m_nZ;
+			//cout<<"P: "<<nX<<" "<<nY<<" "<<nZ<<endl;
+			pGGrid = getGrid( m_pDesign, nX, nY, nZ );
+			char cDir = vLayer[ nZ - m_nOffsetZ ]->getDir();
+			//cout<<cDir<<endl;
+			int nDX, nDY, nDZ;
+			if( cDir == 'H' )
+			{
+				nDX = 0; nDY = 1; nDZ = 0;
+			}
+			else if( cDir == 'V')
+			{
+				nDX = 1; nDY = 0; nDZ = 0;
+			}
+			else
+				cout<<"Unknown routing direction"<<endl;
+			// go in the same layer;
+			gGrid_C* pNextGrid = graphTravel( m_pDesign, pGGrid, nDX, nDY, nDZ );
+			if( pNextGrid != NULL && pNextGrid->getRemand() )
+			{
+				rGrid_C* pNextRGrid = getRGrid( nX + nDX, nY + nDY, nZ + nDZ );
+				if( !pNextRGrid->isRouted && !pNextRGrid->isObstacle )
+				{
+				//pNextRGrid->isRouted = true;
+				layer_C* pLayer = vLayer[ nZ + nDZ - m_nOffsetZ ];
+				pNextRGrid->m_nG = nNewDistance;  	
+				int nSumH = 0;
+				//for( int t=0; t<vTerminal.size(); t++ )
+				//	nSumH = nSumH + nEularDistance( vTerminal[t], pNextGrid, pLayer );
+				nSumH = nEularDistance( vTerminal, pNextGrid, pLayer );
+				pNextRGrid->m_nH = nSumH;
+				pNextRGrid->m_nCost = pNextRGrid->m_nG + nSumH;
+				pNextRGrid->m_pFrom = pCurRGrid;
+				bool bInsert = false;
+				for( int j=0; j<vHistory.size(); j++ )
+				{
+					if( pNextRGrid->m_nCost < vHistory[j]->m_nCost )
+					{
+						vHistory.insert( vHistory.begin() + j, pNextRGrid );
+						bInsert = true;
+						break;
+					}
+				}
+				if( !bInsert )
+				{
+					vHistory.push_back( pNextRGrid );
+				}
+				vAddGrid.push_back( pNextRGrid );
+				}
+			}
+			//cout<<"test"<<endl;
+			pNextGrid = graphTravel( m_pDesign, pGGrid, -nDX, -nDY, -nDZ );
+			if( pNextGrid != NULL && pNextGrid->getRemand() > 0 )
+			{
+				rGrid_C* pNextRGrid = getRGrid( nX - nDX, nY - nDY, nZ - nDZ );
+				if( !pNextRGrid->isRouted && !pNextRGrid->isObstacle )
+				{	
+				//pNextRGrid->isRouted = true;
+				layer_C* pLayer = vLayer[ nZ + nDZ - m_nOffsetZ ];
+				pNextRGrid->m_nG = nNewDistance;  	
+				int nSumH = 0;
+				//for( int t=0; t<vTerminal.size(); t++ )
+				//	nSumH = nSumH + nEularDistance( vTerminal[t], pNextGrid, pLayer );
+				nSumH = nEularDistance( vTerminal, pNextGrid, pLayer );
+				pNextRGrid->m_nH = nSumH;
+				pNextRGrid->m_nCost = pNextRGrid->m_nG + nSumH;
+				pNextRGrid->m_pFrom = pCurRGrid;
+				bool bInsert = false;
+				for( int j=0; j<vHistory.size(); j++ )
+				{
+					if( pNextRGrid->m_nCost < vHistory[j]->m_nCost )
+					{
+						vHistory.insert( vHistory.begin() + j, pNextRGrid );
+						bInsert = true;
+						break;
+					}
+				}
+				if( !bInsert )
+				{
+					vHistory.push_back( pNextRGrid );
+				}
+				vAddGrid.push_back( pNextRGrid );
+				}
+			}
+
+			// go to different layer
+			//cout<<"different layer"<<endl;
+			pNextGrid = graphTravel( m_pDesign, pGGrid, 0, 0, 1 );
+			if( pNextGrid != NULL && pNextGrid->getRemand() > 0 )
+			{
+				rGrid_C* pNextRGrid = getRGrid( nX, nY, nZ + 1 );
+				if( !pNextRGrid->isRouted && !pNextRGrid->isObstacle )
+				{
+				//pNextRGrid->isRouted = true;
+				layer_C* pLayer = vLayer[ nZ + nDZ - m_nOffsetZ ];
+				pNextRGrid->m_nG = nNewDistance;  	
+				int nSumH = 0;
+				//for( int t=0; t<vTerminal.size(); t++ )
+				//	nSumH = nSumH + nEularDistance( vTerminal[t], pNextGrid, pLayer );
+				nSumH = nEularDistance( vTerminal, pNextGrid, pLayer );
+				pNextRGrid->m_nH = nSumH;
+				pNextRGrid->m_nCost = pNextRGrid->m_nG + nSumH;
+				pNextRGrid->m_pFrom = pCurRGrid;
+				bool bInsert = false;
+				for( int j=0; j<vHistory.size(); j++ )
+				{
+					if( pNextRGrid->m_nCost < vHistory[j]->m_nCost )
+					{
+						vHistory.insert( vHistory.begin() + j, pNextRGrid );
+						bInsert = true;
+						break;
+					}
+				}
+				if( !bInsert )
+				{
+					vHistory.push_back( pNextRGrid );
+				}
+				vAddGrid.push_back( pNextRGrid );
+				}
+			}
+		
+			if( nZ - 1 >= nLConstraint )
+			{
+				pNextGrid = graphTravel( m_pDesign, pGGrid, 0, 0, -1 );
+				if( pNextGrid != NULL && pNextGrid->getRemand() > 0 )
+				{
+					rGrid_C* pNextRGrid = getRGrid( nX, nY, nZ - 1 );
+					if( !pNextRGrid->isRouted && !pNextRGrid->isObstacle )
+					{
+					//pNextRGrid->isRouted = true;
+					layer_C* pLayer = vLayer[ nZ + nDZ - m_nOffsetZ ];
+					pNextRGrid->m_nG = nNewDistance;  	
+					int nSumH = 0;
+					//for( int t=0; t<vTerminal.size(); t++ )
+					//	nSumH = nSumH + nEularDistance( vTerminal[t], pNextGrid, pLayer );
+					nSumH = nEularDistance( vTerminal, pNextGrid, pLayer );
+					pNextRGrid->m_nH = nSumH;
+					pNextRGrid->m_nCost = pNextRGrid->m_nG + nSumH;
+					pNextRGrid->m_pFrom = pCurRGrid;
+					bool bInsert = false;
+					for( int j=0; j<vHistory.size(); j++ )
+					{
+						if( pNextRGrid->m_nCost < vHistory[j]->m_nCost )
+						{
+							vHistory.insert( vHistory.begin() + j, pNextRGrid );
+							bInsert = true;
+							break;
+						}
+					}
+					if( !bInsert )
+					{
+						vHistory.push_back( pNextRGrid );
+					}
+					vAddGrid.push_back( pNextRGrid );
+					}
+				}
+			}
+	
+		}
+		//cout<<"Check target"<<endl;
+		// if there is a target in addgrid;
+		//vector< rGrid_C* > vHaveAddTarget;
+		for( int i=0; i<vAddGrid.size(); i++ )
+		{
+			if( vAddGrid[i]->isTarget )
+			{
+				bool bHaveSearch = false;
+				for( int j=0; j<vHaveAddTarget.size(); j++ )
+				{
+					if( vHaveAddTarget[j] == vAddGrid[i] )
+					{
+						bHaveSearch = true;
+						break;
+					}
+				}
+				if( bHaveSearch )
+					continue;
+
+				vHaveAddTarget.push_back( vAddGrid[i] );
+				//cout<<"Back trace"<<endl;
+				// find the path
+				vector< gGrid_C* > vReversePath;
+				
+				int nPath = vAddGrid[i]->m_nG;
+				rGrid_C* pRPath = vAddGrid[i];
+				pRPath->isPath = true;
+				rGrid_C* pPreGrid = vAddGrid[i]->m_pFrom;
+				gGrid_C* pPathGrid = getGrid( m_pDesign, pRPath->m_nX, pRPath->m_nY, pRPath->m_nZ );
+				//vResult.push_back( pPathGrid );
+				vReversePath.push_back( pPathGrid );
+				while( !pPreGrid->isPath )
+				{
+					pRPath = pPreGrid;
+					pRPath->isPath = true;
+					pPathGrid = getGrid( m_pDesign, pRPath->m_nX, pRPath->m_nY, pRPath->m_nZ );
+					//vResult.push_back( pPathGrid );
+					vReversePath.push_back( pPathGrid );
+					pPreGrid = pRPath->m_pFrom;
+				}
+
+				pPathGrid = getGrid( m_pDesign, pPreGrid->m_nX, pPreGrid->m_nY, pPreGrid->m_nZ );
+				//vResult.push_back( pPathGrid );
+				vReversePath.push_back( pPathGrid );
+				for( int g=vReversePath.size()-1; g>=0; g-- )
+				{
+					vResult.push_back( vReversePath[g] );
+				}
+
+				// find the terminal and remove
+				for( int t=0; t<vTerminal.size(); t++ )
+				{
+					int nX, nY, nZ;
+					vTerminal[t]->getPosition( nX, nY, nZ );
+					if( vAddGrid[i]->m_nX == nX &&  vAddGrid[i]->m_nY == nY && vAddGrid[i]->m_nZ == nZ )
+					{
+						vTerminal.erase( vTerminal.begin() + t );
+						nNumTermanals--;
+						break;
+					}
+				}
+				// update the nG in all the searched node ( without path )
+				for( int h=0; h<vHistory.size(); h++ )
+				{
+					rGrid_C* pTmpGrid = vHistory[h];
+					if( !pTmpGrid->isPath )
+						calDistanceFromPath( pTmpGrid, nPath );	
+				}
+				
+				// update the nH in all the node in queue
+				for( int h=0; h<vHistory.size(); h++ )
+				{
+					rGrid_C* pTmpGrid = vHistory[h];
+					if( !pTmpGrid->isRouted )
+					{
+						int nH = 0;
+						gGrid_C* pTmpGGrid = getGrid( m_pDesign, pTmpGrid->m_nX, pTmpGrid->m_nY, pTmpGrid->m_nZ );
+						int nX, nY, nZ;
+						pTmpGGrid->getPosition( nX, nY, nZ );
+						layer_C* pLayer = vLayer[ nZ - m_nOffsetZ ];
+						//for( int t=0; t<vTerminal.size(); t++ )
+						//{
+						//	nH = nH + nEularDistance( vTerminal[t], pTmpGGrid, pLayer );
+						//}
+						nH = nEularDistance( vTerminal, pTmpGGrid, pLayer );
+						pTmpGrid->m_nH = nH;
+						pTmpGrid->m_nCost = nH + pTmpGrid->m_nG;
+					}	
+				}
+				//cout<<endl;
+			}
+		}
+	}
+
+	for( int i=0; i<vObs.size(); i++ )
+	{
+		int nX, nY, nZ; 
+		gGrid_C* pGrid = vObs[i];
+		pGrid->getPosition( nX, nY, nZ );
+		rGrid_C* pRGrid = getRGrid( nX, nY, nZ );
+		pRGrid->isObstacle = false;
+	}
+
+	for( int i=0; i<vHistory.size(); i++ )
+	{
+		rGrid_C* pRGrid = vHistory[i];
+		pRGrid->m_nH = 0;
+		pRGrid->m_nG = 0;
+		pRGrid->m_nCost = 0;
+		pRGrid->m_nBend = 0;
+		pRGrid->m_pFrom = NULL;
+		pRGrid->isRouted = false;
+		pRGrid->isPath = false;
+		pRGrid->isTarget = false;
+	}
+
+	for( int i=0; i<vResult.size(); i++ )
+	{
+		int nX, nY, nZ;
+		gGrid_C* pTmpGrid = vResult[i];
+		pTmpGrid->getPosition( nX, nY, nZ );
+		rGrid_C* pRGrid = getRGrid( nX, nY, nZ );
+		pRGrid->m_nH = 0;
+		pRGrid->m_nG = 0;
+		pRGrid->m_nCost = 0;
+		pRGrid->m_nBend = 0;
+		pRGrid->m_pFrom = NULL;
+		pRGrid->isRouted = false;
+		pRGrid->isPath = false;
+		pRGrid->isTarget = false;
+	}
+
+	if( nNumTermanals != 0 )
+		vResult.clear();
+	
+	return vResult;
+}
+
+vector< gGrid_C* > router_C::routeNet_ver2( net_C* pNet )
+{
+	setRoutingConstraint( pNet );
+	int nLConstraint = m_nConstraintLayerId;
+	//cout<<nLConstraint<<endl;
+
+	vector< gGrid_C* > vTerminal;
+	vector< pin_C* > vPin = pNet->getPin();
+	//vector< wire_C* > vWire;
+	vector< gGrid_C* > vResult;
+	for( int i=0; i<vPin.size(); i++ )
+	{
+		pin_C* pPin = vPin[i];
+		int nX, nY, nZ;
+		instance_C* pInst = (instance_C*)pPin->getCell();
+		nX = pInst->getPlacedX();
+		nY = pInst->getPlacedY();
+		// project the z to the constraint layer
+		nZ = pPin->getLayerId();
+		if( nZ < nLConstraint )
+		{
+			for( int l = nZ; l<=nLConstraint; l++ )
+			{
+				gGrid_C* pGrid = getGrid( m_pDesign, nX, nY, l );
+				vResult.push_back( pGrid );
+			}
+			nZ = nLConstraint;
+		}
+
+		gGrid_C* pTerminal = getGrid( m_pDesign, nX, nY, nZ );
+		rGrid_C* pRGrid = getRGrid( nX, nY, nZ );
+		pRGrid->isTarget = true;
+		vTerminal.push_back( pTerminal );
+	}
+
+	// check same position of terminal 
+	//cout<<"Check terminal"<<endl;
+	for( int i=0; i<vTerminal.size(); i++ )
+	{
+		for( int j=i+1; j<vTerminal.size(); j++ )
+		{
+			if( vTerminal[i] == vTerminal[j] )
+			{
+				vTerminal.erase( vTerminal.begin() + j );
+				j--;
+			}
+		}
+	}
+	//cout<<"Num of terminals: "<<vTerminal.size()<<endl;
+	if( vTerminal.size() == 1 )
+	{
+		if( vTerminal[0]->getRemand() <= 0 )
+		{
+			
+			int nX, nY, nZ;
+			vTerminal[0]->getPosition( nX, nY, nZ );
+			rGrid_C* pRGrid = getRGrid( nX, nY, nZ );
+			pRGrid->isTarget = false;	
+			return vResult;
+		}
+		int nX, nY, nZ;
+		vTerminal[0]->getPosition( nX, nY, nZ );
+		rGrid_C* pRGrid = getRGrid( nX, nY, nZ );
+		pRGrid->isTarget = false;	
+		
+		vResult.push_back( vTerminal[0] );
+		return vResult;
+	}
+	else 
+	{
+		bool bFindOverflow = false;
+		for( int i=0; i<vTerminal.size(); i++ )
+		{
+			if( vTerminal[i]->getRemand() <= 0 )
+			{
+				bFindOverflow = true;
+				break;
+			}
+		}
+	
+		if( bFindOverflow )
+		{
+			for( int i=0; i<vTerminal.size(); i++ )
+			{
+				int nX, nY, nZ;
+				vTerminal[i]->getPosition( nX, nY, nZ );
+				rGrid_C* pRGrid = getRGrid( nX, nY, nZ );
+				pRGrid->isTarget = false;	
+			}
+			if( vResult.size() != 0 )
+				vResult.clear();
+
+			return vResult;
+		}
+	}
+	
+	vector< rGrid_C* > vRoutedGrid;
+	//vector< rGrid_C* > vPriorityQueue;
+	vector< rGrid_C* > vHistory;
+	vector< rGrid_C* > vNotInPath;
+	// find first terminal
+	gGrid_C* pFirst = NULL;
+// change to terminal set, and simultaneous multi-terminal routing
+/*
+	rGrid_C* pCurRGrid = NULL;
+	gGrid_C* pGGrid = NULL;
+	vector< vector< gGrid_C* > > vTerminalSet;
+	for( int i=0; i<vTerminal.size(); i++ )
+	{
+		gGrid_C* pGrid = vTerminal[i];
+		vector< gGrid_C* > vTmpTerminal;
+		vTmpTerminal.push_back( pGrid );
+		vTerminalSet.push_back( vTmpTerminal );
+	}
+
+	for( int i=0; i<vTerminalSet.size(); i++ )
+	{
+		pGGrid = vTerminalSet[i][0];
+		int nX, nY, nZ;
+		pGGrid->getPosition( nX, nY, nZ );
+		pCurRGrid = getRGrid( nX, nY, nZ );
+		pCurRGrid->isPath = true;
+		vHistory.push_back( pCurRGrid );
+	}
+
+	int nNumTerminalSet = vTerminalSet.size();
+	vector< layer_C* > vLayer = m_pDesign->getLayer();
+	while( nNumTerminalSet > 1 )
+	{
+		if( vHistory.size() == 0 )
+		{
+			vResult.clear();
+			break;
+		}
+		vector< rGrid_C* > vToPropogate;
+		int nMinCost = 0;
+		bool bPick = false;
+		for( int i=0; i<vHistory.size(); i++ )
+		{
+			if( !vHistory[i]->isRouted )	
+			{
+				nMinCost = vHistory[i]->m_nCost;
+				bPick = true;
+				break;
+			}
+		}
+		if( !bPick )
+		{
+			vResult.clear();
+			//cout<<"Can't find result"<<endl;
+			break;
+		}
+		
+		for( int i=0; i<vHistory.size(); i++ )
+		{
+			if( !vHistory[i]->isRouted )	
+			{
+				if( vHistory[i]->m_nCost == nMinCost )
+				{
+					vToPropogate.push_back( vHistory[i] );
+				}
+				//else
+				//	break;
+			}
+		}
+		
+		for( int i=0; i<vToPropogate.size(); i++ )
+		{
+			pCurRGrid = vToPropogate[i];
+			pCurRGrid->isRouted = true;
+			int nCurDistance = pCurRGrid->m_nG;
+			int nNewDistance = nCurDistance + 1;
+			int nX, nY, nZ;
+			nX = pCurRGrid->m_nX;
+			nY = pCurRGrid->m_nY;
+			nZ = pCurRGrid->m_nZ;
+			//cout<<"P: "<<nX<<" "<<nY<<" "<<nZ<<endl;
+			pGGrid = getGrid( m_pDesign, nX, nY, nZ );
+			char cDir = vLayer[ nZ - m_nOffsetZ ]->getDir();
+			//cout<<cDir<<endl;
+			int nDX, nDY, nDZ;
+			if( cDir == 'H' )
+			{
+				nDX = 0; nDY = 1; nDZ = 0;
+			}
+			else if( cDir == 'V')
+			{
+				nDX = 1; nDY = 0; nDZ = 0;
+			}
+			else
+				cout<<"Unknown routing direction"<<endl;
+			// go in the same layer;
+			gGrid_C* pNextGrid = graphTravel( m_pDesign, pGGrid, nDX, nDY, nDZ );
+			if( pNextGrid != NULL && pNextGrid->getRemand() > 0 )
+			{
+				rGrid_C* pNextRGrid = getRGrid( nX + nDX, nY + nDY, nZ + nDZ );
+				if( !pNextRGrid->isRouted )
+				{
+					//pNextRGrid->isRouted = true;
+					layer_C* pLayer = vLayer[ nZ + nDZ - m_nOffsetZ ];
+					pNextRGrid->m_nG = nNewDistance;  	
+					int nSumH = 0;
+					//for( int t=0; t<vTerminal.size(); t++ )
+					//	nSumH = nSumH + nEularDistance( vTerminal[t], pNextGrid, pLayer );
+					//nSumH = nEularDistance( vTerminal, pNextGrid, pLayer );
+					//pNextRGrid->m_nH = nSumH;
+					nSumH = nEularDistance_FaS( vTerminal, pNextGrid, pLayer, pNextRGrid );
+					pNextRGrid->m_nCost = pNextRGrid->m_nG + nSumH;
+					pNextRGrid->m_pFrom = pCurRGrid;
+					bool bInsert = false;
+					for( int j=0; j<vHistory.size(); j++ )
+					{
+						if( pNextRGrid->m_nCost < vHistory[j]->m_nCost )
+						{
+							vHistory.insert( vHistory.begin() + j, pNextRGrid );
+							bInsert = true;
+							break;
+						}
+					}
+					if( !bInsert )
+					{
+						vHistory.push_back( pNextRGrid );
+					}
+					vAddGrid.push_back( pNextRGrid );
+				}
+			}
+			//cout<<"test"<<endl;
+			pNextGrid = graphTravel( m_pDesign, pGGrid, -nDX, -nDY, -nDZ );
+			if( pNextGrid != NULL && pNextGrid->getRemand() > 0 )
+			{
+				rGrid_C* pNextRGrid = getRGrid( nX - nDX, nY - nDY, nZ - nDZ );
+				if( !pNextRGrid->isRouted )
+				{	
+					//pNextRGrid->isRouted = true;
+					layer_C* pLayer = vLayer[ nZ + nDZ - m_nOffsetZ ];
+					pNextRGrid->m_nG = nNewDistance;  	
+					int nSumH = 0;
+					//for( int t=0; t<vTerminal.size(); t++ )
+					//	nSumH = nSumH + nEularDistance( vTerminal[t], pNextGrid, pLayer );
+					//nSumH = nEularDistance( vTerminal, pNextGrid, pLayer );
+					//pNextRGrid->m_nH = nSumH;
+					nSumH = nEularDistance_FaS( vTerminal, pNextGrid, pLayer, pNextRGrid );
+					pNextRGrid->m_nCost = pNextRGrid->m_nG + nSumH;
+					pNextRGrid->m_pFrom = pCurRGrid;
+					bool bInsert = false;
+					for( int j=0; j<vHistory.size(); j++ )
+					{
+						if( pNextRGrid->m_nCost < vHistory[j]->m_nCost )
+						{
+							vHistory.insert( vHistory.begin() + j, pNextRGrid );
+							bInsert = true;
+							break;
+						}
+					}
+					if( !bInsert )
+					{
+						vHistory.push_back( pNextRGrid );
+					}
+					vAddGrid.push_back( pNextRGrid );
+				}
+			}
+
+			// go to different layer
+			//cout<<"different layer"<<endl;
+			pNextGrid = graphTravel( m_pDesign, pGGrid, 0, 0, 1 );
+			if( pNextGrid != NULL && pNextGrid->getRemand() > 0 )
+			{
+				rGrid_C* pNextRGrid = getRGrid( nX, nY, nZ + 1 );
+				if( !pNextRGrid->isRouted )
+				{
+					//pNextRGrid->isRouted = true;
+					layer_C* pLayer = vLayer[ nZ + nDZ - m_nOffsetZ ];
+					pNextRGrid->m_nG = nNewDistance;  	
+					int nSumH = 0;
+					//for( int t=0; t<vTerminal.size(); t++ )
+					//	nSumH = nSumH + nEularDistance( vTerminal[t], pNextGrid, pLayer );
+					//nSumH = nEularDistance( vTerminal, pNextGrid, pLayer );
+					//pNextRGrid->m_nH = nSumH;
+					nSumH = nEularDistance_FaS( vTerminal, pNextGrid, pLayer, pNextRGrid );
+					pNextRGrid->m_nCost = pNextRGrid->m_nG + nSumH;
+					pNextRGrid->m_pFrom = pCurRGrid;
+					bool bInsert = false;
+					for( int j=0; j<vHistory.size(); j++ )
+					{
+						if( pNextRGrid->m_nCost < vHistory[j]->m_nCost )
+						{
+							vHistory.insert( vHistory.begin() + j, pNextRGrid );
+							bInsert = true;
+							break;
+						}
+					}
+					if( !bInsert )
+					{
+						vHistory.push_back( pNextRGrid );
+					}
+					vAddGrid.push_back( pNextRGrid );
+				}
+			}
+		
+			if( nZ - 1 >= nLConstraint )
+			{
+				pNextGrid = graphTravel( m_pDesign, pGGrid, 0, 0, -1 );
+				if( pNextGrid != NULL && pNextGrid->getRemand() > 0 )
+				{
+					rGrid_C* pNextRGrid = getRGrid( nX, nY, nZ - 1 );
+					if( !pNextRGrid->isRouted )
+					{
+						//pNextRGrid->isRouted = true;
+						layer_C* pLayer = vLayer[ nZ + nDZ - m_nOffsetZ ];
+						pNextRGrid->m_nG = nNewDistance;  	
+						int nSumH = 0;
+						//for( int t=0; t<vTerminal.size(); t++ )
+						//	nSumH = nSumH + nEularDistance( vTerminal[t], pNextGrid, pLayer );
+						//nSumH = nEularDistance( vTerminal, pNextGrid, pLayer );
+						//pNextRGrid->m_nH = nSumH;
+						nSumH = nEularDistance_FaS( vTerminal, pNextGrid, pLayer, pNextRGrid );
+						pNextRGrid->m_nCost = pNextRGrid->m_nG + nSumH;
+						pNextRGrid->m_pFrom = pCurRGrid;
+						bool bInsert = false;
+						for( int j=0; j<vHistory.size(); j++ )
+						{
+							if( pNextRGrid->m_nCost < vHistory[j]->m_nCost )
+							{
+								vHistory.insert( vHistory.begin() + j, pNextRGrid );
+								bInsert = true;
+								break;
+							}
+						}
+						if( !bInsert )
+						{
+							vHistory.push_back( pNextRGrid );
+						}
+						vAddGrid.push_back( pNextRGrid );
+					}
+				}
+			}	
+		}
+		
+		vector< rGrid_C* > vHaveAddTarget;
+		for( int i=0; i<vAddGrid.size(); i++ )
+		{
+			if( vAddGrid[i]->isTarget )
+			{
+				bool bHaveSearch = false;
+				for( int j=0; j<vHaveAddTarget.size(); j++ )
+				{
+					if( vHaveAddTarget[j] == vAddGrid[i] )
+					{
+						bHaveSearch = true;
+						break;
+					}
+				}
+				if( bHaveSearch )
+					continue;
+
+				vHaveAddTarget.push_back( vAddGrid[i] );
+				//cout<<"Back trace"<<endl;
+				// find the path
+				vector< gGrid_C* > vReversePath;
+				
+				int nPath = vAddGrid[i]->m_nG;
+				rGrid_C* pRPath = vAddGrid[i];
+				pRPath->isPath = true;
+				gGrid_C* pPathGrid = getGrid( m_pDesign, pRPath->m_nX, pRPath->m_nY, pRPath->m_nZ );
+				rGrid_C* pPreGrid = pRPath->m_pFrom;
+				//gGrid_C* pPathGrid = getGrid( m_pDesign, pRPath->m_nX, pRPath->m_nY, pRPath->m_nZ );
+				//vResult.push_back( pPathGrid );
+				vReversePath.push_back( pPathGrid );
+				while( !pPreGrid->isPath )
+				{
+					pRPath = pPreGrid;
+					pRPath->isPath = true;
+					pPathGrid = getGrid( m_pDesign, pRPath->m_nX, pRPath->m_nY, pRPath->m_nZ );
+					//vResult.push_back( pPathGrid );
+					vReversePath.push_back( pPathGrid );
+					pPreGrid = pRPath->m_pFrom;
+				}
+				
+				// added at 07/04 20:30
+				//nPath = pPreGrid->m_nG + nAddPath;
+				// end added at 07/04 20:30
+				
+
+				pPathGrid = getGrid( m_pDesign, pPreGrid->m_nX, pPreGrid->m_nY, pPreGrid->m_nZ );
+				//vResult.push_back( pPathGrid );
+				vReversePath.push_back( pPathGrid );
+				for( int g=vReversePath.size()-1; g>=0; g-- )
+				{
+					vResult.push_back( vReversePath[g] );
+				}
+
+				// find the terminal and remove
+				for( int t=0; t<vTerminal.size(); t++ )
+				{
+					int nX, nY, nZ;
+					vTerminal[t]->getPosition( nX, nY, nZ );
+					if( vAddGrid[i]->m_nX == nX &&  vAddGrid[i]->m_nY == nY && vAddGrid[i]->m_nZ == nZ )
+					{
+						vTerminal.erase( vTerminal.begin() + t );
+						nNumTermanals--;
+						break;
+					}
+				}
+				// update the nG in all the searched node ( without path )
+				for( int h=0; h<vHistory.size(); h++ )
+				{
+					rGrid_C* pTmpGrid = vHistory[h];
+					if( !pTmpGrid->isPath )
+						calDistanceFromPath( pTmpGrid, nPath );	
+				}
+				
+				// update the nH in all the node in queue
+				for( int h=0; h<vHistory.size(); h++ )
+				{
+					rGrid_C* pTmpGrid = vHistory[h];
+					if( !pTmpGrid->isRouted )
+					{
+						int nH = 0;
+						gGrid_C* pTmpGGrid = getGrid( m_pDesign, pTmpGrid->m_nX, pTmpGrid->m_nY, pTmpGrid->m_nZ );
+						int nX, nY, nZ;
+						pTmpGGrid->getPosition( nX, nY, nZ );
+						layer_C* pLayer = vLayer[ nZ - m_nOffsetZ ];
+						//for( int t=0; t<vTerminal.size(); t++ )
+						//{
+						//	nH = nH + nEularDistance( vTerminal[t], pTmpGGrid, pLayer );
+						//}
+						nH = nEularDistance( vTerminal, pTmpGGrid, pLayer );
+						pTmpGrid->m_nH = nH;
+						pTmpGrid->m_nCost = nH + pTmpGrid->m_nG;
+					}	
+				}
+				//cout<<endl;
+			}
+		}
+
+	}
+*/
+// end change 
+	
+	int nMinX = m_nTX;
+	for( int i=0; i<vTerminal.size(); i++ )
+	{
+		gGrid_C* pGrid = vTerminal[i];	
+		int nX, nY, nZ;
+		pGrid->getPosition( nX, nY, nZ );
+		if( nX <= nMinX )
+			nMinX = nX;
+	}
+
+	int nMinY = m_nTY;
+	for( int i=0; i<vTerminal.size(); i++ )
+	{
+		gGrid_C* pGrid = vTerminal[i];	
+		int nX, nY, nZ;
+		pGrid->getPosition( nX, nY, nZ );
+		if( nX == nMinX && nY <= nMinY )
+		{
+			nMinY = nY;
+			pFirst = vTerminal[i];	
+		}
+	}
+	
+	//
+	//pFirst = vTerminal[0];
+
+	//cout<<"Here"<<endl;
+	int nX, nY, nZ;
+	pFirst->getPosition( nX, nY, nZ );
+	rGrid_C* pCurRGrid = getRGrid( nX, nY, nZ );
+	gGrid_C* pGGrid = pFirst;
+	if( pGGrid->getRemand() <= 0 )
+	{
+		pCurRGrid->isTarget = false;
+		vResult.clear();
+		return vResult;
+	}
+
+	vHistory.push_back( pCurRGrid );
+	pCurRGrid->isPath = true;
+	for( int i=0; i<vTerminal.size(); i++ )
+	{
+		if( vTerminal[i] == pGGrid )
+		{
+			vTerminal.erase( vTerminal.begin() + i );
+			break;
+		}
+	}
+	int nNumTermanals = vTerminal.size();
+	//nNumTermanals--; // because the first grid is a termianl
+	vector< layer_C* > vLayer = m_pDesign->getLayer();
+	//cout<<"Start routing"<<endl;
+	while( nNumTermanals > 0 )
+	{
+		//cout<<nNumTermanals<<endl;
+		//cout<<pCurRGrid->m_nX<<" "<<pCurRGrid->m_nY<<" "<<pCurRGrid->m_nZ<<endl;
+		// A* propogation
+		if( vHistory.size() == 0 )
+		{
+			vResult.clear();
+			break;
+		}
+
+		vector< rGrid_C* > vToPropogate;
+		int nMinCost = 0;
+		bool bPick = false;
+		for( int i=0; i<vHistory.size(); i++ )
+		{
+			if( !vHistory[i]->isRouted )	
+			{
+				nMinCost = vHistory[i]->m_nCost;
+				bPick = true;
+				break;
+			}
+		}
+		if( !bPick )
+		{
+			vResult.clear();
+			//cout<<"Can't find result"<<endl;
+			break;
+		}
+		/*
+		cout<<nMinCost<<" "<<vHistory.size()<<endl;
+		for( int i=0; i<vHistory.size(); i++ )
+		{
+			if( !vHistory[i]->isRouted )	
+			{
+				cout << vHistory[i]->m_nCost <<" ";
+			}
+		}
+		//cout<<endl;
+		*/
+		for( int i=0; i<vHistory.size(); i++ )
+		{
+			if( !vHistory[i]->isRouted )	
+			{
+				if( vHistory[i]->m_nCost == nMinCost )
+				{
+					vToPropogate.push_back( vHistory[i] );
+				}
+				else
+					break;
+			}
+		}
+	
+		vector< rGrid_C* > vAddGrid;
+
+		for( int i=0; i<vToPropogate.size(); i++ )
+		{
+			pCurRGrid = vToPropogate[i];
+			pCurRGrid->isRouted = true;
+			int nCurDistance = pCurRGrid->m_nG;
+			int nNewDistance = nCurDistance + 1;
+			int nX, nY, nZ;
+			nX = pCurRGrid->m_nX;
+			nY = pCurRGrid->m_nY;
+			nZ = pCurRGrid->m_nZ;
+			//cout<<"P: "<<nX<<" "<<nY<<" "<<nZ<<endl;
+			pGGrid = getGrid( m_pDesign, nX, nY, nZ );
+			char cDir = vLayer[ nZ - m_nOffsetZ ]->getDir();
+			//cout<<cDir<<endl;
+			int nDX, nDY, nDZ;
+			if( cDir == 'H' )
+			{
+				nDX = 0; nDY = 1; nDZ = 0;
+			}
+			else if( cDir == 'V')
+			{
+				nDX = 1; nDY = 0; nDZ = 0;
+			}
+			else
+				cout<<"Unknown routing direction"<<endl;
+			// go in the same layer;
+			gGrid_C* pNextGrid = graphTravel( m_pDesign, pGGrid, nDX, nDY, nDZ );
+			if( pNextGrid != NULL && pNextGrid->getRemand() > 0 )
+			{
+				rGrid_C* pNextRGrid = getRGrid( nX + nDX, nY + nDY, nZ + nDZ );
+				if( !pNextRGrid->isRouted )
+				{
+				//pNextRGrid->isRouted = true;
+				layer_C* pLayer = vLayer[ nZ + nDZ - m_nOffsetZ ];
+				pNextRGrid->m_nG = nNewDistance;  	
+				int nSumH = 0;
+				//for( int t=0; t<vTerminal.size(); t++ )
+				//	nSumH = nSumH + nEularDistance( vTerminal[t], pNextGrid, pLayer );
+				nSumH = nEularDistance( vTerminal, pNextGrid, pLayer );
+				pNextRGrid->m_nH = nSumH;
+				pNextRGrid->m_nCost = pNextRGrid->m_nG + nSumH;
+				pNextRGrid->m_pFrom = pCurRGrid;
+				bool bInsert = false;
+				for( int j=0; j<vHistory.size(); j++ )
+				{
+					if( pNextRGrid->m_nCost < vHistory[j]->m_nCost )
+					{
+						vHistory.insert( vHistory.begin() + j, pNextRGrid );
+						bInsert = true;
+						break;
+					}
+				}
+				if( !bInsert )
+				{
+					vHistory.push_back( pNextRGrid );
+				}
+				vAddGrid.push_back( pNextRGrid );
+				}
+			}
+			//cout<<"test"<<endl;
+			pNextGrid = graphTravel( m_pDesign, pGGrid, -nDX, -nDY, -nDZ );
+			if( pNextGrid != NULL && pNextGrid->getRemand() > 0 )
+			{
+				rGrid_C* pNextRGrid = getRGrid( nX - nDX, nY - nDY, nZ - nDZ );
+				if( !pNextRGrid->isRouted )
+				{	
+				//pNextRGrid->isRouted = true;
+				layer_C* pLayer = vLayer[ nZ + nDZ - m_nOffsetZ ];
+				pNextRGrid->m_nG = nNewDistance;  	
+				int nSumH = 0;
+				//for( int t=0; t<vTerminal.size(); t++ )
+				//	nSumH = nSumH + nEularDistance( vTerminal[t], pNextGrid, pLayer );
+				nSumH = nEularDistance( vTerminal, pNextGrid, pLayer );
+				pNextRGrid->m_nH = nSumH;
+				pNextRGrid->m_nCost = pNextRGrid->m_nG + nSumH;
+				pNextRGrid->m_pFrom = pCurRGrid;
+				bool bInsert = false;
+				for( int j=0; j<vHistory.size(); j++ )
+				{
+					if( pNextRGrid->m_nCost < vHistory[j]->m_nCost )
+					{
+						vHistory.insert( vHistory.begin() + j, pNextRGrid );
+						bInsert = true;
+						break;
+					}
+				}
+				if( !bInsert )
+				{
+					vHistory.push_back( pNextRGrid );
+				}
+				vAddGrid.push_back( pNextRGrid );
+				}
+			}
+
+			// go to different layer
+			//cout<<"different layer"<<endl;
+			pNextGrid = graphTravel( m_pDesign, pGGrid, 0, 0, 1 );
+			if( pNextGrid != NULL && pNextGrid->getRemand() > 0 )
+			{
+				rGrid_C* pNextRGrid = getRGrid( nX, nY, nZ + 1 );
+				if( !pNextRGrid->isRouted )
+				{
+				//pNextRGrid->isRouted = true;
+				layer_C* pLayer = vLayer[ nZ + nDZ - m_nOffsetZ ];
+				pNextRGrid->m_nG = nNewDistance;  	
+				int nSumH = 0;
+				//for( int t=0; t<vTerminal.size(); t++ )
+				//	nSumH = nSumH + nEularDistance( vTerminal[t], pNextGrid, pLayer );
+				nSumH = nEularDistance( vTerminal, pNextGrid, pLayer );
+				pNextRGrid->m_nH = nSumH;
+				pNextRGrid->m_nCost = pNextRGrid->m_nG + nSumH;
+				pNextRGrid->m_pFrom = pCurRGrid;
+				bool bInsert = false;
+				for( int j=0; j<vHistory.size(); j++ )
+				{
+					if( pNextRGrid->m_nCost < vHistory[j]->m_nCost )
+					{
+						vHistory.insert( vHistory.begin() + j, pNextRGrid );
+						bInsert = true;
+						break;
+					}
+				}
+				if( !bInsert )
+				{
+					vHistory.push_back( pNextRGrid );
+				}
+				vAddGrid.push_back( pNextRGrid );
+				}
+			}
+		
+			if( nZ - 1 >= nLConstraint )
+			{
+				pNextGrid = graphTravel( m_pDesign, pGGrid, 0, 0, -1 );
+				if( pNextGrid != NULL && pNextGrid->getRemand() > 0 )
+				{
+					rGrid_C* pNextRGrid = getRGrid( nX, nY, nZ - 1 );
+					if( !pNextRGrid->isRouted )
+					{
+					//pNextRGrid->isRouted = true;
+					layer_C* pLayer = vLayer[ nZ + nDZ - m_nOffsetZ ];
+					pNextRGrid->m_nG = nNewDistance;  	
+					int nSumH = 0;
+					//for( int t=0; t<vTerminal.size(); t++ )
+					//	nSumH = nSumH + nEularDistance( vTerminal[t], pNextGrid, pLayer );
+					nSumH = nEularDistance( vTerminal, pNextGrid, pLayer );
+					pNextRGrid->m_nH = nSumH;
+					pNextRGrid->m_nCost = pNextRGrid->m_nG + nSumH;
+					pNextRGrid->m_pFrom = pCurRGrid;
+					bool bInsert = false;
+					for( int j=0; j<vHistory.size(); j++ )
+					{
+						if( pNextRGrid->m_nCost < vHistory[j]->m_nCost )
+						{
+							vHistory.insert( vHistory.begin() + j, pNextRGrid );
+							bInsert = true;
+							break;
+						}
+					}
+					if( !bInsert )
+					{
+						vHistory.push_back( pNextRGrid );
+					}
+					vAddGrid.push_back( pNextRGrid );
+					}
+				}
+			}
+	
+		}
+		//cout<<"Check target"<<endl;
+		// if there is a target in addgrid;
+		vector< rGrid_C* > vHaveAddTarget;
+		for( int i=0; i<vAddGrid.size(); i++ )
+		{
+			if( vAddGrid[i]->isTarget )
+			{
+				bool bHaveSearch = false;
+				for( int j=0; j<vHaveAddTarget.size(); j++ )
+				{
+					if( vHaveAddTarget[j] == vAddGrid[i] )
+					{
+						bHaveSearch = true;
+						break;
+					}
+				}
+				if( bHaveSearch )
+					continue;
+
+				vHaveAddTarget.push_back( vAddGrid[i] );
+				//cout<<"Back trace"<<endl;
+				// find the path
+				vector< gGrid_C* > vReversePath;
+				
+				int nPath = vAddGrid[i]->m_nG;
+				rGrid_C* pRPath = vAddGrid[i];
+				pRPath->isPath = true;
+				gGrid_C* pPathGrid = getGrid( m_pDesign, pRPath->m_nX, pRPath->m_nY, pRPath->m_nZ );
+				rGrid_C* pPreGrid = pRPath->m_pFrom;
+				/*
+				//  added at 07/20 20:30
+				layer_C* pTmpLayer = m_pDesign->getLayer()[ pRPath->m_nZ - m_nOffsetZ ];
+				int nPDX;
+				int nPDY;
+				if( pTmpLayer->getDir() == 'H' )
+				{
+					nPDX = 0; nPDY = 1;
+				}
+				else
+				{
+					nPDX = 1; nPDY = 0;
+				}
+				
+				rGrid_C* pRGrid1 = getRGrid( pRPath->m_nX + nPDX, pRPath->m_nY + nPDY, pRPath->m_nZ );
+				rGrid_C* pRGrid2 = getRGrid( pRPath->m_nX - nPDX, pRPath->m_nY - nPDY, pRPath->m_nZ );	
+				rGrid_C* pRGrid3 = getRGrid( pRPath->m_nX, pRPath->m_nY, pRPath->m_nZ + 1 );
+				rGrid_C* pRGrid4 = getRGrid( pRPath->m_nX, pRPath->m_nY, pRPath->m_nZ - 1 );
+				vector< rGrid_C* > vTmpRGrid;
+				//for( int rg=0; rg<4; rg++ )
+				//{
+					if( pRGrid1 != NULL && pRGrid1->isRouted )
+						vTmpRGrid.push_back( pRGrid1 );
+					if( pRGrid2 != NULL && pRGrid2->isRouted )
+						vTmpRGrid.push_back( pRGrid2 );
+					if( pRGrid3 != NULL && pRGrid3->isRouted )
+						vTmpRGrid.push_back( pRGrid3 );
+					if( pRGrid4 != NULL && pRGrid4->isRouted )
+						vTmpRGrid.push_back( pRGrid4 );
+				//}
+				int nTmpPath = nPath;
+				rGrid_C* pMinRGrid = vAddGrid[i]->m_pFrom;
+				for( int rg=0; rg<vTmpRGrid.size(); rg++ )
+				{
+					if( nTmpPath > vTmpRGrid[ rg ]->m_nG )
+					{
+						nTmpPath = vTmpRGrid[ rg ]->m_nG;
+						pMinRGrid = vTmpRGrid[ rg ];
+					}	
+				}
+				vTmpRGrid.clear();
+				vAddGrid[i]->m_pFrom = pMinRGrid;
+				int nAddPath = 1;
+				rGrid_C* pPreGrid = vAddGrid[i]->m_pFrom;
+				//end added at 07/04 20:30
+				*/	
+				//gGrid_C* pPathGrid = getGrid( m_pDesign, pRPath->m_nX, pRPath->m_nY, pRPath->m_nZ );
+				//vResult.push_back( pPathGrid );
+				vReversePath.push_back( pPathGrid );
+				while( !pPreGrid->isPath )
+				{
+					pRPath = pPreGrid;
+					pRPath->isPath = true;
+					pPathGrid = getGrid( m_pDesign, pRPath->m_nX, pRPath->m_nY, pRPath->m_nZ );
+					//vResult.push_back( pPathGrid );
+					vReversePath.push_back( pPathGrid );
+					/*
+					// added at 07/04 20:30	
+					pTmpLayer = m_pDesign->getLayer()[ pRPath->m_nZ - m_nOffsetZ ];
+					
+					if( pTmpLayer->getDir() == 'H' )
+					{
+						nPDX = 0; nPDY = 1;
+					}
+					else
+					{
+						nPDX = 1; nPDY = 0;
+					}
+					
+					pRGrid1 = getRGrid( pRPath->m_nX + nPDX, pRPath->m_nY + nPDY, pRPath->m_nZ );
+					pRGrid2 = getRGrid( pRPath->m_nX - nPDX, pRPath->m_nY - nPDY, pRPath->m_nZ );	
+					pRGrid3 = getRGrid( pRPath->m_nX, pRPath->m_nY, pRPath->m_nZ + 1 );
+					pRGrid4 = getRGrid( pRPath->m_nX, pRPath->m_nY, pRPath->m_nZ - 1 );
+					//vector< rGrid_C* > vTmpRGrid;
+					//for( int rg=0; rg<4; rg++ )
+					//{
+						if( pRGrid1 != NULL && pRGrid1->isRouted )
+							vTmpRGrid.push_back( pRGrid1 );
+						if( pRGrid2 != NULL && pRGrid2->isRouted )
+							vTmpRGrid.push_back( pRGrid2 );
+						if( pRGrid3 != NULL && pRGrid3->isRouted )
+							vTmpRGrid.push_back( pRGrid3 );
+						if( pRGrid4 != NULL && pRGrid4->isRouted )
+							vTmpRGrid.push_back( pRGrid4 );
+					//}
+					int nTmpPath = nPath;
+					rGrid_C* pMinRGrid = pRPath->m_pFrom;
+					for( int rg=0; rg<vTmpRGrid.size(); rg++ )
+					{
+						if( nTmpPath > vTmpRGrid[ rg ]->m_nG )
+						{
+							nTmpPath = vTmpRGrid[ rg ]->m_nG;
+							pMinRGrid = vTmpRGrid[ rg ];
+						}	
+					}
+					vTmpRGrid.clear();
+					pRPath->m_pFrom = pMinRGrid;
+					nAddPath++;
+					// end added at 07/04 20:30
+					*/
+					pPreGrid = pRPath->m_pFrom;
+				}
+				/*
+				// added at 07/04 20:30
+				nPath = pPreGrid->m_nG + nAddPath;
+				// end added at 07/04 20:30
+				*/
+
+				pPathGrid = getGrid( m_pDesign, pPreGrid->m_nX, pPreGrid->m_nY, pPreGrid->m_nZ );
+				//vResult.push_back( pPathGrid );
+				vReversePath.push_back( pPathGrid );
+				for( int g=vReversePath.size()-1; g>=0; g-- )
+				{
+					vResult.push_back( vReversePath[g] );
+				}
+
+				// find the terminal and remove
+				for( int t=0; t<vTerminal.size(); t++ )
+				{
+					int nX, nY, nZ;
+					vTerminal[t]->getPosition( nX, nY, nZ );
+					if( vAddGrid[i]->m_nX == nX &&  vAddGrid[i]->m_nY == nY && vAddGrid[i]->m_nZ == nZ )
+					{
+						vTerminal.erase( vTerminal.begin() + t );
+						nNumTermanals--;
+						break;
+					}
+				}
+				// update the nG in all the searched node ( without path )
+				for( int h=0; h<vHistory.size(); h++ )
+				{
+					rGrid_C* pTmpGrid = vHistory[h];
+					if( !pTmpGrid->isPath )
+						calDistanceFromPath( pTmpGrid, nPath );	
+				}
+				
+				// update the nH in all the node in queue
+				for( int h=0; h<vHistory.size(); h++ )
+				{
+					rGrid_C* pTmpGrid = vHistory[h];
+					if( !pTmpGrid->isRouted )
+					{
+						int nH = 0;
+						gGrid_C* pTmpGGrid = getGrid( m_pDesign, pTmpGrid->m_nX, pTmpGrid->m_nY, pTmpGrid->m_nZ );
+						int nX, nY, nZ;
+						pTmpGGrid->getPosition( nX, nY, nZ );
+						layer_C* pLayer = vLayer[ nZ - m_nOffsetZ ];
+						//for( int t=0; t<vTerminal.size(); t++ )
+						//{
+						//	nH = nH + nEularDistance( vTerminal[t], pTmpGGrid, pLayer );
+						//}
+						nH = nEularDistance( vTerminal, pTmpGGrid, pLayer );
+						pTmpGrid->m_nH = nH;
+						pTmpGrid->m_nCost = nH + pTmpGrid->m_nG;
+					}	
+				}
+				//cout<<endl;
+			}
+		}
+	}
+
+	for( int i=0; i<vHistory.size(); i++ )
+	{
+		rGrid_C* pRGrid = vHistory[i];
+		pRGrid->m_nH = 0;
+		pRGrid->m_nG = 0;
+		pRGrid->m_nCost = 0;
+		pRGrid->m_nBend = 0;
+		pRGrid->m_pFrom = NULL;
+		pRGrid->isRouted = false;
+		pRGrid->isPath = false;
+		pRGrid->isTarget = false;
+	}
+
+	
+	for( int i=0; i<vResult.size(); i++ )
+	{
+		int nX, nY, nZ;
+		gGrid_C* pTmpGrid = vResult[i];
+		pTmpGrid->getPosition( nX, nY, nZ );
+		rGrid_C* pRGrid = getRGrid( nX, nY, nZ );
+		pRGrid->m_nH = 0;
+		pRGrid->m_nG = 0;
+		pRGrid->m_nCost = 0;
+		pRGrid->m_nBend = 0;
+		pRGrid->m_pFrom = NULL;
+		pRGrid->isRouted = false;
+		pRGrid->isPath = false;
+		pRGrid->isTarget = false;
+	}
+
+	for( int i=0; i<vTerminal.size(); i++ )
+	{
+		int nX, nY, nZ;
+		gGrid_C* pTmpGrid = vTerminal[i];
+		pTmpGrid->getPosition( nX, nY, nZ );
+		rGrid_C* pRGrid = getRGrid( nX, nY, nZ );
+		pRGrid->m_nH = 0;
+		pRGrid->m_nG = 0;
+		pRGrid->m_nCost = 0;
+		pRGrid->m_nBend = 0;
+		pRGrid->m_pFrom = NULL;
+		pRGrid->isRouted = false;
+		pRGrid->isPath = false;
+		pRGrid->isTarget = false;
+	}
+	if( nNumTermanals != 0 )
+		vResult.clear();
+	
+	return vResult;
+}
+
+vector< gGrid_C* > router_C::routeNet_length_constraint( net_C* pNet, const int nConstraint )
+{
+	setRoutingConstraint( pNet );
+	int nLConstraint = m_nConstraintLayerId;
+	//cout<<nLConstraint<<endl;
+
+	vector< gGrid_C* > vTerminal;
+	vector< pin_C* > vPin = pNet->getPin();
+	//vector< wire_C* > vWire;
+	vector< gGrid_C* > vResult;
+	for( int i=0; i<vPin.size(); i++ )
+	{
+		pin_C* pPin = vPin[i];
+		int nX, nY, nZ;
+		instance_C* pInst = (instance_C*)pPin->getCell();
+		nX = pInst->getPlacedX();
+		nY = pInst->getPlacedY();
+		// project the z to the constraint layer
+		nZ = pPin->getLayerId();
+		if( nZ < nLConstraint )
+		{
+			for( int l = nZ; l<=nLConstraint; l++ )
+			{
+				gGrid_C* pGrid = getGrid( m_pDesign, nX, nY, l );
+				vResult.push_back( pGrid );
+			}
+			nZ = nLConstraint;
+		}
+
+		gGrid_C* pTerminal = getGrid( m_pDesign, nX, nY, nZ );
+		rGrid_C* pRGrid = getRGrid( nX, nY, nZ );
+		pRGrid->isTarget = true;
+		vTerminal.push_back( pTerminal );
+	}
+
+	// check same position of terminal 
+	//cout<<"Check terminal"<<endl;
+	for( int i=0; i<vTerminal.size(); i++ )
+	{
+		for( int j=i+1; j<vTerminal.size(); j++ )
+		{
+			if( vTerminal[i] == vTerminal[j] )
+			{
+				vTerminal.erase( vTerminal.begin() + j );
+				j--;
+			}
+		}
+	}
+	//cout<<"Num of terminals: "<<vTerminal.size()<<endl;
+	if( vTerminal.size() == 1 )
+	{
+		if( vTerminal[0]->getRemand() <= 0 )
+		{
+			
+			int nX, nY, nZ;
+			vTerminal[0]->getPosition( nX, nY, nZ );
+			rGrid_C* pRGrid = getRGrid( nX, nY, nZ );
+			pRGrid->isTarget = false;	
+			return vResult;
+		}
+		int nX, nY, nZ;
+		vTerminal[0]->getPosition( nX, nY, nZ );
+		rGrid_C* pRGrid = getRGrid( nX, nY, nZ );
+		pRGrid->isTarget = false;	
+		
+		vResult.push_back( vTerminal[0] );
+		return vResult;
+	}
+	else 
+	{
+		bool bFindOverflow = false;
+		for( int i=0; i<vTerminal.size(); i++ )
+		{
+			if( vTerminal[i]->getRemand() <= 0 )
+			{
+				bFindOverflow = true;
+				break;
+			}
+		}
+	
+		if( bFindOverflow )
+		{
+			for( int i=0; i<vTerminal.size(); i++ )
+			{
+				int nX, nY, nZ;
+				vTerminal[i]->getPosition( nX, nY, nZ );
+				rGrid_C* pRGrid = getRGrid( nX, nY, nZ );
+				pRGrid->isTarget = false;	
+			}
+			if( vResult.size() != 0 )
+				vResult.clear();
+
+			return vResult;
+		}
+	}
+	
+	vector< rGrid_C* > vRoutedGrid;
+	//vector< rGrid_C* > vPriorityQueue;
+	vector< rGrid_C* > vHistory;
+	vector< rGrid_C* > vNotInPath;
+	// find first terminal
+	gGrid_C* pFirst = NULL;
+	
+	int nMinX = m_nTX;
+	for( int i=0; i<vTerminal.size(); i++ )
+	{
+		gGrid_C* pGrid = vTerminal[i];	
+		int nX, nY, nZ;
+		pGrid->getPosition( nX, nY, nZ );
+		if( nX <= nMinX )
+			nMinX = nX;
+	}
+
+	int nMinY = m_nTY;
+	for( int i=0; i<vTerminal.size(); i++ )
+	{
+		gGrid_C* pGrid = vTerminal[i];	
+		int nX, nY, nZ;
+		pGrid->getPosition( nX, nY, nZ );
+		if( nX == nMinX && nY <= nMinY )
+		{
+			nMinY = nY;
+			pFirst = vTerminal[i];	
+		}
+	}
+	
+	//
+	//pFirst = vTerminal[0];
+
+	//chech the terminal is available to route the net
+	int nX, nY, nZ;
+	pFirst->getPosition( nX, nY, nZ );
+	rGrid_C* pCurRGrid = getRGrid( nX, nY, nZ );
+	gGrid_C* pGGrid = pFirst;
+	if( pGGrid->getRemand() <= 0 )
+	{
+		pCurRGrid->isTarget = false;
+ 		// added at 0705 22:00
+		for( int i=0; i<vTerminal.size(); i++ )
+		{
+			vTerminal[i]->getPosition( nX, nY, nZ );
+			pCurRGrid = getRGrid( nX, nY, nZ );
+			pCurRGrid->isTarget = false;
+		}
+ 		// end added at 0705 22:00
+		vResult.clear();
+		return vResult;
+	}
+
+	vHistory.push_back( pCurRGrid );
+	pCurRGrid->isPath = true;
+	for( int i=0; i<vTerminal.size(); i++ )
+	{
+		if( vTerminal[i] == pGGrid )
+		{
+			vTerminal.erase( vTerminal.begin() + i );
+			break;
+		}
+	}
+	int nNumTermanals = vTerminal.size();
+	//nNumTermanals--; // because the first grid is a termianl
+	vector< layer_C* > vLayer = m_pDesign->getLayer();
+	//cout<<"Start routing"<<endl;
+	vector< rGrid_C* > vHaveAddTarget;
+	while( nNumTermanals > 0 )
+	{
+		//cout<<nNumTermanals<<endl;
+		//cout<<pCurRGrid->m_nX<<" "<<pCurRGrid->m_nY<<" "<<pCurRGrid->m_nZ<<endl;
+		// A* propogation
+		if( vHistory.size() == 0 )
+		{
+			vResult.clear();
+			break;
+		}
+		//cout<<vHistory.size()<<endl;
+
+		vector< rGrid_C* > vToPropogate;
+		int nMinCost = 0;
+		bool bPick = false;
+		
+		for( int i=0; i<vHistory.size(); i++ )
+		{
+			if( !vHistory[i]->isRouted )	
+			{
+				nMinCost = vHistory[i]->m_nCost;
+				bPick = true;
+				break;
+			}
+		}
+		if( !bPick )
+		{
+			vResult.clear();
+			//cout<<"Can't find result"<<endl;
+			break;
+		}
+		/*
+		cout<<nMinCost<<" "<<vHistory.size()<<endl;
+		for( int i=0; i<vHistory.size(); i++ )
+		{
+			if( !vHistory[i]->isRouted )	
+			{
+				cout << vHistory[i]->m_nCost <<" ";
+			}
+		}
+		//cout<<endl;
+		*/
+		for( int i=0; i<vHistory.size(); i++ )
+		{
+			if( !vHistory[i]->isRouted )	
+			{
+				if( vHistory[i]->m_nCost == nMinCost )
+				{
+					vToPropogate.push_back( vHistory[i] );
+					break;
+				}
+				//else
+				//	break;
+			}
+		}
+	
+		vector< rGrid_C* > vAddGrid;
+
+		for( int i=0; i<vToPropogate.size(); i++ )
+		{
+			pCurRGrid = vToPropogate[i];
+			pCurRGrid->isRouted = true;
+			int nCurDistance = pCurRGrid->m_nG;
+			int nNewDistance = nCurDistance + 1;
+			if( nNewDistance > nConstraint )
+				continue;
+
+			int nX, nY, nZ;
+			nX = pCurRGrid->m_nX;
+			nY = pCurRGrid->m_nY;
+			nZ = pCurRGrid->m_nZ;
+			//cout<<"P: "<<nX<<" "<<nY<<" "<<nZ<<endl;
+			pGGrid = getGrid( m_pDesign, nX, nY, nZ );
+			char cDir = vLayer[ nZ - m_nOffsetZ ]->getDir();
+			//cout<<cDir<<endl;
+			int nDX, nDY, nDZ;
+			if( cDir == 'H' )
+			{
+				nDX = 0; nDY = 1; nDZ = 0;
+			}
+			else if( cDir == 'V')
+			{
+				nDX = 1; nDY = 0; nDZ = 0;
+			}
+			else
+				cout<<"Unknown routing direction"<<endl;
+			// go in the same layer;
+			gGrid_C* pNextGrid = graphTravel( m_pDesign, pGGrid, nDX, nDY, nDZ );
+			if( pNextGrid != NULL && pNextGrid->getRemand() > 0 )
+			{
+				rGrid_C* pNextRGrid = getRGrid( nX + nDX, nY + nDY, nZ + nDZ );
+				if( !pNextRGrid->isRouted )
+				{
+				//pNextRGrid->isRouted = true;
+				layer_C* pLayer = vLayer[ nZ + nDZ - m_nOffsetZ ];
+				pNextRGrid->m_nG = nNewDistance;  	
+				int nSumH = 0;
+				//for( int t=0; t<vTerminal.size(); t++ )
+				//	nSumH = nSumH + nEularDistance( vTerminal[t], pNextGrid, pLayer );
+				nSumH = nEularDistance( vTerminal, pNextGrid, pLayer );
+				pNextRGrid->m_nH = nSumH;
+				pNextRGrid->m_nCost = pNextRGrid->m_nG + nSumH;
+				pNextRGrid->m_pFrom = pCurRGrid;
+				bool bInsert = false;
+				for( int j=0; j<vHistory.size(); j++ )
+				{
+					if( pNextRGrid->m_nCost <= vHistory[j]->m_nCost )
+					{
+						vHistory.insert( vHistory.begin() + j, pNextRGrid );
+						bInsert = true;
+						break;
+					}
+				}
+				if( !bInsert )
+				{
+					vHistory.push_back( pNextRGrid );
+				}
+				vAddGrid.push_back( pNextRGrid );
+				}
+			}
+			//cout<<"test"<<endl;
+			pNextGrid = graphTravel( m_pDesign, pGGrid, -nDX, -nDY, -nDZ );
+			if( pNextGrid != NULL && pNextGrid->getRemand() > 0 )
+			{
+				rGrid_C* pNextRGrid = getRGrid( nX - nDX, nY - nDY, nZ - nDZ );
+				if( !pNextRGrid->isRouted )
+				{	
+				//pNextRGrid->isRouted = true;
+				layer_C* pLayer = vLayer[ nZ + nDZ - m_nOffsetZ ];
+				pNextRGrid->m_nG = nNewDistance;  	
+				int nSumH = 0;
+				//for( int t=0; t<vTerminal.size(); t++ )
+				//	nSumH = nSumH + nEularDistance( vTerminal[t], pNextGrid, pLayer );
+				nSumH = nEularDistance( vTerminal, pNextGrid, pLayer );
+				pNextRGrid->m_nH = nSumH;
+				pNextRGrid->m_nCost = pNextRGrid->m_nG + nSumH;
+				pNextRGrid->m_pFrom = pCurRGrid;
+				bool bInsert = false;
+				for( int j=0; j<vHistory.size(); j++ )
+				{
+					if( pNextRGrid->m_nCost <= vHistory[j]->m_nCost )
+					{
+						vHistory.insert( vHistory.begin() + j, pNextRGrid );
+						bInsert = true;
+						break;
+					}
+				}
+				if( !bInsert )
+				{
+					vHistory.push_back( pNextRGrid );
+				}
+				vAddGrid.push_back( pNextRGrid );
+				}
+			}
+
+			// go to different layer
+			//cout<<"different layer"<<endl;
+			pNextGrid = graphTravel( m_pDesign, pGGrid, 0, 0, 1 );
+			if( pNextGrid != NULL && pNextGrid->getRemand() > 0 )
+			{
+				rGrid_C* pNextRGrid = getRGrid( nX, nY, nZ + 1 );
+				if( !pNextRGrid->isRouted )
+				{
+				//pNextRGrid->isRouted = true;
+				layer_C* pLayer = vLayer[ nZ + nDZ - m_nOffsetZ ];
+				pNextRGrid->m_nG = nNewDistance;  	
+				int nSumH = 0;
+				//for( int t=0; t<vTerminal.size(); t++ )
+				//	nSumH = nSumH + nEularDistance( vTerminal[t], pNextGrid, pLayer );
+				nSumH = nEularDistance( vTerminal, pNextGrid, pLayer );
+				pNextRGrid->m_nH = nSumH;
+				pNextRGrid->m_nCost = pNextRGrid->m_nG + nSumH;
+				pNextRGrid->m_pFrom = pCurRGrid;
+				bool bInsert = false;
+				for( int j=0; j<vHistory.size(); j++ )
+				{
+					if( pNextRGrid->m_nCost <= vHistory[j]->m_nCost )
+					{
+						vHistory.insert( vHistory.begin() + j, pNextRGrid );
+						bInsert = true;
+						break;
+					}
+				}
+				if( !bInsert )
+				{
+					vHistory.push_back( pNextRGrid );
+				}
+				vAddGrid.push_back( pNextRGrid );
+				}
+			}
+		
+			if( nZ - 1 >= nLConstraint )
+			{
+				pNextGrid = graphTravel( m_pDesign, pGGrid, 0, 0, -1 );
+				if( pNextGrid != NULL && pNextGrid->getRemand() > 0 )
+				{
+					rGrid_C* pNextRGrid = getRGrid( nX, nY, nZ - 1 );
+					if( !pNextRGrid->isRouted )
+					{
+					//pNextRGrid->isRouted = true;
+					layer_C* pLayer = vLayer[ nZ + nDZ - m_nOffsetZ ];
+					pNextRGrid->m_nG = nNewDistance;  	
+					int nSumH = 0;
+					//for( int t=0; t<vTerminal.size(); t++ )
+					//	nSumH = nSumH + nEularDistance( vTerminal[t], pNextGrid, pLayer );
+					nSumH = nEularDistance( vTerminal, pNextGrid, pLayer );
+					pNextRGrid->m_nH = nSumH;
+					pNextRGrid->m_nCost = pNextRGrid->m_nG + nSumH;
+					pNextRGrid->m_pFrom = pCurRGrid;
+					bool bInsert = false;
+					for( int j=0; j<vHistory.size(); j++ )
+					{
+						if( pNextRGrid->m_nCost <= vHistory[j]->m_nCost )
+						{
+							vHistory.insert( vHistory.begin() + j, pNextRGrid );
+							bInsert = true;
+							break;
+						}
+					}
+					if( !bInsert )
+					{
+						vHistory.push_back( pNextRGrid );
+					}
+					vAddGrid.push_back( pNextRGrid );
+					}
+				}
+			}
+	
+		}
+		//cout<<"Check target"<<endl;
+		// if there is a target in addgrid;
+		//vector< rGrid_C* > vHaveAddTarget;
+		for( int i=0; i<vAddGrid.size(); i++ )
+		{
+			if( vAddGrid[i]->isTarget )
+			{
+				bool bHaveSearch = false;
+				for( int j=0; j<vHaveAddTarget.size(); j++ )
+				{
+					if( vHaveAddTarget[j] == vAddGrid[i] )
+					{
+						bHaveSearch = true;
+						break;
+					}
+				}
+				if( bHaveSearch )
+					continue;
+
+				vHaveAddTarget.push_back( vAddGrid[i] );
+				//cout<<"Back trace"<<endl;
+				// find the path
+				vector< gGrid_C* > vReversePath;
+				
+				int nPath = vAddGrid[i]->m_nG;
+				rGrid_C* pRPath = vAddGrid[i];
+				pRPath->isPath = true;
+				gGrid_C* pPathGrid = getGrid( m_pDesign, pRPath->m_nX, pRPath->m_nY, pRPath->m_nZ );
+				rGrid_C* pPreGrid = pRPath->m_pFrom;
+				/*
+				//  added at 07/20 20:30
+				layer_C* pTmpLayer = m_pDesign->getLayer()[ pRPath->m_nZ - m_nOffsetZ ];
+				int nPDX;
+				int nPDY;
+				if( pTmpLayer->getDir() == 'H' )
+				{
+					nPDX = 0; nPDY = 1;
+				}
+				else
+				{
+					nPDX = 1; nPDY = 0;
+				}
+				
+				rGrid_C* pRGrid1 = getRGrid( pRPath->m_nX + nPDX, pRPath->m_nY + nPDY, pRPath->m_nZ );
+				rGrid_C* pRGrid2 = getRGrid( pRPath->m_nX - nPDX, pRPath->m_nY - nPDY, pRPath->m_nZ );	
+				rGrid_C* pRGrid3 = getRGrid( pRPath->m_nX, pRPath->m_nY, pRPath->m_nZ + 1 );
+				rGrid_C* pRGrid4 = getRGrid( pRPath->m_nX, pRPath->m_nY, pRPath->m_nZ - 1 );
+				vector< rGrid_C* > vTmpRGrid;
+				//for( int rg=0; rg<4; rg++ )
+				//{
+					if( pRGrid1 != NULL && pRGrid1->isRouted )
+						vTmpRGrid.push_back( pRGrid1 );
+					if( pRGrid2 != NULL && pRGrid2->isRouted )
+						vTmpRGrid.push_back( pRGrid2 );
+					if( pRGrid3 != NULL && pRGrid3->isRouted )
+						vTmpRGrid.push_back( pRGrid3 );
+					if( pRGrid4 != NULL && pRGrid4->isRouted )
+						vTmpRGrid.push_back( pRGrid4 );
+				//}
+				int nTmpPath = nPath;
+				rGrid_C* pMinRGrid = vAddGrid[i]->m_pFrom;
+				for( int rg=0; rg<vTmpRGrid.size(); rg++ )
+				{
+					if( nTmpPath > vTmpRGrid[ rg ]->m_nG )
+					{
+						nTmpPath = vTmpRGrid[ rg ]->m_nG;
+						pMinRGrid = vTmpRGrid[ rg ];
+					}	
+				}
+				vTmpRGrid.clear();
+				vAddGrid[i]->m_pFrom = pMinRGrid;
+				int nAddPath = 1;
+				rGrid_C* pPreGrid = vAddGrid[i]->m_pFrom;
+				//end added at 07/04 20:30
+				*/	
+				//gGrid_C* pPathGrid = getGrid( m_pDesign, pRPath->m_nX, pRPath->m_nY, pRPath->m_nZ );
+				//vResult.push_back( pPathGrid );
+				vReversePath.push_back( pPathGrid );
+				while( !pPreGrid->isPath )
+				{
+					pRPath = pPreGrid;
+					pRPath->isPath = true;
+					pPathGrid = getGrid( m_pDesign, pRPath->m_nX, pRPath->m_nY, pRPath->m_nZ );
+					//vResult.push_back( pPathGrid );
+					vReversePath.push_back( pPathGrid );
+					/*
+					// added at 07/04 20:30	
+					pTmpLayer = m_pDesign->getLayer()[ pRPath->m_nZ - m_nOffsetZ ];
+					
+					if( pTmpLayer->getDir() == 'H' )
+					{
+						nPDX = 0; nPDY = 1;
+					}
+					else
+					{
+						nPDX = 1; nPDY = 0;
+					}
+					
+					pRGrid1 = getRGrid( pRPath->m_nX + nPDX, pRPath->m_nY + nPDY, pRPath->m_nZ );
+					pRGrid2 = getRGrid( pRPath->m_nX - nPDX, pRPath->m_nY - nPDY, pRPath->m_nZ );	
+					pRGrid3 = getRGrid( pRPath->m_nX, pRPath->m_nY, pRPath->m_nZ + 1 );
+					pRGrid4 = getRGrid( pRPath->m_nX, pRPath->m_nY, pRPath->m_nZ - 1 );
+					//vector< rGrid_C* > vTmpRGrid;
+					//for( int rg=0; rg<4; rg++ )
+					//{
+						if( pRGrid1 != NULL && pRGrid1->isRouted )
+							vTmpRGrid.push_back( pRGrid1 );
+						if( pRGrid2 != NULL && pRGrid2->isRouted )
+							vTmpRGrid.push_back( pRGrid2 );
+						if( pRGrid3 != NULL && pRGrid3->isRouted )
+							vTmpRGrid.push_back( pRGrid3 );
+						if( pRGrid4 != NULL && pRGrid4->isRouted )
+							vTmpRGrid.push_back( pRGrid4 );
+					//}
+					int nTmpPath = nPath;
+					rGrid_C* pMinRGrid = pRPath->m_pFrom;
+					for( int rg=0; rg<vTmpRGrid.size(); rg++ )
+					{
+						if( nTmpPath > vTmpRGrid[ rg ]->m_nG )
+						{
+							nTmpPath = vTmpRGrid[ rg ]->m_nG;
+							pMinRGrid = vTmpRGrid[ rg ];
+						}	
+					}
+					vTmpRGrid.clear();
+					pRPath->m_pFrom = pMinRGrid;
+					nAddPath++;
+					// end added at 07/04 20:30
+					*/
+					pPreGrid = pRPath->m_pFrom;
+				}
+				/*
+				// added at 07/04 20:30
+				nPath = pPreGrid->m_nG + nAddPath;
+				// end added at 07/04 20:30
+				*/
+
+				pPathGrid = getGrid( m_pDesign, pPreGrid->m_nX, pPreGrid->m_nY, pPreGrid->m_nZ );
+				//vResult.push_back( pPathGrid );
+				vReversePath.push_back( pPathGrid );
+				for( int g=vReversePath.size()-1; g>=0; g-- )
+				{
+					vResult.push_back( vReversePath[g] );
+				}
+
+				//for( int p=0; p<vReversePath.size(); p++ )
+				//{
+				//	int pX, pY, pZ;
+				//	vReversePath[p]->getPosition( pX, pY, pZ );
+				//	cout<<"("<<pX<<","<<pY<<","<<pZ<<") ";
+				//}
+				//cout<<endl;
+
+				// find the terminal and remove
+				for( int t=0; t<vTerminal.size(); t++ )
+				{
+					int nTX, nTY, nTZ;
+					vTerminal[t]->getPosition( nTX, nTY, nTZ );
+					if( vAddGrid[i]->m_nX == nTX &&  vAddGrid[i]->m_nY == nTY && vAddGrid[i]->m_nZ == nTZ )
+					{
+						vTerminal.erase( vTerminal.begin() + t );
+						nNumTermanals--;
+						break;
+					}
+				}
+				// update the nG in all the searched node ( without path )
+				for( int h=0; h<vHistory.size(); h++ )
+				{
+					rGrid_C* pTmpGrid = vHistory[h];
+					if( !pTmpGrid->isPath )
+						calDistanceFromPath( pTmpGrid, nPath );	
+				}
+				
+				// update the nH in all the node in queue
+				for( int h=0; h<vHistory.size(); h++ )
+				{
+					rGrid_C* pTmpGrid = vHistory[h];
+					if( !pTmpGrid->isRouted )
+					{
+						int nH = 0;
+						gGrid_C* pTmpGGrid = getGrid( m_pDesign, pTmpGrid->m_nX, pTmpGrid->m_nY, pTmpGrid->m_nZ );
+						int nX, nY, nZ;
+						pTmpGGrid->getPosition( nX, nY, nZ );
+						layer_C* pLayer = vLayer[ nZ - m_nOffsetZ ];
+						//for( int t=0; t<vTerminal.size(); t++ )
+						//{
+						//	nH = nH + nEularDistance( vTerminal[t], pTmpGGrid, pLayer );
+						//}
+						nH = nEularDistance( vTerminal, pTmpGGrid, pLayer );
+						pTmpGrid->m_nH = nH;
+						pTmpGrid->m_nCost = nH + pTmpGrid->m_nG;
+					}	
+				}
+				//cout<<endl;
+			}
+		}
+	}
+
+	for( int i=0; i<vHistory.size(); i++ )
+	{
+		rGrid_C* pRGrid = vHistory[i];
+		pRGrid->m_nH = 0;
+		pRGrid->m_nG = 0;
+		pRGrid->m_nCost = 0;
+		pRGrid->m_nBend = 0;
+		pRGrid->m_pFrom = NULL;
+		pRGrid->isRouted = false;
+		pRGrid->isPath = false;
+		pRGrid->isTarget = false;
+	}
+
+	
+	for( int i=0; i<vResult.size(); i++ )
+	{
+		int nX, nY, nZ;
+		gGrid_C* pTmpGrid = vResult[i];
+		pTmpGrid->getPosition( nX, nY, nZ );
+		rGrid_C* pRGrid = getRGrid( nX, nY, nZ );
+		pRGrid->m_nH = 0;
+		pRGrid->m_nG = 0;
+		pRGrid->m_nCost = 0;
+		pRGrid->m_nBend = 0;
+		pRGrid->m_pFrom = NULL;
+		pRGrid->isRouted = false;
+		pRGrid->isPath = false;
+		pRGrid->isTarget = false;
+	}
+
+	for( int i=0; i<vTerminal.size(); i++ )
+	{
+		int nX, nY, nZ;
+		gGrid_C* pTmpGrid = vTerminal[i];
+		pTmpGrid->getPosition( nX, nY, nZ );
+		rGrid_C* pRGrid = getRGrid( nX, nY, nZ );
+		pRGrid->m_nH = 0;
+		pRGrid->m_nG = 0;
+		pRGrid->m_nCost = 0;
+		pRGrid->m_nBend = 0;
+		pRGrid->m_pFrom = NULL;
+		pRGrid->isRouted = false;
+		pRGrid->isPath = false;
+		pRGrid->isTarget = false;
+	}
+	if( nNumTermanals != 0 )
+		vResult.clear();
+	
+	return vResult;
+}
+
+vector< gGrid_C* > router_C::routeNet( net_C* pNet )
+{
+	setRoutingConstraint( pNet );
+	int nLConstraint = m_nConstraintLayerId;
+	//cout<<nLConstraint<<endl;
+
+	vector< gGrid_C* > vTerminal;
+	vector< pin_C* > vPin = pNet->getPin();
+	//vector< wire_C* > vWire;
+	vector< gGrid_C* > vResult;
+	for( int i=0; i<vPin.size(); i++ )
+	{
+		pin_C* pPin = vPin[i];
+		int nX, nY, nZ;
+		instance_C* pInst = (instance_C*)pPin->getCell();
+		nX = pInst->getPlacedX();
+		nY = pInst->getPlacedY();
+		// project the z to the constraint layer
+		nZ = pPin->getLayerId();
+		if( nZ < nLConstraint )
+		{
+			for( int l = nZ; l<=nLConstraint; l++ )
+			{
+				gGrid_C* pGrid = getGrid( m_pDesign, nX, nY, l );
+				vResult.push_back( pGrid );
+			}
+			nZ = nLConstraint;
+		}
+
+		gGrid_C* pTerminal = getGrid( m_pDesign, nX, nY, nZ );
+		rGrid_C* pRGrid = getRGrid( nX, nY, nZ );
+		pRGrid->isTarget = true;
+		vTerminal.push_back( pTerminal );
+	}
+
+	// check same position of terminal 
+	//cout<<"Check terminal"<<endl;
+	for( int i=0; i<vTerminal.size(); i++ )
+	{
+		for( int j=i+1; j<vTerminal.size(); j++ )
+		{
+			if( vTerminal[i] == vTerminal[j] )
+			{
+				vTerminal.erase( vTerminal.begin() + j );
+				j--;
+			}
+		}
+	}
+	//cout<<"Num of terminals: "<<vTerminal.size()<<endl;
+	if( vTerminal.size() == 1 )
+	{
+		if( vTerminal[0]->getRemand() <= 0 )
+		{
+			
+			int nX, nY, nZ;
+			vTerminal[0]->getPosition( nX, nY, nZ );
+			rGrid_C* pRGrid = getRGrid( nX, nY, nZ );
+			pRGrid->isTarget = false;	
+			return vResult;
+		}
+		int nX, nY, nZ;
+		vTerminal[0]->getPosition( nX, nY, nZ );
+		rGrid_C* pRGrid = getRGrid( nX, nY, nZ );
+		pRGrid->isTarget = false;	
+		
+		vResult.push_back( vTerminal[0] );
+		return vResult;
+	}
+	else 
+	{
+		bool bFindOverflow = false;
+		for( int i=0; i<vTerminal.size(); i++ )
+		{
+			if( vTerminal[i]->getRemand() <= 0 )
+			{
+				bFindOverflow = true;
+				break;
+			}
+		}
+	
+		if( bFindOverflow )
+		{
+			for( int i=0; i<vTerminal.size(); i++ )
+			{
+				int nX, nY, nZ;
+				vTerminal[i]->getPosition( nX, nY, nZ );
+				rGrid_C* pRGrid = getRGrid( nX, nY, nZ );
+				pRGrid->isTarget = false;	
+			}
+			if( vResult.size() != 0 )
+				vResult.clear();
+
+			return vResult;
+		}
+	}
+	
+	vector< rGrid_C* > vRoutedGrid;
+	//vector< rGrid_C* > vPriorityQueue;
+	vector< rGrid_C* > vHistory;
+	vector< rGrid_C* > vNotInPath;
+	// find first terminal
+	gGrid_C* pFirst = NULL;
+	
+	int nMinX = m_nTX;
+	for( int i=0; i<vTerminal.size(); i++ )
+	{
+		gGrid_C* pGrid = vTerminal[i];	
+		int nX, nY, nZ;
+		pGrid->getPosition( nX, nY, nZ );
+		if( nX <= nMinX )
+			nMinX = nX;
+	}
+
+	int nMinY = m_nTY;
+	for( int i=0; i<vTerminal.size(); i++ )
+	{
+		gGrid_C* pGrid = vTerminal[i];	
+		int nX, nY, nZ;
+		pGrid->getPosition( nX, nY, nZ );
+		if( nX == nMinX && nY <= nMinY )
+		{
+			nMinY = nY;
+			pFirst = vTerminal[i];	
+		}
+	}
+	
+	//
+	//pFirst = vTerminal[0];
+
+	//cout<<"Here"<<endl;
+	int nX, nY, nZ;
+	pFirst->getPosition( nX, nY, nZ );
+	rGrid_C* pCurRGrid = getRGrid( nX, nY, nZ );
+	gGrid_C* pGGrid = pFirst;
+	if( pGGrid->getRemand() <= 0 )
+	{
+		pCurRGrid->isTarget = false;
+ 		// added at 0705 22:00
+		for( int i=0; i<vTerminal.size(); i++ )
+		{
+			vTerminal[i]->getPosition( nX, nY, nZ );
+			pCurRGrid = getRGrid( nX, nY, nZ );
+			pCurRGrid->isTarget = false;
+		}
+ 		// end added at 0705 22:00
+		vResult.clear();
+		return vResult;
+	}
+
+	vHistory.push_back( pCurRGrid );
+	pCurRGrid->isPath = true;
+	for( int i=0; i<vTerminal.size(); i++ )
+	{
+		if( vTerminal[i] == pGGrid )
+		{
+			vTerminal.erase( vTerminal.begin() + i );
+			break;
+		}
+	}
+	int nNumTermanals = vTerminal.size();
+	//nNumTermanals--; // because the first grid is a termianl
+	vector< layer_C* > vLayer = m_pDesign->getLayer();
+	//cout<<"Start routing"<<endl;
+	vector< rGrid_C* > vHaveAddTarget;
+	while( nNumTermanals > 0 )
+	{
+		//cout<<nNumTermanals<<endl;
+		//cout<<pCurRGrid->m_nX<<" "<<pCurRGrid->m_nY<<" "<<pCurRGrid->m_nZ<<endl;
+		// A* propogation
+		if( vHistory.size() == 0 )
+		{
+			vResult.clear();
+			break;
+		}
+		//cout<<vHistory.size()<<endl;
+
+		vector< rGrid_C* > vToPropogate;
+		int nMinCost = 0;
+		bool bPick = false;
+		/*	
+		for( int i=0; i<vHistory.size(); i++ )
+		{
+			if( vHistory[i]->isRouted )
+			{
+				vHistory.erase( vHistory.begin() + i );
+				i--;
+			}
+		}
+		*/
+		/*
+		for( int i=0; i<vHistory.size(); i++ )
+		{
+			if( !vHistory[i]->isRouted )
+			{
+				cout<<vHistory[i]->m_nCost<<" ";
+			}
+		}
+		cout<<endl;
+		*/
+		for( int i=0; i<vHistory.size(); i++ )
+		{
+			if( !vHistory[i]->isRouted )	
+			{
+				nMinCost = vHistory[i]->m_nCost;
+				bPick = true;
+				break;
+			}
+		}
+		if( !bPick )
+		{
+			vResult.clear();
+			//cout<<"Can't find result"<<endl;
+			break;
+		}
+		/*
+		cout<<nMinCost<<" "<<vHistory.size()<<endl;
+		for( int i=0; i<vHistory.size(); i++ )
+		{
+			if( !vHistory[i]->isRouted )	
+			{
+				cout << vHistory[i]->m_nCost <<" ";
+			}
+		}
+		//cout<<endl;
+		*/
+		for( int i=0; i<vHistory.size(); i++ )
+		{
+			if( !vHistory[i]->isRouted )	
+			{
+				if( vHistory[i]->m_nCost == nMinCost )
+				{
+					vToPropogate.push_back( vHistory[i] );
+				}
+				//else
+				//	break;
+			}
+		}
+	
+		vector< rGrid_C* > vAddGrid;
+
+		for( int i=0; i<vToPropogate.size(); i++ )
+		{
+			pCurRGrid = vToPropogate[i];
+			pCurRGrid->isRouted = true;
+			int nCurDistance = pCurRGrid->m_nG;
+			int nNewDistance = nCurDistance + 1;
+			int nX, nY, nZ;
+			nX = pCurRGrid->m_nX;
+			nY = pCurRGrid->m_nY;
+			nZ = pCurRGrid->m_nZ;
+			//cout<<"P: "<<nX<<" "<<nY<<" "<<nZ<<endl;
+			pGGrid = getGrid( m_pDesign, nX, nY, nZ );
+			char cDir = vLayer[ nZ - m_nOffsetZ ]->getDir();
+			//cout<<cDir<<endl;
+			int nDX, nDY, nDZ;
+			if( cDir == 'H' )
+			{
+				nDX = 0; nDY = 1; nDZ = 0;
+			}
+			else if( cDir == 'V')
+			{
+				nDX = 1; nDY = 0; nDZ = 0;
+			}
+			else
+				cout<<"Unknown routing direction"<<endl;
+			// go in the same layer;
+			gGrid_C* pNextGrid = graphTravel( m_pDesign, pGGrid, nDX, nDY, nDZ );
+			if( pNextGrid != NULL && pNextGrid->getRemand() > 0 )
+			{
+				rGrid_C* pNextRGrid = getRGrid( nX + nDX, nY + nDY, nZ + nDZ );
+				if( !pNextRGrid->isRouted )
+				{
+				//pNextRGrid->isRouted = true;
+				layer_C* pLayer = vLayer[ nZ + nDZ - m_nOffsetZ ];
+				pNextRGrid->m_nG = nNewDistance;  	
+				int nSumH = 0;
+				//for( int t=0; t<vTerminal.size(); t++ )
+				//	nSumH = nSumH + nEularDistance( vTerminal[t], pNextGrid, pLayer );
+				nSumH = nEularDistance( vTerminal, pNextGrid, pLayer );
+				pNextRGrid->m_nH = nSumH;
+				pNextRGrid->m_nCost = pNextRGrid->m_nG + nSumH;
+				pNextRGrid->m_pFrom = pCurRGrid;
+				bool bInsert = false;
+				for( int j=0; j<vHistory.size(); j++ )
+				{
+					if( pNextRGrid->m_nCost <= vHistory[j]->m_nCost )
+					{
+						vHistory.insert( vHistory.begin() + j, pNextRGrid );
+						bInsert = true;
+						break;
+					}
+				}
+				if( !bInsert )
+				{
+					vHistory.push_back( pNextRGrid );
+				}
+				vAddGrid.push_back( pNextRGrid );
+				}
+			}
+			//cout<<"test"<<endl;
+			pNextGrid = graphTravel( m_pDesign, pGGrid, -nDX, -nDY, -nDZ );
+			if( pNextGrid != NULL && pNextGrid->getRemand() > 0 )
+			{
+				rGrid_C* pNextRGrid = getRGrid( nX - nDX, nY - nDY, nZ - nDZ );
+				if( !pNextRGrid->isRouted )
+				{	
+				//pNextRGrid->isRouted = true;
+				layer_C* pLayer = vLayer[ nZ + nDZ - m_nOffsetZ ];
+				pNextRGrid->m_nG = nNewDistance;  	
+				int nSumH = 0;
+				//for( int t=0; t<vTerminal.size(); t++ )
+				//	nSumH = nSumH + nEularDistance( vTerminal[t], pNextGrid, pLayer );
+				nSumH = nEularDistance( vTerminal, pNextGrid, pLayer );
+				pNextRGrid->m_nH = nSumH;
+				pNextRGrid->m_nCost = pNextRGrid->m_nG + nSumH;
+				pNextRGrid->m_pFrom = pCurRGrid;
+				bool bInsert = false;
+				for( int j=0; j<vHistory.size(); j++ )
+				{
+					if( pNextRGrid->m_nCost <= vHistory[j]->m_nCost )
+					{
+						vHistory.insert( vHistory.begin() + j, pNextRGrid );
+						bInsert = true;
+						break;
+					}
+				}
+				if( !bInsert )
+				{
+					vHistory.push_back( pNextRGrid );
+				}
+				vAddGrid.push_back( pNextRGrid );
+				}
+			}
+
+			// go to different layer
+			//cout<<"different layer"<<endl;
+			pNextGrid = graphTravel( m_pDesign, pGGrid, 0, 0, 1 );
+			if( pNextGrid != NULL && pNextGrid->getRemand() > 0 )
+			{
+				rGrid_C* pNextRGrid = getRGrid( nX, nY, nZ + 1 );
+				if( !pNextRGrid->isRouted )
+				{
+				//pNextRGrid->isRouted = true;
+				layer_C* pLayer = vLayer[ nZ + nDZ - m_nOffsetZ ];
+				pNextRGrid->m_nG = nNewDistance;  	
+				int nSumH = 0;
+				//for( int t=0; t<vTerminal.size(); t++ )
+				//	nSumH = nSumH + nEularDistance( vTerminal[t], pNextGrid, pLayer );
+				nSumH = nEularDistance( vTerminal, pNextGrid, pLayer );
+				pNextRGrid->m_nH = nSumH;
+				pNextRGrid->m_nCost = pNextRGrid->m_nG + nSumH;
+				pNextRGrid->m_pFrom = pCurRGrid;
+				bool bInsert = false;
+				for( int j=0; j<vHistory.size(); j++ )
+				{
+					if( pNextRGrid->m_nCost <= vHistory[j]->m_nCost )
+					{
+						vHistory.insert( vHistory.begin() + j, pNextRGrid );
+						bInsert = true;
+						break;
+					}
+				}
+				if( !bInsert )
+				{
+					vHistory.push_back( pNextRGrid );
+				}
+				vAddGrid.push_back( pNextRGrid );
+				}
+			}
+		
+			if( nZ - 1 >= nLConstraint )
+			{
+				pNextGrid = graphTravel( m_pDesign, pGGrid, 0, 0, -1 );
+				if( pNextGrid != NULL && pNextGrid->getRemand() > 0 )
+				{
+					rGrid_C* pNextRGrid = getRGrid( nX, nY, nZ - 1 );
+					if( !pNextRGrid->isRouted )
+					{
+					//pNextRGrid->isRouted = true;
+					layer_C* pLayer = vLayer[ nZ + nDZ - m_nOffsetZ ];
+					pNextRGrid->m_nG = nNewDistance;  	
+					int nSumH = 0;
+					//for( int t=0; t<vTerminal.size(); t++ )
+					//	nSumH = nSumH + nEularDistance( vTerminal[t], pNextGrid, pLayer );
+					nSumH = nEularDistance( vTerminal, pNextGrid, pLayer );
+					pNextRGrid->m_nH = nSumH;
+					pNextRGrid->m_nCost = pNextRGrid->m_nG + nSumH;
+					pNextRGrid->m_pFrom = pCurRGrid;
+					bool bInsert = false;
+					for( int j=0; j<vHistory.size(); j++ )
+					{
+						if( pNextRGrid->m_nCost <= vHistory[j]->m_nCost )
+						{
+							vHistory.insert( vHistory.begin() + j, pNextRGrid );
+							bInsert = true;
+							break;
+						}
+					}
+					if( !bInsert )
+					{
+						vHistory.push_back( pNextRGrid );
+					}
+					vAddGrid.push_back( pNextRGrid );
+					}
+				}
+			}
+	
+		}
+		//cout<<"Check target"<<endl;
+		// if there is a target in addgrid;
+		//vector< rGrid_C* > vHaveAddTarget;
+		for( int i=0; i<vAddGrid.size(); i++ )
+		{
+			if( vAddGrid[i]->isTarget )
+			{
+				bool bHaveSearch = false;
+				for( int j=0; j<vHaveAddTarget.size(); j++ )
+				{
+					if( vHaveAddTarget[j] == vAddGrid[i] )
+					{
+						bHaveSearch = true;
+						break;
+					}
+				}
+				if( bHaveSearch )
+					continue;
+
+				vHaveAddTarget.push_back( vAddGrid[i] );
+				//cout<<"Back trace"<<endl;
+				// find the path
+				vector< gGrid_C* > vReversePath;
+				
+				int nPath = vAddGrid[i]->m_nG;
+				rGrid_C* pRPath = vAddGrid[i];
+				pRPath->isPath = true;
+				gGrid_C* pPathGrid = getGrid( m_pDesign, pRPath->m_nX, pRPath->m_nY, pRPath->m_nZ );
+				rGrid_C* pPreGrid = pRPath->m_pFrom;
+				/*
+				//  added at 07/20 20:30
+				layer_C* pTmpLayer = m_pDesign->getLayer()[ pRPath->m_nZ - m_nOffsetZ ];
+				int nPDX;
+				int nPDY;
+				if( pTmpLayer->getDir() == 'H' )
+				{
+					nPDX = 0; nPDY = 1;
+				}
+				else
+				{
+					nPDX = 1; nPDY = 0;
+				}
+				
+				rGrid_C* pRGrid1 = getRGrid( pRPath->m_nX + nPDX, pRPath->m_nY + nPDY, pRPath->m_nZ );
+				rGrid_C* pRGrid2 = getRGrid( pRPath->m_nX - nPDX, pRPath->m_nY - nPDY, pRPath->m_nZ );	
+				rGrid_C* pRGrid3 = getRGrid( pRPath->m_nX, pRPath->m_nY, pRPath->m_nZ + 1 );
+				rGrid_C* pRGrid4 = getRGrid( pRPath->m_nX, pRPath->m_nY, pRPath->m_nZ - 1 );
+				vector< rGrid_C* > vTmpRGrid;
+				//for( int rg=0; rg<4; rg++ )
+				//{
+					if( pRGrid1 != NULL && pRGrid1->isRouted )
+						vTmpRGrid.push_back( pRGrid1 );
+					if( pRGrid2 != NULL && pRGrid2->isRouted )
+						vTmpRGrid.push_back( pRGrid2 );
+					if( pRGrid3 != NULL && pRGrid3->isRouted )
+						vTmpRGrid.push_back( pRGrid3 );
+					if( pRGrid4 != NULL && pRGrid4->isRouted )
+						vTmpRGrid.push_back( pRGrid4 );
+				//}
+				int nTmpPath = nPath;
+				rGrid_C* pMinRGrid = vAddGrid[i]->m_pFrom;
+				for( int rg=0; rg<vTmpRGrid.size(); rg++ )
+				{
+					if( nTmpPath > vTmpRGrid[ rg ]->m_nG )
+					{
+						nTmpPath = vTmpRGrid[ rg ]->m_nG;
+						pMinRGrid = vTmpRGrid[ rg ];
+					}	
+				}
+				vTmpRGrid.clear();
+				vAddGrid[i]->m_pFrom = pMinRGrid;
+				int nAddPath = 1;
+				rGrid_C* pPreGrid = vAddGrid[i]->m_pFrom;
+				//end added at 07/04 20:30
+				*/	
+				//gGrid_C* pPathGrid = getGrid( m_pDesign, pRPath->m_nX, pRPath->m_nY, pRPath->m_nZ );
+				//vResult.push_back( pPathGrid );
+				vReversePath.push_back( pPathGrid );
+				while( !pPreGrid->isPath )
+				{
+					pRPath = pPreGrid;
+					pRPath->isPath = true;
+					pPathGrid = getGrid( m_pDesign, pRPath->m_nX, pRPath->m_nY, pRPath->m_nZ );
+					//vResult.push_back( pPathGrid );
+					vReversePath.push_back( pPathGrid );
+					/*
+					// added at 07/04 20:30	
+					pTmpLayer = m_pDesign->getLayer()[ pRPath->m_nZ - m_nOffsetZ ];
+					
+					if( pTmpLayer->getDir() == 'H' )
+					{
+						nPDX = 0; nPDY = 1;
+					}
+					else
+					{
+						nPDX = 1; nPDY = 0;
+					}
+					
+					pRGrid1 = getRGrid( pRPath->m_nX + nPDX, pRPath->m_nY + nPDY, pRPath->m_nZ );
+					pRGrid2 = getRGrid( pRPath->m_nX - nPDX, pRPath->m_nY - nPDY, pRPath->m_nZ );	
+					pRGrid3 = getRGrid( pRPath->m_nX, pRPath->m_nY, pRPath->m_nZ + 1 );
+					pRGrid4 = getRGrid( pRPath->m_nX, pRPath->m_nY, pRPath->m_nZ - 1 );
+					//vector< rGrid_C* > vTmpRGrid;
+					//for( int rg=0; rg<4; rg++ )
+					//{
+						if( pRGrid1 != NULL && pRGrid1->isRouted )
+							vTmpRGrid.push_back( pRGrid1 );
+						if( pRGrid2 != NULL && pRGrid2->isRouted )
+							vTmpRGrid.push_back( pRGrid2 );
+						if( pRGrid3 != NULL && pRGrid3->isRouted )
+							vTmpRGrid.push_back( pRGrid3 );
+						if( pRGrid4 != NULL && pRGrid4->isRouted )
+							vTmpRGrid.push_back( pRGrid4 );
+					//}
+					int nTmpPath = nPath;
+					rGrid_C* pMinRGrid = pRPath->m_pFrom;
+					for( int rg=0; rg<vTmpRGrid.size(); rg++ )
+					{
+						if( nTmpPath > vTmpRGrid[ rg ]->m_nG )
+						{
+							nTmpPath = vTmpRGrid[ rg ]->m_nG;
+							pMinRGrid = vTmpRGrid[ rg ];
+						}	
+					}
+					vTmpRGrid.clear();
+					pRPath->m_pFrom = pMinRGrid;
+					nAddPath++;
+					// end added at 07/04 20:30
+					*/
+					pPreGrid = pRPath->m_pFrom;
+				}
+				/*
+				// added at 07/04 20:30
+				nPath = pPreGrid->m_nG + nAddPath;
+				// end added at 07/04 20:30
+				*/
+
+				pPathGrid = getGrid( m_pDesign, pPreGrid->m_nX, pPreGrid->m_nY, pPreGrid->m_nZ );
+				//vResult.push_back( pPathGrid );
+				vReversePath.push_back( pPathGrid );
+				for( int g=vReversePath.size()-1; g>=0; g-- )
+				{
+					vResult.push_back( vReversePath[g] );
+				}
+
+				//for( int p=0; p<vReversePath.size(); p++ )
+				//{
+				//	int pX, pY, pZ;
+				//	vReversePath[p]->getPosition( pX, pY, pZ );
+				//	cout<<"("<<pX<<","<<pY<<","<<pZ<<") ";
+				//}
+				//cout<<endl;
+
+				// find the terminal and remove
+				for( int t=0; t<vTerminal.size(); t++ )
+				{
+					int nX, nY, nZ;
+					vTerminal[t]->getPosition( nX, nY, nZ );
+					if( vAddGrid[i]->m_nX == nX &&  vAddGrid[i]->m_nY == nY && vAddGrid[i]->m_nZ == nZ )
+					{
+						vTerminal.erase( vTerminal.begin() + t );
+						nNumTermanals--;
+						break;
+					}
+				}
+				// update the nG in all the searched node ( without path )
+				for( int h=0; h<vHistory.size(); h++ )
+				{
+					rGrid_C* pTmpGrid = vHistory[h];
+					if( !pTmpGrid->isPath )
+						calDistanceFromPath( pTmpGrid, nPath );	
+				}
+				
+				// update the nH in all the node in queue
+				for( int h=0; h<vHistory.size(); h++ )
+				{
+					rGrid_C* pTmpGrid = vHistory[h];
+					if( !pTmpGrid->isRouted )
+					{
+						int nH = 0;
+						gGrid_C* pTmpGGrid = getGrid( m_pDesign, pTmpGrid->m_nX, pTmpGrid->m_nY, pTmpGrid->m_nZ );
+						int nX, nY, nZ;
+						pTmpGGrid->getPosition( nX, nY, nZ );
+						layer_C* pLayer = vLayer[ nZ - m_nOffsetZ ];
+						//for( int t=0; t<vTerminal.size(); t++ )
+						//{
+						//	nH = nH + nEularDistance( vTerminal[t], pTmpGGrid, pLayer );
+						//}
+						nH = nEularDistance( vTerminal, pTmpGGrid, pLayer );
+						pTmpGrid->m_nH = nH;
+						pTmpGrid->m_nCost = nH + pTmpGrid->m_nG;
+					}	
+				}
+				//cout<<endl;
+			}
+		}
+	}
+
+	for( int i=0; i<vHistory.size(); i++ )
+	{
+		rGrid_C* pRGrid = vHistory[i];
+		pRGrid->m_nH = 0;
+		pRGrid->m_nG = 0;
+		pRGrid->m_nCost = 0;
+		pRGrid->m_nBend = 0;
+		pRGrid->m_pFrom = NULL;
+		pRGrid->isRouted = false;
+		pRGrid->isPath = false;
+		pRGrid->isTarget = false;
+	}
+
+	
+	for( int i=0; i<vResult.size(); i++ )
+	{
+		int nX, nY, nZ;
+		gGrid_C* pTmpGrid = vResult[i];
+		pTmpGrid->getPosition( nX, nY, nZ );
+		rGrid_C* pRGrid = getRGrid( nX, nY, nZ );
+		pRGrid->m_nH = 0;
+		pRGrid->m_nG = 0;
+		pRGrid->m_nCost = 0;
+		pRGrid->m_nBend = 0;
+		pRGrid->m_pFrom = NULL;
+		pRGrid->isRouted = false;
+		pRGrid->isPath = false;
+		pRGrid->isTarget = false;
+	}
+
+	for( int i=0; i<vTerminal.size(); i++ )
+	{
+		int nX, nY, nZ;
+		gGrid_C* pTmpGrid = vTerminal[i];
+		pTmpGrid->getPosition( nX, nY, nZ );
+		rGrid_C* pRGrid = getRGrid( nX, nY, nZ );
+		pRGrid->m_nH = 0;
+		pRGrid->m_nG = 0;
+		pRGrid->m_nCost = 0;
+		pRGrid->m_nBend = 0;
+		pRGrid->m_pFrom = NULL;
+		pRGrid->isRouted = false;
+		pRGrid->isPath = false;
+		pRGrid->isTarget = false;
+	}
+	if( nNumTermanals != 0 )
+		vResult.clear();
+	
+	return vResult;
+}
+
+bool router_C::saveNet( net_C* pNet, vector< gGrid_C* > &vPath )
+{
+	wire_C* pSegment = NULL;
+	int nDX, nDY, nDZ;
+	if( vPath.size() == 0 )
+	{
+		cout<<"No path to save"<<endl;
+		return false;
+	}
+
+	for( int i=0; i<vPath.size(); i++ )
+	{
+		gGrid_C* pGrid = vPath[i];
+		if( pSegment == NULL )
+		{
+			pSegment = new wire_C;
+			pSegment->setNet( pNet );
+			pSegment->setGrid1( pGrid );
+			gGrid_C* pNGrid = NULL;
+			if( i + 1 < vPath.size() )
+			{
+				pNGrid = vPath[i+1];
+				int nX1, nX2, nY1, nY2, nZ1, nZ2;
+				pGrid->getPosition( nX1, nY1, nZ1 );
+				pNGrid->getPosition( nX2, nY2, nZ2 );
+				nDX = nX2 - nX1;
+				nDY = nY2 - nY1;
+				nDZ = nZ2 - nZ1;
+				if( abs(nDX) + abs(nDY) + abs(nDZ) != 1 )
+				{
+					delete pSegment;
+					pSegment = NULL;
+					continue;
+				}
+				vector< layer_C* > vLayer = m_pDesign->getLayer();
+				int nLayer = nZ1;
+				char cDir = vLayer[ nLayer - m_nOffsetZ ]->getDir();
+				if( abs( nDX ) == 1 && cDir != 'V' )
+				{
+					delete pSegment;
+					pSegment = NULL;
+					continue;	
+				}
+				else if( abs( nDY ) == 1 && cDir != 'H' )	
+				{
+					delete pSegment;
+					pSegment = NULL;
+					continue;	
+				}
+				//cout<<nX1<<" "<<nY1<<" "<<nZ1<<"       ";
+			}
+			else
+			{
+				//cout<<"Error"<<endl;
+				break;
+			}
+		}	
+		else
+		{
+			gGrid_C* pNGrid = NULL;
+			if( i + 1 < vPath.size() )
+			{
+				pNGrid = vPath[ i + 1 ];
+				int nX1, nX2, nY1, nY2, nZ1, nZ2, nTmpX, nTmpY, nTmpZ;
+				pGrid->getPosition( nX1, nY1, nZ1 );
+				pNGrid->getPosition( nX2, nY2, nZ2 );
+				nTmpX = nX2 - nX1;
+				nTmpY = nY2 - nY1;
+				nTmpZ = nZ2 - nZ1;
+				if( nTmpX == nDX && nTmpY == nDY && nTmpZ == nDZ )
+				{
+					continue;	
+				}
+				else
+				{
+					//cout<<nX1<<" "<<nY1<<" "<<nZ1<<" !"<<endl;
+					pSegment->setGrid2( pGrid );
+					pNet->addWire( pSegment );
+					pSegment = NULL;
+					nDX = 0; 
+					nDY = 0;
+					nDZ = 0;
+					i--;
+				}
+			}
+			else
+				break;
+		}
+	}
+	pSegment->setGrid2( vPath.back() );
+	pNet->addWire( pSegment );
+	pSegment = NULL;
+	//cout<<"Save success"<<endl;
+	return true;
+}
+
+int router_C::calDistanceFromPath( rGrid_C* pCurGrid, int nPath )
+{
+	rGrid_C* pPreGrid = pCurGrid->m_pFrom;
+	/*
+	// added at 07/04 20:30		
+	int nPDX, nPDY;
+	if( pCurGrid->m_cDir == 'H' )
+	{
+		nPDX = 0; nPDY = 1;
+	}
+	else
+	{
+		nPDX = 1; nPDY = 0;
+	}
+	
+	rGrid_C* pRGrid1 = getRGrid( pCurGrid->m_nX + nPDX, pCurGrid->m_nY + nPDY, pCurGrid->m_nZ );
+	rGrid_C* pRGrid2 = getRGrid( pCurGrid->m_nX - nPDX, pCurGrid->m_nY - nPDY, pCurGrid->m_nZ );	
+	rGrid_C* pRGrid3 = getRGrid( pCurGrid->m_nX, pCurGrid->m_nY, pCurGrid->m_nZ + 1 );
+	rGrid_C* pRGrid4 = getRGrid( pCurGrid->m_nX, pCurGrid->m_nY, pCurGrid->m_nZ - 1 );
+	vector< rGrid_C* > vTmpRGrid;
+	//for( int rg=0; rg<4; rg++ )
+	//{
+		if( pRGrid1 != NULL && pRGrid1->isRouted )
+			vTmpRGrid.push_back( pRGrid1 );
+		if( pRGrid2 != NULL && pRGrid2->isRouted )
+			vTmpRGrid.push_back( pRGrid2 );
+		if( pRGrid3 != NULL && pRGrid3->isRouted )
+			vTmpRGrid.push_back( pRGrid3 );
+		if( pRGrid4 != NULL && pRGrid4->isRouted )
+			vTmpRGrid.push_back( pRGrid4 );
+	//}
+	int nTmpPath = pPreGrid->m_nG;
+	//vector< rGrid_C* > vTmpRGrid;
+	//rGrid_C* pMinRGrid = pRPath->m_pFrom;
+	for( int rg=0; rg<vTmpRGrid.size(); rg++ )
+	{
+		if( nTmpPath > vTmpRGrid[ rg ]->m_nG )
+		{
+			nTmpPath = vTmpRGrid[ rg ]->m_nG;
+			pPreGrid = vTmpRGrid[ rg ];
+		}	
+	}
+	vTmpRGrid.clear();
+	pCurGrid->m_pFrom = pPreGrid;
+	// end added at 07/04 20:30
+	*/
+	if( pPreGrid->isPath )
+	{
+		int nG = nPath;
+		nG++;
+		pCurGrid->m_nG = nG;
+		return nG;
+	}
+	else
+	{
+		int nG = calDistanceFromPath( pPreGrid, nPath );
+		nG++;
+		pCurGrid->m_nG = nG;
+		return nG;
+	}
+}
+
+inline int nEularDistance( gGrid_C* pGrid1, gGrid_C* pGrid2, layer_C* pCurLayer )
+{
+	int nX1, nX2, nY1, nY2, nZ1, nZ2;
+	pGrid1->getPosition( nX1, nY1, nZ1 );
+	pGrid2->getPosition( nX2, nY2, nZ2 );
+	int nDis = abs( nX1 - nX2 ) + abs( nY1 - nY2 ) + abs( nZ1 - nZ2 );
+	if( abs( nZ1 - nZ2 ) == 0 )
+	{
+		if( abs( nY1 - nY2 ) != 0 && pCurLayer->getDir() == 'V' )
+			nDis = nDis + 2;
+		else if( abs( nX1 - nX2 ) != 0 && pCurLayer->getDir() == 'H' )
+			nDis = nDis + 2;
+	}
+	return nDis;
+}
+
+// added at 0704 23:30
+inline int nEularDistance_sum( vector< gGrid_C* > vTarget, gGrid_C* pGrid2, layer_C* pCurLayer  )
+{
+	int nDis = 0;
+	for( int i=0; i<vTarget.size(); i++ )
+	{
+		nDis = nDis + nEularDistance( vTarget[i], pGrid2, pCurLayer );	
+	}
+	return nDis;
+}
+
+inline int nEularDistance_min( vector< gGrid_C* > vTarget, gGrid_C* pGrid2, layer_C* pCurLayer  )
+{
+	int nDis = INT_MAX;
+	for( int i=0; i<vTarget.size(); i++ )
+	{
+		nDis = min( nDis, nEularDistance( vTarget[i], pGrid2, pCurLayer ) );	
+	}
+	return nDis;
+}
+// end added at 0704 23:30
+
+// added at 0706 21:00
+inline int nEularDistance_FaS( vector< gGrid_C* > vTarget, gGrid_C* pGrid2, layer_C* pCurLayer, rGrid_C* pRGrid )
+{
+	int nFirstMin = INT_MAX;
+	int nSecondMin = INT_MAX;
+	int nDis = INT_MAX;
+	for( int i=0; i<vTarget.size(); i++ )
+	{
+		nDis = nEularDistance( vTarget[i], pGrid2, pCurLayer );	
+		if( nFirstMin > nDis )
+		{
+			if( nFirstMin == INT_MAX )
+			{
+				nFirstMin = nDis;
+			}
+			else
+			{
+				nSecondMin = nFirstMin;
+				nFirstMin = nDis;
+			}
+		}
+	}
+	pRGrid->m_nH = nFirstMin;
+	pRGrid->m_nMH = nSecondMin;
+	return nFirstMin;
+}
+// end added at 0706 21:00
+
+inline int nEularDistance( vector< gGrid_C* > vTarget, gGrid_C* pGrid2, layer_C* pCurLayer )
+{
+	
+	//version 1
+				
+	int nDis = INT_MAX;
+	for( int i=0; i<vTarget.size(); i++ )
+	{
+		nDis = min( nDis, nEularDistance( vTarget[i], pGrid2, pCurLayer ) );	
+	}
+	
+
+	//version 1.5
+	/*	
+	int nDis = 0;
+	for( int i=0; i<vTarget.size(); i++ )
+	{
+		nDis = nDis + nEularDistance( vTarget[i], pGrid2, pCurLayer );	
+	}	
+	*/	
+
+	//version 2
+	/*	
+	int nDis = 0;
+	vTarget.push_back( pGrid2 );
+
+	unsigned int *nFX = new unsigned int[ vTarget.size() ];
+	unsigned int *nFY = new unsigned int[ vTarget.size() ];
+	int nX1 = 0;
+	int nX2 = INT_MAX;
+	int nY1 = 0;
+	int nY2 = INT_MAX;
+	int nZ1 = 0;
+	int nZ2 = INT_MAX;
+	int nX, nY, nZ;
+	for( int p=0; p<vTarget.size(); p++ )
+	{
+		vTarget[p]->getPosition( nX, nY, nZ );
+		nFX[p] = nX;
+		nFY[p] = nY;
+		if( nX1 > nX );
+			nX1 = nX;
+		if( nX2 < nX );
+			nX2 = nX;
+		if( nY1 > nY );
+			nY1 = nY;
+		if( nY2 < nY );
+			nY2 = nY;
+		if( nZ1 > nZ );
+			nZ1 = nZ;
+		if( nZ2 < nZ );
+			nZ2 = nZ;
+	}
+	nDis = flute_wl( vTarget.size(), nFX, nFY, ACCURACY );
+	
+	nDis = nDis + vTarget.size();
+	if( abs( nZ1 - nZ2 ) == 0 )
+	{
+		//if( abs( nY1 - nY2 ) != 0 && pCurLayer->getDir() == 'H' )
+		//	nDis = nDis + 2;
+		//else if( abs( nX1 - nX2 ) != 0 && pCurLayer->getDir() == 'V' )
+		//	nDis = nDis + 2;
+	}
+	else
+		nDis = nDis + abs( nZ1 - nZ2 ) - 1;
+	
+	nDis = nDis + vTarget.size();
+	delete []nFX;
+	delete []nFY;
+	*/	
+	return nDis;
+}
+
+bool router_C::setRoutingConstraint( net_C* pNet )
+{
+	string strLayer = pNet->getConstraint();
+	if( strLayer == "NoCstr" )
+	{
+		m_nConstraintLayerId = m_nOffsetZ;
+		return true;
+	}
+
+	vector< layer_C* > vLayer = m_pDesign->getLayer();
+	for( int i=0; i<vLayer.size(); i++ )
+	{
+		if( strLayer == vLayer[i]->getName() )
+		{
+			m_nConstraintLayerId = vLayer[i]->getId();
+			break;
+		}
+	}
+	return true;
+}
+
+bool router_C::createForcedModel()
+{
+	vector< instance_C* > vInst = m_pDesign->getInstance();
+	for( int i=0; i<vInst.size(); i++ )
+	{
+		instance_C* pInst = vInst[i];
+		forced_C cF;
+		cF.m_pInstance = pInst;
+		if( pInst->isMovable() )
+		{
+			cF.m_bLockInX = false;
+			cF.m_bLockInY = false;
+		}
+		else
+		{
+			cF.m_bLockInX = true;
+			cF.m_bLockInY = true;	
+		}
+		m_vForced.push_back( cF );
+	}
+	return true;
+}
+
+bool router_C::createNetForcedModel()
+{
+	vector< networkForced_C > &vNF = m_vNetworkForced;
+	vector< net_C* > vNet = m_pDesign->getNet();
+	vector< instance_C* > vInst = m_pDesign->getInstance();
+
+	vector< int > vRecordNet( vNet.size()+1, 0 );
+	vector< int > vRecordInst( vInst.size() + 1, 0 );
+	for( int i=0; i<vNF.size(); i++ )
+	{
+		forced_C cNFModel;
+		networkForced_C* pNF = &vNF[i];
+		pseudoInstance_C* pPInst = new pseudoInstance_C;
+		pPInst->setName( pNF->m_pNet->getName() );
+		cNFModel.m_pInstance = pPInst;
+		vector<int> vNetId;
+		vector<int> vInstId;
+		vector< forced_C* > vF = pNF->m_vForced;
+		for( int f=0; f<vF.size(); f++ )
+		{
+			instance_C* pInst = vF[f]->m_pInstance;
+			int nInstId = pInst->getId();
+			if( vRecordInst[nInstId] == 1 )
+				continue;
+
+			vector< networkForced_C* > vTmpNF = vF[f]->m_vNetwork;
+			for( int n=0; n<vTmpNF.size(); n++ )
+			{
+				networkForced_C* pTmpNF = vTmpNF[n];
+				int nNetId = pTmpNF->m_pNet->getId();
+				if( vRecordNet[ nNetId ] == 1 )
+					continue;
+				
+				cNFModel.m_vNetwork.push_back( pTmpNF );
+				vNetId.push_back( nNetId );
+				vRecordNet[ nNetId ] = 1;
+			}
+			pPInst->addInstance( pInst );
+			vInstId.push_back( nInstId );
+			vRecordInst[ nInstId ] = 1;
+		}
+		m_vNetForced.push_back( cNFModel );
+		
+		for( int r=0; r<vNetId.size(); r++ )
+			vRecordNet[ vNetId[r] ] = 0;
+
+		for( int r=0; r<vInstId.size(); r++ )
+		{
+			vRecordInst[ vInstId[r] ] = 0;
+		}
+	}
+}
+
+bool router_C::createForcedNetwork()
+{
+	vector< net_C* > vNet = m_pDesign->getNet();
+	for( int i=0; i<vNet.size(); i++ )
+	{
+		net_C* pNet = vNet[i];
+		networkForced_C cNF;
+		cNF.m_pNet = pNet;
+		m_vNetworkForced.push_back( cNF );
+	}
+	return true;
+}
+
+bool router_C::linkForcedModel()
+{
+	// link model to network
+	for( int i=0; i<m_vNetworkForced.size(); i++ )
+	{
+		networkForced_C &cNF = m_vNetworkForced[i];
+		net_C* pNet = cNF.m_pNet;
+		vector< pin_C* > vPin = pNet->getPin();
+		vector< instance_C* > vInst;
+		for( int j=0; j<vPin.size(); j++ )
+		{
+			vInst.push_back( (instance_C*)vPin[j]->getCell() );
+		}
+
+		for( int j=0; j<vInst.size(); j++ )
+		{
+			instance_C* pInst = vInst[j];
+			if( pInst == m_vForced[ pInst->getId()].m_pInstance )
+			{	
+				cNF.m_vForced.push_back( &m_vForced[ pInst->getId() ] );
+				m_vForced[ pInst->getId() ].m_vNetwork.push_back( &cNF );
+			}
+			else
+			{
+				for( int k=0; k<m_vForced.size(); k++ )
+				{
+					if( m_vForced[k].m_pInstance == pInst )
+					{
+						cNF.m_vForced.push_back( &m_vForced[k] );
+						m_vForced[k].m_vNetwork.push_back( &cNF );
+						break;
+					}
+				}
+			}
+		}
+	}
+	return true;
+}
+
+bool router_C::updateForcedModel( instance_C* pInst )
+{
+	forced_C* pF;
+	if( pInst == m_vForced[ pInst->getId() ].m_pInstance )
+	{
+		pF = &m_vForced[ pInst->getId() ];
+	}
+	else
+	{
+		for( int i=0; i<m_vForced.size(); i++ )
+		{
+			if( m_vForced[i].m_pInstance == pInst )	
+			{
+				pF = &m_vForced[i];
+				break;
+			}
+		}
+	}	
+	set< instance_C* > sInst;
+	vector< forced_C* > vForced;
+	sInst.insert( pInst );
+	vForced.push_back( pF );
+
+	vector< networkForced_C* > vNetwork = pF->m_vNetwork;
+	for( int i=0; i<vNetwork.size(); i++ )
+	{
+		vector< forced_C* > vF = vNetwork[i]->m_vForced;
+		for( int j=0; j<vF.size(); j++ )
+		{
+			forced_C* pTmpF = vF[j];
+			instance_C* pTmpInst = pTmpF->m_pInstance;
+			if( sInst.count( pTmpInst ) == 0 )
+			{
+				sInst.insert( pTmpInst );
+				vForced.push_back( pTmpF );
+			}
+		}
+	}
+	
+	for( int i=0; i<vNetwork.size(); i++ )
+	{
+		calForcedNetwork( *vNetwork[i] );
+	}
+
+	for( int i=0; i<vForced.size(); i++ )
+	{
+		calForcedModel( *vForced[i] );
+	}
+
+	return true;
+
+}
+
+
+bool router_C::freeForcedModel( instance_C* pInst )
+{
+	forced_C* pF;
+	if( pInst == m_vForced[ pInst->getId() ].m_pInstance )
+	{
+		pF = &m_vForced[ pInst->getId() ];
+	}
+	else
+	{
+		for( int i=0; i<m_vForced.size(); i++ )
+		{
+			if( m_vForced[i].m_pInstance == pInst )	
+			{
+				pF = &m_vForced[i];
+				break;
+			}
+		}
+	}	
+	set< instance_C* > sInst;
+	vector< forced_C* > vForced;
+	sInst.insert( pInst );
+	//vForced.push_back( pF );
+
+	vector< networkForced_C* > vNetwork = pF->m_vNetwork;
+	for( int i=0; i<vNetwork.size(); i++ )
+	{
+		vector< forced_C* > vF = vNetwork[i]->m_vForced;
+		for( int j=0; j<vF.size(); j++ )
+		{
+			forced_C* pTmpF = vF[j];
+			instance_C* pTmpInst = pTmpF->m_pInstance;
+			if( sInst.count( pTmpInst ) == 0 )
+			{
+				sInst.insert( pTmpInst );
+				vForced.push_back( pTmpF );
+			}
+		}
+	}
+
+	for( int i=0; i<vForced.size(); i++ )
+	{
+		freeInstance( vForced[i]->m_pInstance );
+	}
+
+	return true;
+
+}
+
+bool router_C::updateForcedNetwork( networkForced_C &cNF )
+{
+
+}
+
+bool router_C::calForcedModel( forced_C &cF )
+{
+	int nX = cF.m_pInstance->getPlacedX();
+	int nY = cF.m_pInstance->getPlacedY();
+	int nTF = 0;
+	int nDF = 0;
+	int nRF = 0;
+	int nLF = 0;
+	for( int i=0; i<cF.m_vNetwork.size(); i++ )
+	{
+		networkForced_C* cNF = cF.m_vNetwork[i];
+		bool bNoForcedInX = false;
+		bool bNoForcedInY = false;
+		
+		// second version
+		if( cNF->m_nMaxY == cNF->m_nMinY )
+		{	
+			nRF--;
+			nLF--;
+		}		
+		else if( nY == cNF->m_nMaxY )
+		{	nRF--;
+			if( cNF->m_nMaxYCount == 1 )
+				nLF++;
+		}
+		else if( nY == cNF->m_nMinY )
+		{	nLF--;
+			if( cNF->m_nMinYCount == 1 )
+				nRF++;
+		}
+
+		if( cNF->m_nMaxX == cNF->m_nMinX )
+		{
+			nTF--;
+			nDF--;
+		}
+		else if( nX == cNF->m_nMaxX )
+		{	
+			nTF--;
+			if( cNF->m_nMaxXCount == 1 )
+				nDF++;
+		}
+		else if( nX == cNF->m_nMinX )
+		{	
+			nDF--;
+			if( cNF->m_nMinXCount == 1 )
+				nTF++;
+		}
+
+
+	}
+	
+	if( nTF < 0 ) nTF = 0;
+	if( nDF < 0 ) nDF = 0;
+	if( nRF < 0 ) nRF = 0;
+	if( nLF < 0 ) nLF = 0;
+	cF.m_nT = nTF;
+	cF.m_nD = nDF;
+	cF.m_nR = nRF;
+	cF.m_nL = nLF;
+
+	// added at 0712 22:00
+	int nBX1, nBX2;
+	int nBY1, nBY2;
+	nBX1 = cF.m_pInstance->getPlacedX();
+	nBY1 = cF.m_pInstance->getPlacedY();
+	nBX2 = nBX1;
+	nBY2 = nBY1;
+
+	vector<int> vMinX;
+	vector<int> vMaxX;
+	
+	vector<int> vMinY;
+	vector<int> vMaxY;
+
+
+	vector< networkForced_C* > vNetWork = cF.m_vNetwork;
+	vector< vector< instance_C*> > vBoundingBox;
+	for( int i=0; i<vNetWork.size(); i++ )
+	{
+		vector< instance_C* > vInst;
+		networkForced_C* pNF = vNetWork[i];
+		vector< forced_C* > vF = pNF->m_vForced;
+		for( int j=0; j<vF.size(); j++ )
+		{
+			instance_C* pTmpInst = vF[j]->m_pInstance;
+			if( pTmpInst != cF.m_pInstance )
+				vInst.push_back( pTmpInst );
+		}
+		vBoundingBox.push_back( vInst );
+	}
+		
+
+
+	int nDX = 0;
+	int nDY = 0;
+	if( !cF.m_bLockInX )
+	{
+		nDX = cF.m_nT - cF.m_nD;
+	}
+	
+	if( nDX != 0 )
+	{
+		nDX = nDX/abs(nDX);
+		nDY = 0;
+		//vector<int> vMin;
+		//vector<int> vMax;
+		for( int i=0; i<vBoundingBox.size(); i++ )
+		{
+			vector< instance_C* > vInst = vBoundingBox[i];
+			int nMax;
+			int nMin;
+			nMax = m_nDX;
+			nMin = m_nTX;;
+
+
+			for( int j=0; j<vInst.size(); j++ )
+			{
+				instance_C* pTmpInst = vInst[j];
+				nMax = max( pTmpInst->getPlacedX(), nMax );
+				nMin = min( pTmpInst->getPlacedX(), nMin );
+			}
+			vMinX.push_back( nMin );
+			vMaxX.push_back( nMax );
+		}
+		// moving instance
+		int nBest;
+		int nTmp;
+		nTmp = cF.m_pInstance->getPlacedX();
+
+		nBest = boundingBoxCost( nTmp, vMinX, vMaxX );
+		gGrid_C* pBestGrid = NULL;
+		gGrid_C* pGrid = getGrid( m_pDesign, cF.m_pInstance->getPlacedX(), cF.m_pInstance->getPlacedY(), m_nDZ);
+		while( graphTravel( m_pDesign, pGrid, nDX, nDY, 0 ) != NULL )
+		{
+			pGrid = graphTravel( m_pDesign, pGrid, nDX, nDY, 0 );
+			// check placeable
+			//if( !isPlaceable( pGrid, pInst ) )
+			//	continue;
+			// 
+			int nTmpX, nTmpY, nTmpZ;
+			pGrid->getPosition( nTmpX, nTmpY, nTmpZ );
+			nTmp = nTmpX;
+			
+			int nTmpBest = boundingBoxCost( nTmp, vMinX, vMaxX );
+			// change at 0706 19:30
+			//if( nTmpBest <= nBest ) // change from <
+			//{
+			//	nBest = nTmpBest;
+			//	pBestGrid = pGrid;
+			//	vBestGrid.push_back( pBestGrid );
+			//}
+			//else
+			//	break;
+			
+			if( nTmpBest <= nBest ) // change from <
+			{
+				pBestGrid = pGrid;
+				nBX2 = nBX2 + nDX;	
+			}
+			else
+				break;
+			
+			// end change
+			//cout<<nBest<<endl;
+		}
+	}
+
+	
+	if( !cF.m_bLockInY )
+		nDY = cF.m_nR - cF.m_nL;
+	
+	if( nDY != 0 )
+	{
+		nDY = nDY/abs(nDY); nDX = 0; 
+		// collecting all the correlated network
+		//vector<int> vMin;
+		//vector<int> vMax;
+		for( int i=0; i<vBoundingBox.size(); i++ )
+		{
+			vector< instance_C* > vInst = vBoundingBox[i];
+			int nMax;
+			int nMin;
+			nMax = m_nDY;
+			nMin = m_nTY;
+
+
+			for( int j=0; j<vInst.size(); j++ )
+			{
+				instance_C* pTmpInst = vInst[j];
+				nMax = max( pTmpInst->getPlacedY(), nMax );
+				nMin = min( pTmpInst->getPlacedY(), nMin );
+			}
+			vMinY.push_back( nMin );
+			vMaxY.push_back( nMax );
+		}
+		// moving instance
+		int nBest;
+		int nTmp;
+		nTmp = cF.m_pInstance->getPlacedY();
+
+		nBest = boundingBoxCost( nTmp, vMinY, vMaxY );
+		gGrid_C* pBestGrid = NULL;
+		gGrid_C* pGrid = getGrid( m_pDesign, cF.m_pInstance->getPlacedX(), cF.m_pInstance->getPlacedY(), m_nDZ);
+		while( graphTravel( m_pDesign, pGrid, nDX, nDY, 0 ) != NULL )
+		{
+			pGrid = graphTravel( m_pDesign, pGrid, nDX, nDY, 0 );
+			// check placeable
+			//if( !isPlaceable( pGrid, pInst ) )
+			//	continue;
+			// 
+			int nTmpX, nTmpY, nTmpZ;
+			pGrid->getPosition( nTmpX, nTmpY, nTmpZ );
+			nTmp = nTmpY;
+			
+			int nTmpBest = boundingBoxCost( nTmp, vMinY, vMaxY );
+			// change at 0706 19:30
+			//if( nTmpBest <= nBest ) // change from <
+			//{
+			//	nBest = nTmpBest;
+			//	pBestGrid = pGrid;
+			//	vBestGrid.push_back( pBestGrid );
+			//}
+			//else
+			//	break;
+			
+			if( nTmpBest <= nBest ) // change from <
+			{
+				pBestGrid = pGrid;
+				nBY2 = nBY2 + nDY;
+			}
+			else
+				break;
+			
+			// end change
+			//cout<<nBest<<endl;
+		}
+	}
+
+	if( nBX1 < nBX2 )
+	{
+		cF.m_nBoundX1 = nBX1;
+		cF.m_nBoundX2 = nBX2;
+	}
+	else
+	{
+		cF.m_nBoundX1 = nBX2;
+		cF.m_nBoundX2 = nBX1;	
+	}
+
+	if( nBY1 < nBY2 )
+	{
+		cF.m_nBoundY1 = nBY1;
+		cF.m_nBoundY2 = nBY2;
+	}
+	else
+	{
+		cF.m_nBoundY1 = nBY2;
+		cF.m_nBoundY2 = nBY1;
+	}
+	//cF.m_vMinX.clear();
+	//cF.m_vMaxX.clear();
+		    
+	//cF.m_vMinY.clear();
+	//cF.m_vMaxY.clear();	
+	
+	cF.m_vMinX = vMinX ;
+	cF.m_vMaxX = vMaxX ;
+	            
+	cF.m_vMinY = vMinY ;
+	cF.m_vMaxY = vMaxY ; 
+
+	//if( cF.m_pInstance->getName() == "C1200" )
+	//	cout<<"Range: "<<cF.m_nBoundX1<<" "<<cF.m_nBoundY1<<" "<<cF.m_nBoundX2<<" "<<cF.m_nBoundY2<<endl;
+
+
+	return true;
+}
+
+bool router_C::calNetForcedModel( forced_C &cF )
+{
+	pseudoInstance_C* pPInst = (pseudoInstance_C*)cF.m_pInstance;
+	vector< instance_C* > vInst = pPInst->getCluster();
+	vector< forced_C > &vF = m_vForced;
+	bool bFix = false;
+	int nFT = 0;
+	int nFD = 0;
+	int nFR = 0;
+	int nFL = 0;
+
+	int nX = 0;
+	int nY = 0;
+	for( int i=0; i<vInst.size(); i++ )
+	{
+		instance_C* pInst = vInst[i];
+		if( !pInst->isMovable() )
+			bFix = true;
+		nX = nX + pInst->getPlacedX();
+		nY = nY + pInst->getPlacedY();
+		forced_C* pF = &m_vForced[ pInst->getId() ];
+		nFT = nFT + pF->m_nT;
+		nFD = nFT + pF->m_nD;
+		nFR = nFR + pF->m_nR;
+		nFL = nFL + pF->m_nL;
+	}
+	int nNumInst = vInst.size();
+
+	nX = nX / nNumInst;
+	nY = nY / nNumInst;
+	
+	if( !bFix )
+	{
+		pPInst->setPlaced( nX, nY );
+		
+		cF.m_nT = nFT;
+		cF.m_nD = nFD;
+		cF.m_nR = nFR;
+		cF.m_nL = nFL;
+		cF.m_bLockInX = false;
+		cF.m_bLockInY = false;
+	
+		return true;
+	}
+	else
+	{
+		
+		pPInst->setPlaced( nX, nY );
+		
+		cF.m_nT = 0;
+		cF.m_nD = 0;
+		cF.m_nR = 0;
+		cF.m_nL = 0;
+		cF.m_bLockInX = true;
+		cF.m_bLockInY = true;
+	
+		return true;
+	}
+}
+
+bool router_C::calForcedNetwork( networkForced_C &cNF )
+{
+/* 	// first version (no use now)
+	int nX = 0;
+	int nY = 0;
+
+	bool bHaveFixedCell = false;
+	vector< forced_C* > vF;
+	for( int i=0; i<cNF.m_vForced.size(); i++ )
+	{
+		forced_C* cF = cNF.m_vForced[i];
+		instance_C* pInst = cF->m_pInstance;
+		if( !pInst->isMovable() )	
+		{
+			bHaveFixedCell = true;
+			vF.push_back( cF );
+		}
+	}
+
+	if( bHaveFixedCell )
+	{
+		for( int i=0; i<vF.size(); i++ )
+		{
+			forced_C* cF = vF[i];
+			instance_C* pInst = cF->m_pInstance;
+			nX = nX + pInst->getPlacedX();
+			nY = nY + pInst->getPlacedY();
+		}
+		int nNumForced = vF.size();
+		if( nX%nNumForced == 0 )
+		{
+			cNF.m_nCenterX = nX / nNumForced;
+			cNF.m_nXHalf = 0;
+		}
+		else
+		{	
+			cNF.m_nCenterX = nX / nNumForced;
+			cNF.m_nXHalf = 1;
+		}
+		
+		if( nY%nNumForced == 0 )
+		{
+			cNF.m_nCenterY = nY / nNumForced;
+			cNF.m_nYHalf = 0;
+		}
+		else
+		{	
+			cNF.m_nCenterY = nY / nNumForced;
+			cNF.m_nYHalf = 1;
+		}
+		
+		return true;
+	}
+
+
+	for( int i=0; i<cNF.m_vForced.size(); i++ )
+	{
+		forced_C* cF = cNF.m_vForced[i];
+		instance_C* pInst = cF->m_pInstance;
+		nX = nX + pInst->getPlacedX();
+		nY = nY + pInst->getPlacedY();
+	}
+	int nNumForced = cNF.m_vForced.size();
+	if( nX%nNumForced == 0 )
+	{
+		cNF.m_nCenterX = nX / nNumForced;
+		cNF.m_nXHalf = 0;
+	}
+	else
+	{	
+		cNF.m_nCenterX = nX / nNumForced;
+		cNF.m_nXHalf = 1;
+	}
+	
+	if( nY%nNumForced == 0 )
+	{
+		cNF.m_nCenterY = nY / nNumForced;
+		cNF.m_nYHalf = 0;
+	}
+	else
+	{	
+		cNF.m_nCenterY = nY / nNumForced;
+		cNF.m_nYHalf = 1;
+	}
+*/
+
+	// second version
+	
+	int nMaxX = m_nDX;
+	int nMinX = m_nTX;
+	int nMaxY = m_nDY;
+	int nMinY = m_nTY;
+	int nMinXCount = 0;
+	int nMaxXCount = 0;
+	int nMinYCount = 0;
+	int nMaxYCount = 0;
+	for( int i=0; i<cNF.m_vForced.size(); i++ )
+	{
+		forced_C* cF = cNF.m_vForced[i];
+		instance_C* pInst = cF->m_pInstance;
+		int nX = pInst->getPlacedX();
+		int nY = pInst->getPlacedY();
+		if( nX < nMinX )
+		{
+			nMinX = nX;
+			nMinXCount = 1;
+		}
+		else if( nX == nMinX )
+		{
+			nMinXCount++;
+		}
+		
+		if( nX > nMaxX )
+		{
+			nMaxX = nX;
+			nMaxXCount = 1;
+		}
+		else if( nX == nMaxX )
+		{
+		
+			nMaxXCount++;
+		}
+
+		if( nY < nMinY )
+		{
+			nMinY = nY;
+			nMinYCount = 1;
+		}
+		else if( nY == nMinY )
+		{
+			nMinYCount++;
+		}
+
+		if( nY > nMaxY )
+		{
+			nMaxY = nY;
+			nMaxYCount = 1;
+		}
+		else if( nY == nMaxY )
+		{
+			nMaxYCount++;
+		}
+	}
+
+	cNF.m_nMinX = nMinX;
+	cNF.m_nMaxX = nMaxX;
+	cNF.m_nMinY = nMinY;
+	cNF.m_nMaxY = nMaxY;
+	cNF.m_nMinXCount = nMinXCount;
+	cNF.m_nMaxXCount = nMaxXCount;
+	cNF.m_nMinYCount = nMinYCount;
+	cNF.m_nMaxYCount = nMaxYCount;
+
+	return true;
+}
+
+instance_C* router_C::pickInstanceToMove()
+{
+	//cout<<"Picking Instance..."<<endl;
+	vector< int > vSumOfForced;
+	vector< int > vMaxForced;
+	int nMaxSForced = 0; // sum of forced;
+
+	vector< forced_C* > vForced;
+	for( int i=0; i<m_vForced.size(); i++ )
+	{
+		vForced.push_back( &m_vForced[i] );
+	}
+
+	for( int i=0; i<vForced.size(); i++ )
+	{
+		forced_C* pF = vForced[i];
+		int nFX; 
+		if( pF->m_bLockInX )
+			nFX = 0;
+		else
+			nFX = abs( pF->m_nR - pF->m_nL );
+		int nFY;
+		if( pF->m_bLockInY )
+			nFY = 0;
+		else
+			nFY = abs( pF->m_nT - pF->m_nD );
+		int nSumOfForced = nFX + nFY;
+		int nMaxForced = max( nFX, nFY );
+		nMaxSForced = max( nMaxSForced, nSumOfForced );
+		vSumOfForced.push_back( nSumOfForced );
+		vMaxForced.push_back( nMaxForced );
+	}
+	// change at 0711 21:00	
+	/*	
+	vector< int > vForcedId;
+	for( int i=0; i<vSumOfForced.size(); i++ )
+	{
+		if( vSumOfForced[i] == nMaxSForced )
+			vForcedId.push_back(i);
+	}
+
+	int nPickMaxForced = 0;
+	int nPickId = -1;
+	for( int i=0; i<vForcedId.size(); i++ )
+	{
+		int nId = vForcedId[i];
+		if( vMaxForced[nId] > nPickMaxForced )
+		{
+			nPickMaxForced = vMaxForced[nId];
+			nPickId = nId;
+		}
+	}
+	*/
+	//cout<<"Max"<<nMaxSForced<<endl;	
+	int nPickId = -1;
+	for( int i=0; i<vSumOfForced.size(); i++ )
+	{
+		if( vSumOfForced[i] == nMaxSForced && vSumOfForced[i] != 0 )
+		{
+			nPickId = i;
+			//cout<<" Forced: "<<vSumOfForced[i];
+			break;
+		}
+	}
+	
+	// end change
+
+	/*
+	int nPickMaxForced = 0;
+	int nPickId = -1;
+	for( int i=0; i<vMaxForced.size(); i++ )
+	{
+		if( vMaxForced[i] > nPickMaxForced )
+		{
+			nPickMaxForced = vMaxForced[i];
+			nPickId = i;
+		}
+	}
+	*/
+	//cout<<nPickMaxForced<<endl;
+	if( nPickId < 0 )
+	{
+		//cout<<"No instances are picked"<<endl;
+		return NULL;
+	}
+	//cout<<"Pick instance: "<<m_vForced[nPickId].m_pInstance->getName()<<endl;
+	//cout<<nPickId<<endl;
+	return vForced[nPickId]->m_pInstance;
+}
+
+// added at 0705 02:00
+//ripup version 
+vector< gGrid_C* > router_C::findPlaceToMove( instance_C* pInst, vector< net_C* > &vRipNet )
+{
+	int nOrigX = pInst->getPlacedX();
+	int nOrigY = pInst->getPlacedY();
+	
+	vector< gGrid_C* > vBestGrid;
+
+	forced_C cF;
+	if( pInst == m_vForced[ pInst->getId() ].m_pInstance )
+	{
+		cF = m_vForced[ pInst->getId() ];
+	}
+	else
+	{
+		for( int i=0; i<m_vForced.size(); i++ )
+		{
+			if( m_vForced[i].m_pInstance == pInst )
+			{
+				cF = m_vForced[i];
+				break;
+			}
+		}
+	}
+	// setup search direction
+	int nDX = 0;
+	int nDY = 0;
+	if( !cF.m_bLockInX )
+		nDX = cF.m_nR - cF.m_nL;
+	if( !cF.m_bLockInY )
+		nDY = cF.m_nT - cF.m_nD;
+	
+	if( nDX == 0 && nDY == 0 )
+	{
+		cout<<"Warning: No operations will be executed. This instance has balanced forced"<<endl;
+		return vBestGrid;
+	//	return NULL;
+	}
+	if( abs( nDX ) >= abs( nDY ) )
+	{
+		nDX = nDX/abs(nDX); nDY = 0;
+	}
+	else
+	{
+		nDY = nDY/abs(nDY); nDX = 0; 
+	}
+
+	// collecting all the correlated network
+	vector< networkForced_C* > vNetWork = cF.m_vNetwork;
+	vector< vector< instance_C*> > vBoundingBox;
+	for( int i=0; i<vNetWork.size(); i++ )
+	{
+		vector< instance_C* > vInst;
+		networkForced_C* pNF = vNetWork[i];
+		vector< forced_C* > vF = pNF->m_vForced;
+		for( int j=0; j<vF.size(); j++ )
+		{
+			instance_C* pTmpInst = vF[j]->m_pInstance;
+			if( pTmpInst != pInst )
+				vInst.push_back( pTmpInst );
+		}
+		vBoundingBox.push_back( vInst );
+	}
+	
+	vector<int> vMin;
+	vector<int> vMax;
+	for( int i=0; i<vBoundingBox.size(); i++ )
+	{
+		vector< instance_C* > vInst = vBoundingBox[i];
+		int nMax;
+		int nMin;
+		if( nDX != 0 )
+		{
+			nMax = m_nDX;
+			nMin = m_nTX;;
+		}
+		else
+		{
+			nMax = m_nDY;
+			nMin = m_nTY;
+		}
+
+
+		for( int j=0; j<vInst.size(); j++ )
+		{
+			instance_C* pTmpInst = vInst[j];
+			if( nDX != 0 )
+			{
+				nMax = max( pTmpInst->getPlacedX(), nMax );
+				nMin = min( pTmpInst->getPlacedX(), nMin );
+			}
+			else
+			{
+				nMax = max( pTmpInst->getPlacedY(), nMax );
+				nMin = min( pTmpInst->getPlacedY(), nMin );
+			}
+		}
+		vMin.push_back( nMin );
+		vMax.push_back( nMax );
+	}
+	// moving instance
+	int nBest;
+	int nTmp;
+	if( nDX != 0 )
+		nTmp = pInst->getPlacedX();
+	else
+		nTmp = pInst->getPlacedY();
+
+	nBest = boundingBoxCost( nTmp, vMin, vMax );
+	gGrid_C* pBestGrid = NULL;
+	gGrid_C* pGrid = getGrid( m_pDesign, pInst->getPlacedX(), pInst->getPlacedY(), m_nDZ);
+	while( graphTravel( m_pDesign, pGrid, nDX, nDY, 0 ) != NULL )
+	{
+		pGrid = graphTravel( m_pDesign, pGrid, nDX, nDY, 0 );
+		// check placeable
+		if( !isPlaceable( pGrid, pInst, vRipNet ) )
+			continue;
+		// 
+		int nTmpX, nTmpY, nTmpZ;
+		pGrid->getPosition( nTmpX, nTmpY, nTmpZ );
+		if( nDX != 0 )
+			nTmp = nTmpX;
+		else
+			nTmp = nTmpY;
+		
+		int nTmpBest = boundingBoxCost( nTmp, vMin, vMax );
+		if( nTmpBest <= nBest ) // change from <
+		{
+			nBest = nTmpBest;
+			pBestGrid = pGrid;
+			vBestGrid.push_back( pBestGrid );
+		}
+		else
+			break;
+		//cout<<nBest<<endl;
+	}
+	pInst->setPlaced( nOrigX, nOrigY );
+	//return pBestGrid;
+	return vBestGrid;
+}
+// end added at 0705 02:00
+
+// version 2
+/*
+gGrid_C* router_C::findPlaceToMove( instance_C* pInst )
+{
+	forced_C cF;
+	if( pInst == m_vForced[ pInst->getId() ].m_pInstance )
+	{
+		cF = m_vForced[ pInst->getId() ];
+	}
+	else
+	{
+		for( int i=0; i<m_vForced.size(); i++ )
+		{
+			if( m_vForced[i].m_pInstance == pInst )
+			{
+				cF = m_vForced[i];
+				break;
+			}
+		}
+	}
+	// setup search direction
+	int nDX = 0;
+	int nDY = 0;
+	if( !cF.m_bLockInX )
+		nDX = cF.m_nR - cF.m_nL;
+	if( !cF.m_bLockInY )
+		nDY = cF.m_nT - cF.m_nD;
+	
+	if( nDX == 0 && nDY == 0 )
+	{
+		cout<<"Warning: No operations will be executed. This instance has balanced forced"<<endl;
+		return NULL;
+	}
+	if( abs( nDX ) >= abs( nDY ) )
+	{
+		nDX = nDX/abs(nDX); nDY = 0;
+	}
+	else
+	{
+		nDY = nDY/abs(nDY); nDX = 0; 
+	}
+
+	// collecting all the correlated network
+	vector< networkForced_C* > vNetWork = cF.m_vNetwork;
+	vector< vector< instance_C*> > vBoundingBox;
+	for( int i=0; i<vNetWork.size(); i++ )
+	{
+		vector< instance_C* > vInst;
+		networkForced_C* pNF = vNetWork[i];
+		vector< forced_C* > vF = pNF->m_vForced;
+		for( int j=0; j<vF.size(); j++ )
+		{
+			instance_C* pTmpInst = vF[j]->m_pInstance;
+			if( pTmpInst != pInst )
+				vInst.push_back( pTmpInst );
+		}
+		vBoundingBox.push_back( vInst );
+	}
+	
+	vector<int> vMin;
+	vector<int> vMax;
+	vector<int> vPosition;
+	for( int i=0; i<vBoundingBox.size(); i++ )
+	{
+		vector< instance_C* > vInst = vBoundingBox[i];
+		int nMax;
+		int nMin;
+		if( nDX != 0 )
+		{
+			nMax = m_nDX;
+			nMin = m_nTX;;
+		}
+		else
+		{
+			nMax = m_nDY;
+			nMin = m_nTY;
+		}
+
+
+		for( int j=0; j<vInst.size(); j++ )
+		{
+			instance_C* pTmpInst = vInst[j];
+			if( nDX != 0 )
+			{
+				nMax = max( pTmpInst->getPlacedX(), nMax );
+				nMin = min( pTmpInst->getPlacedX(), nMin );
+			}
+			else
+			{
+				nMax = max( pTmpInst->getPlacedY(), nMax );
+				nMin = min( pTmpInst->getPlacedY(), nMin );
+			}
+		}
+		vMin.push_back( nMin );
+		vMax.push_back( nMax );
+		vPosition.push_back( nMax );
+		vPosition.push_back( nMin );
+	}
+
+	//if( nDX != 0 )
+	//	vPosition.push_back( pInst->getPlacedX() );
+	//else
+	//	vPosition.push_back( pInst->getPlacedY() );
+
+	sort( vPosition.begin(), vPosition.end() );
+	//for( int i=vPosition.size()-2; i>=0; i-- )
+	//{
+	//	if( vPosition[i] == vPosition[i+1] )
+	//	{
+	//		vPosition.erase( vPosition.begin() + i );	
+	//	}
+	//}
+	// moving instance
+	int nBest;
+	int nTmp;
+	
+	//if( nDX != 0 )
+	//	nTmp = pInst->getPlacedX();
+	//else
+	//	nTmp = pInst->getPlacedY();
+	
+	//for( int i=0; i<vPosition.size(); i++ )
+	//{
+	//	cout<<vPosition[i]<<" ";
+	//}
+	//cout<<endl;
+
+	if( vPosition.size() % 2 != 0 )
+	{
+		int nPosition = ( vPosition.size() + 1 )/2 - 1;
+		nTmp = vPosition[ nPosition ];
+	}
+	else
+	{	
+		int nPosition = vPosition.size()/2 - 1;
+		//cout<<nPosition<<endl;
+		if( nDX + nDY > 0 )
+			nTmp = vPosition[ nPosition + 1 ];
+		else 
+			nTmp = vPosition[ nPosition ];
+	}
+	//cout<<nDX<<" "<<nDY<<" "<<nTmp<<endl;
+	//nBest = boundingBoxCost( nTmp, vMin, vMax );
+	gGrid_C* pBestGrid = NULL;
+	gGrid_C* pGrid = NULL;
+	if( nDX != 0 )
+	{ 
+		pGrid = getGrid( m_pDesign, nTmp, pInst->getPlacedY(), m_nDZ );
+	}
+	else
+	{
+		pGrid = getGrid( m_pDesign, pInst->getPlacedX(), nTmp, m_nDZ );
+	}
+	
+	gGrid_C* pPlaceGrid = getGrid( m_pDesign, pInst->getPlacedX(), pInst->getPlacedY(), m_nDZ );
+	
+	while( pGrid != NULL && pGrid != pPlaceGrid )
+	{
+		// check placeable
+		if( !isPlaceable( pGrid, pInst ) )
+		{
+			pGrid = graphTravel( m_pDesign, pGrid, -nDX, -nDY, 0 );
+		}
+		else
+		{
+			pBestGrid = pGrid;
+			break;
+		}
+			//pGrid = graphTravel( m_pDesign, pGrid, -nDX, -nDY, 0 );
+	}
+
+	if( nDX != 0 )
+		lockInstance( pInst, 'X' );
+	else
+		lockInstance( pInst, 'Y' );
+
+	return pBestGrid;
+}
+*/
+
+// added at 0705 02:00
+vector< gGrid_C* >router_C::findPlaceToMove_ver3( instance_C* pInst )
+{
+	int nOrigX = pInst->getPlacedX();
+	int nOrigY = pInst->getPlacedY();
+	
+	vector< gGrid_C* > vBestGrid;
+
+	forced_C* cF;
+	if( pInst == m_vForced[ pInst->getId() ].m_pInstance )
+	{
+		cF = &m_vForced[ pInst->getId() ];
+	}
+	else
+	{
+		for( int i=0; i<m_vForced.size(); i++ )
+		{
+			if( m_vForced[i].m_pInstance == pInst )
+			{
+				cF = &m_vForced[i];
+				break;
+			}
+		}
+	}
+	
+	int nStartX = cF->m_nBoundX1;
+	int nEndX = cF->m_nBoundX2;
+	int nStartY = cF->m_nBoundY1;
+	int nEndY = cF->m_nBoundY2;
+
+	
+	//if( pInst->getName() == "C1200" )
+	//	cout<<"Range: "<<nStartX<<" "<<nStartY<<" "<<nEndX<<" "<<nEndY<<endl;
+
+
+	for( int nX = nStartX; nX <= nEndX; nX++ )
+	{
+		for( int nY = nStartY; nY <= nEndY; nY++ )
+		{
+			gGrid_C* pPGrid = getGrid( m_pDesign, nX, nY, m_nOffsetZ );
+			vBestGrid.push_back( pPGrid );
+		}
+	}
+	// end added at 0711 02:00
+
+	vector<int> vMinX = cF->m_vMinX;
+	vector<int> vMaxX = cF->m_vMaxX;
+	
+	vector<int> vMinY = cF->m_vMinY;
+	vector<int> vMaxY = cF->m_vMaxY; 
+
+
+	// added at 0706 19:30	
+	for( int i=1; i<vBestGrid.size(); i++ )
+	{
+		for( int j=i-1; j>=0; j-- )
+		{
+			//if( !cF.m_bLockInX )
+			//	nDX = cF.m_nR - cF.m_nL;
+			//if( !cF.m_bLockInY )
+			//	nDY = cF.m_nT - cF.m_nD;
+			
+			int nTmpX, nTmpY, nTmpZ, nTmpB, nTmpF;
+			gGrid_C* pBG = vBestGrid[ j+1 ];
+			pBG->getPosition( nTmpX, nTmpY, nTmpZ );
+			
+			int nBCost = boundingBoxCost( nTmpX, vMinX, vMaxX )
+				   + boundingBoxCost( nTmpY, vMinY, vMaxY ) ;
+
+			gGrid_C* pFG = vBestGrid[ j ];
+			pFG->getPosition( nTmpX, nTmpY, nTmpZ );
+			
+			int nFCost = boundingBoxCost( nTmpX, vMinX, vMaxX )
+				   + boundingBoxCost( nTmpY, vMinY, vMaxY ) ;
+			
+			if( nFCost >= nBCost )
+				break;
+			else
+			{
+				vBestGrid[ j+1 ] = pFG;	
+				vBestGrid[ j ] = pBG;
+			}
+
+		}
+	}
+	// endadded at 0706 19:30	
+	
+	pInst->setPlaced( nOrigX, nOrigY );
+	//return pBestGrid;
+	return vBestGrid;
+}
+// end added at 0705 02:00
+
+// added at 0704 22:00
+vector< gGrid_C* >router_C::findPlaceToMove( instance_C* pInst )
+{
+	int nOrigX = pInst->getPlacedX();
+	int nOrigY = pInst->getPlacedY();
+	
+	vector< gGrid_C* > vBestGrid;
+
+	forced_C cF;
+	if( pInst == m_vForced[ pInst->getId() ].m_pInstance )
+	{
+		cF = m_vForced[ pInst->getId() ];
+	}
+	else
+	{
+		for( int i=0; i<m_vForced.size(); i++ )
+		{
+			if( m_vForced[i].m_pInstance == pInst )
+			{
+				cF = m_vForced[i];
+				break;
+			}
+		}
+	}
+	// setup search direction
+	int nDX = 0;
+	int nDY = 0;
+	if( !cF.m_bLockInX )
+		nDX = cF.m_nR - cF.m_nL;
+	if( !cF.m_bLockInY )
+		nDY = cF.m_nT - cF.m_nD;
+	
+	if( nDX == 0 && nDY == 0 )
+	{
+		cout<<"Warning: No operations will be executed. This instance has balanced forced"<<endl;
+		return vBestGrid;
+	//	return NULL;
+	}
+	if( abs( nDX ) >= abs( nDY ) )
+	{
+		nDX = nDX/abs(nDX); nDY = 0;
+	}
+	else
+	{
+		nDY = nDY/abs(nDY); nDX = 0; 
+	}
+
+	// collecting all the correlated network
+	vector< networkForced_C* > vNetWork = cF.m_vNetwork;
+	vector< vector< instance_C*> > vBoundingBox;
+	for( int i=0; i<vNetWork.size(); i++ )
+	{
+		vector< instance_C* > vInst;
+		networkForced_C* pNF = vNetWork[i];
+		vector< forced_C* > vF = pNF->m_vForced;
+		for( int j=0; j<vF.size(); j++ )
+		{
+			instance_C* pTmpInst = vF[j]->m_pInstance;
+			if( pTmpInst != pInst )
+				vInst.push_back( pTmpInst );
+		}
+		vBoundingBox.push_back( vInst );
+	}
+	
+	vector<int> vMin;
+	vector<int> vMax;
+	for( int i=0; i<vBoundingBox.size(); i++ )
+	{
+		vector< instance_C* > vInst = vBoundingBox[i];
+		int nMax;
+		int nMin;
+		if( nDX != 0 )
+		{
+			nMax = m_nDX;
+			nMin = m_nTX;;
+		}
+		else
+		{
+			nMax = m_nDY;
+			nMin = m_nTY;
+		}
+
+
+		for( int j=0; j<vInst.size(); j++ )
+		{
+			instance_C* pTmpInst = vInst[j];
+			if( nDX != 0 )
+			{
+				nMax = max( pTmpInst->getPlacedX(), nMax );
+				nMin = min( pTmpInst->getPlacedX(), nMin );
+			}
+			else
+			{
+				nMax = max( pTmpInst->getPlacedY(), nMax );
+				nMin = min( pTmpInst->getPlacedY(), nMin );
+			}
+		}
+		vMin.push_back( nMin );
+		vMax.push_back( nMax );
+	}
+	// moving instance
+	int nBest;
+	int nTmp;
+	if( nDX != 0 )
+		nTmp = pInst->getPlacedX();
+	else
+		nTmp = pInst->getPlacedY();
+
+	nBest = boundingBoxCost( nTmp, vMin, vMax );
+	gGrid_C* pBestGrid = NULL;
+	gGrid_C* pGrid = getGrid( m_pDesign, pInst->getPlacedX(), pInst->getPlacedY(), m_nDZ);
+	while( graphTravel( m_pDesign, pGrid, nDX, nDY, 0 ) != NULL )
+	{
+		pGrid = graphTravel( m_pDesign, pGrid, nDX, nDY, 0 );
+		// check placeable
+		if( !isPlaceable( pGrid, pInst ) )
+			continue;
+		// 
+		int nTmpX, nTmpY, nTmpZ;
+		pGrid->getPosition( nTmpX, nTmpY, nTmpZ );
+		if( nDX != 0 )
+			nTmp = nTmpX;
+		else
+			nTmp = nTmpY;
+		// added at 0705 15:40	
+		//int nTmpBest = boundingBoxCost( nTmp, vMin, vMax );
+		//if( nTmpBest <= nBest ) // change from <
+		//{
+		//	nBest = nTmpBest;
+		//	pBestGrid = pGrid;
+		//	vBestGrid.push_back( pBestGrid );
+		//}
+		//else
+		//	break;
+		int nTmpBest = boundingBoxCost( nTmp, vMin, vMax );
+		if( nTmpBest <= nBest )
+		{
+			pBestGrid = pGrid;
+			vBestGrid.push_back( pBestGrid );	
+		}
+		else
+			break;
+		// endadded at 0705 15:40	
+	}
+
+	// added at 0705 15:40	
+	for( int i=1; i<vBestGrid.size(); i++ )
+	{
+		for( int j=i-1; j>=0; j-- )
+		{
+			int nTmpX, nTmpY, nTmpZ, nTmpB, nTmpF;
+			gGrid_C* pBG = vBestGrid[ j+1 ];
+			pBG->getPosition( nTmpX, nTmpY, nTmpZ );
+			if( nDX != 0 )
+				nTmpB = nTmpX;
+			else
+				nTmpB = nTmpY;
+			int nBCost = boundingBoxCost( nTmpB, vMin, vMax );
+
+			gGrid_C* pFG = vBestGrid[ j ];
+			pFG->getPosition( nTmpX, nTmpY, nTmpZ );
+			if( nDX != 0 )
+				nTmpF = nTmpX;
+			else
+				nTmpF = nTmpY;
+			int nFCost = boundingBoxCost( nTmpF, vMin, vMax );
+			if( nFCost >= nBCost )
+				break;
+			else
+			{
+				vBestGrid[ j+1 ] = pFG;	
+				vBestGrid[ j ] = pBG;
+			}
+
+		}
+	}
+	// endadded at 0705 15:40	
+
+	pInst->setPlaced( nOrigX, nOrigY );
+	//return pBestGrid;
+	return vBestGrid;
+}
+// end added at 0704 22:00
+
+//version 1
+/*
+gGrid_C* router_C::findPlaceToMove( instance_C* pInst )
+{
+	int nOrigX = pInst->getPlacedX();
+	int nOrigY = pInst->getPlacedY();
+
+	forced_C cF;
+	if( pInst == m_vForced[ pInst->getId() ].m_pInstance )
+	{
+		cF = m_vForced[ pInst->getId() ];
+	}
+	else
+	{
+		for( int i=0; i<m_vForced.size(); i++ )
+		{
+			if( m_vForced[i].m_pInstance == pInst )
+			{
+				cF = m_vForced[i];
+				break;
+			}
+		}
+	}
+	// setup search direction
+	int nDX = 0;
+	int nDY = 0;
+	if( !cF.m_bLockInX )
+		nDX = cF.m_nR - cF.m_nL;
+	if( !cF.m_bLockInY )
+		nDY = cF.m_nT - cF.m_nD;
+	
+	if( nDX == 0 && nDY == 0 )
+	{
+		cout<<"Warning: No operations will be executed. This instance has balanced forced"<<endl;
+	//	return NULL;
+	}
+	if( abs( nDX ) >= abs( nDY ) )
+	{
+		nDX = nDX/abs(nDX); nDY = 0;
+	}
+	else
+	{
+		nDY = nDY/abs(nDY); nDX = 0; 
+	}
+
+	// collecting all the correlated network
+	vector< networkForced_C* > vNetWork = cF.m_vNetwork;
+	vector< vector< instance_C*> > vBoundingBox;
+	for( int i=0; i<vNetWork.size(); i++ )
+	{
+		vector< instance_C* > vInst;
+		networkForced_C* pNF = vNetWork[i];
+		vector< forced_C* > vF = pNF->m_vForced;
+		for( int j=0; j<vF.size(); j++ )
+		{
+			instance_C* pTmpInst = vF[j]->m_pInstance;
+			if( pTmpInst != pInst )
+				vInst.push_back( pTmpInst );
+		}
+		vBoundingBox.push_back( vInst );
+	}
+	
+	vector<int> vMin;
+	vector<int> vMax;
+	for( int i=0; i<vBoundingBox.size(); i++ )
+	{
+		vector< instance_C* > vInst = vBoundingBox[i];
+		int nMax;
+		int nMin;
+		if( nDX != 0 )
+		{
+			nMax = m_nDX;
+			nMin = m_nTX;;
+		}
+		else
+		{
+			nMax = m_nDY;
+			nMin = m_nTY;
+		}
+
+
+		for( int j=0; j<vInst.size(); j++ )
+		{
+			instance_C* pTmpInst = vInst[j];
+			if( nDX != 0 )
+			{
+				nMax = max( pTmpInst->getPlacedX(), nMax );
+				nMin = min( pTmpInst->getPlacedX(), nMin );
+			}
+			else
+			{
+				nMax = max( pTmpInst->getPlacedY(), nMax );
+				nMin = min( pTmpInst->getPlacedY(), nMin );
+			}
+		}
+		vMin.push_back( nMin );
+		vMax.push_back( nMax );
+	}
+	// moving instance
+	int nBest;
+	int nTmp;
+	if( nDX != 0 )
+		nTmp = pInst->getPlacedX();
+	else
+		nTmp = pInst->getPlacedY();
+
+	nBest = boundingBoxCost( nTmp, vMin, vMax );
+	gGrid_C* pBestGrid = NULL;
+	gGrid_C* pGrid = getGrid( m_pDesign, pInst->getPlacedX(), pInst->getPlacedY(), m_nDZ);
+	while( graphTravel( m_pDesign, pGrid, nDX, nDY, 0 ) != NULL )
+	{
+		pGrid = graphTravel( m_pDesign, pGrid, nDX, nDY, 0 );
+		// check placeable
+		if( !isPlaceable( pGrid, pInst ) )
+			continue;
+		// 
+		int nTmpX, nTmpY, nTmpZ;
+		pGrid->getPosition( nTmpX, nTmpY, nTmpZ );
+		if( nDX != 0 )
+			nTmp = nTmpX;
+		else
+			nTmp = nTmpY;
+		
+		int nTmpBest = boundingBoxCost( nTmp, vMin, vMax );
+		if( nTmpBest <= nBest ) // change from <
+		{
+			nBest = nTmpBest;
+			pBestGrid = pGrid;
+		}
+		else
+			break;
+		//cout<<nBest<<endl;
+	}
+	pInst->setPlaced( nOrigX, nOrigY );
+	return pBestGrid;
+}
+*/
+
+inline int boundingBoxCost( int nTmp, vector<int> &vMin, vector<int> &vMax )
+{
+	int nCost = 0;
+	int nSize = vMin.size();
+	for( int i=0; i<nSize; i++ )
+	{
+		int nMin = min( nTmp, vMin[i] );
+		int nMax = max( nTmp, vMax[i] );
+		nCost = nCost + ( nMax - nMin + 1 );
+	}
+	return nCost;
+}
+
+vector< gGrid_C* > router_C::routingGridAnalysis( int nDX, int nTX, int nDY, int nTY )
+{
+
+	//return true;
+}
+
+vector< gGrid_C* > router_C::adjBoundingBoxAnalysis( instance_C* pInst )
+{
+	//return true;
+}
+
+vector< gGrid_C* > router_C::routingGridOrdering( vector< gGrid_C* > &vRGA, vector< gGrid_C* > &vBBA )
+{
+	//return true;
+}
+
+bool router_C::lockInstance( instance_C* pInst )
+{
+	if( pInst == m_vForced[ pInst->getId() ].m_pInstance )
+	{
+		m_vForced[ pInst->getId() ].m_bLockInX = true;
+		m_vForced[ pInst->getId() ].m_bLockInY = true;
+	}
+	else
+	{
+		for( int i=0; i<m_vForced.size(); i++ )
+		{
+			if( m_vForced[i].m_pInstance == pInst )
+			{
+				m_vForced[i].m_bLockInX = true;
+				m_vForced[i].m_bLockInY = true;
+				break;
+			}
+		}
+	}
+	return true;
+}
+
+bool router_C::freeInstance( instance_C* pInst ) 
+{
+	if( !pInst->isMovable() )
+		return true;
+
+	if( pInst == m_vForced[ pInst->getId() ].m_pInstance )
+	{
+		m_vForced[ pInst->getId() ].m_bLockInX = false;
+		m_vForced[ pInst->getId() ].m_bLockInX = false;
+	}
+	else
+	{
+		for( int i=0; i<m_vForced.size(); i++ )
+		{
+			if( m_vForced[i].m_pInstance == pInst )
+			{
+				m_vForced[i].m_bLockInX = false;
+				m_vForced[i].m_bLockInX = false;
+				break;
+			}
+		}
+	}
+	return true;
+}
+
+bool router_C::lockInstance( instance_C* pInst, char cDir )
+{
+	if( pInst == m_vForced[ pInst->getId() ].m_pInstance )
+	{
+		if( cDir == 'X' )
+			m_vForced[ pInst->getId() ].m_bLockInX = true;
+		else
+			m_vForced[ pInst->getId() ].m_bLockInY = true;
+	}
+	else
+	{
+		for( int i=0; i<m_vForced.size(); i++ )
+		{
+			if( m_vForced[i].m_pInstance == pInst )
+			{
+				if( cDir == 'X' )
+				{
+					m_vForced[i].m_bLockInX = true;
+					//m_vForced[i].m_bLockInY = false;
+				}
+				else
+				{
+					m_vForced[i].m_bLockInY = true;
+					//m_vForced[i].m_bLockInX = false;
+				}
+				break;
+			}
+		}
+	}
+	return true;
+}
+
+bool router_C::freeInstance( instance_C* pInst, char cDir ) 
+{
+	for( int i=0; i<m_vForced.size(); i++ )
+	{
+		if( m_vForced[i].m_pInstance == pInst )
+		{
+			if( cDir == 'X' )
+				m_vForced[i].m_bLockInX = false;
+			else
+				m_vForced[i].m_bLockInX = false;
+			break;
+		}
+	}
+	return true;
+}
+
+// added at 0711 23:30
+bool router_C::isPlaceable_ver3( gGrid_C* pGrid, instance_C* pInst, vector< net_C* > &vRipNet  )
+{
+	int nOrigX = pInst->getPlacedX();
+	int nOrigY = pInst->getPlacedY();
+
+	//bool bIsOverflow = false;
+	int nX, nY, nZ;
+	pGrid->getPosition( nX, nY, nZ );
+	nZ = m_nOffsetZ;
+	// routing information
+	
+	// added at 0705 02:30
+	vector< networkForced_C* > vNF = m_vForced[ pInst->getId() ].m_vNetwork;
+	vector< net_C* > vNet;
+	for( int i=0; i<vNF.size(); i++  )
+	{
+		vNet.push_back( vNF[i]->m_pNet );	
+	}
+	ripupNet( vNet );
+	// end added at 0705 02:30
+	
+	putInstOnGraph( pInst, nX, nY, 0 );
+	
+	calNeighborCellDemand( m_pDesign, pGrid );
+	int nNumLayer = m_pDesign->getLayer().size();
+	vector<int> vPinDemand;
+	for( int i=0; i<nNumLayer; i++ )
+	{
+		vPinDemand.push_back(0);	
+	}
+
+	vector< pin_C > vPin = pInst->getPin();
+	for( int i=0; i<vPin.size(); i++ )
+	{
+		pin_C* pPin = &vPin[i];
+		int nLayerId = pPin->getLayerId();
+		vPinDemand[ nLayerId - nZ ]++;
+	}
+
+	
+	// added at 0705 02:30
+	vector< net_C* > vCanRemovedNet;	// record the net that can be removed 
+	set< net_C* > sCanRemovedNet;		// query the net that can be removed	
+	vector< int > vNetCount;		// record the net's occurance in the grids
+	
+	vector< gGrid_C* > vOverflowGrid;	// record the overflow grid
+	vector< int > vGridRemand;		// record the grid remain with overflow
+	vector< vector< net_C*> > vGNet;	// record the net routed through the grid
+	// end added at 0705 02:30
+
+	gGrid_C* pLGrid = pGrid;
+	// added at 0705 06:30
+	set< net_C* > sTmpNet;
+	vector< instance_C* > vTmpInst = pGrid->getInstance();
+	for( int i=0; i<vTmpInst.size(); i++ )
+	{
+		forced_C &cF = m_vForced[ vTmpInst[i]->getId() ];
+		vector< networkForced_C* > vNF = cF.m_vNetwork;
+		for( int n=0; n<vNF.size(); n++ )
+			sTmpNet.insert( vNF[n]->m_pNet );
+
+	}
+	// end added at 0705 06:30
+	
+	for( int l=0; l<nNumLayer; l++ )
+	{
+		// added at 0705 02:30
+		int nNetCost = 0;
+		for( int i=0; i<vNet.size(); i++ )
+		{
+			if( pLGrid->findNet( vNet[i] ) )
+				nNetCost++;
+		}
+		// end added at 0705 02:30
+		// added at 0705 06:30
+		set< net_C* > sTmpNet;
+		for( int i=0; i<vNet.size(); i++ )
+		{
+			if( pLGrid->findNet( vNet[i] ) )
+				nNetCost++;
+		}
+		// end added at 0705 06:30
+		int nRemand = pLGrid->getRemand() - vPinDemand[l] + nNetCost;
+		if( nRemand < 0 )
+		{
+			//bIsOverflow = true;
+			//break;
+			// added at 0705 03:30
+			vOverflowGrid.push_back( pLGrid );
+			vGridRemand.push_back( pLGrid->getRemand() - vPinDemand[l] + nNetCost ); 
+			vector< net_C* > vTmpNet = pLGrid->getNet();
+			for( int n=vTmpNet.size() - 1; n>=0; n-- )
+			{
+				if( sTmpNet.count(vTmpNet[n]) != 0 )
+					vTmpNet.erase( vTmpNet.begin() + n );
+			}
+			vGNet.push_back( vTmpNet );
+			// end added at 0705 03:30
+		}
+		pLGrid = graphTravel( m_pDesign, pLGrid, 0, 0, 1 );
+	}
+
+	// added at 0705 06:30
+	sTmpNet.clear();
+	vTmpInst.clear();
+	// end added at 0705 06:30
+
+	/*	
+	if( bIsOverflow )
+	{
+		removeInstOnGraph( pInst );
+		return false;
+	}
+	*/
+	gGrid_C* pNGrid;
+
+	pNGrid = graphTravel( m_pDesign, pGrid, 0, 1, 0 );
+	
+	// added at 0705 06:30
+	if( pNGrid!= NULL )
+	{
+		vTmpInst = pNGrid->getInstance();
+		for( int i=0; i<vTmpInst.size(); i++ )
+		{
+			forced_C &cF = m_vForced[ vTmpInst[i]->getId() ];
+			vector< networkForced_C* > vNF = cF.m_vNetwork;
+//			for( int n=0; n<vNF.size(); n++ )
+//				sTmpNet.insert( vNF[n]->m_pNet );
+
+		}
+	}
+	// end added at 0705 06:30
+	
+	if( pNGrid != NULL )
+	{
+		calNeighborCellDemand( m_pDesign, pNGrid );
+	
+		pLGrid = pNGrid;
+		for( int l=0; l<nNumLayer; l++ )
+		{
+			int nRemand = pLGrid->getRemand();
+			if( nRemand < 0 )
+			{
+				//bIsOverflow = true;
+				//break;
+				// added at 0705 03:30
+				vOverflowGrid.push_back( pLGrid );
+				vGridRemand.push_back( pLGrid->getRemand() ); 
+				vector< net_C* > vTmpNet = pLGrid->getNet();
+				for( int n=vTmpNet.size() - 1; n>=0; n-- )
+				{
+					if( sTmpNet.count(vTmpNet[n]) != 0 )
+						vTmpNet.erase( vTmpNet.begin() + n );
+				}
+				vGNet.push_back( vTmpNet );
+				// end added at 0705 03:30
+			}
+			pLGrid = graphTravel( m_pDesign, pLGrid, 0, 0, 1 );
+		}
+		/*
+		if( bIsOverflow )
+		{
+			removeInstOnGraph( pInst );
+			return false;
+		}
+		*/
+	}
+	// added at 0705 06:30
+	sTmpNet.clear();
+	vTmpInst.clear();
+	// end added at 0705 06:30
+
+	pNGrid = graphTravel( m_pDesign, pGrid, 0, -1, 0 );
+	// added at 0705 06:30
+	if( pNGrid != NULL )
+	{
+		vTmpInst = pNGrid->getInstance();
+		for( int i=0; i<vTmpInst.size(); i++ )
+		{
+			forced_C &cF = m_vForced[ vTmpInst[i]->getId() ];
+			vector< networkForced_C* > vNF = cF.m_vNetwork;
+//			for( int n=0; n<vNF.size(); n++ )
+//				sTmpNet.insert( vNF[n]->m_pNet );
+
+		}
+	}
+	// end added at 0705 06:30
+	if( pNGrid != NULL )
+	{
+		calNeighborCellDemand( m_pDesign, pNGrid );	
+
+		pLGrid = pNGrid;
+		for( int l=0; l<nNumLayer; l++ )
+		{
+			int nRemand = pLGrid->getRemand();
+			if( nRemand < 0 )
+			{
+				//bIsOverflow = true;
+				//break;
+				// added at 0705 03:30
+				vOverflowGrid.push_back( pLGrid );
+				vGridRemand.push_back( pLGrid->getRemand() ); 
+				vector< net_C* > vTmpNet = pLGrid->getNet();
+				for( int n=vTmpNet.size() - 1; n>=0; n-- )
+				{
+					if( sTmpNet.count(vTmpNet[n]) != 0 )
+						vTmpNet.erase( vTmpNet.begin() + n );
+				}
+				vGNet.push_back( vTmpNet );
+				// end added at 0705 03:30
+			}
+			pLGrid = graphTravel( m_pDesign, pLGrid, 0, 0, 1 );
+		}
+		/*
+		if( bIsOverflow )
+		{
+			removeInstOnGraph( pInst );
+			return false;
+		}
+		*/
+	}
+	// added at 0705 06:30
+	sTmpNet.clear();
+	vTmpInst.clear();
+	// end added at 0705 06:30
+
+	
+	// added at 0705 03:30
+	// see if the net can be removed
+	
+	//vector< net_C* > vCanRemovedNet;	// record the net that can be removed 
+	//set< net_C* > sCanRemovedNet;		// query the net that can be removed	
+	//vector< int > vNetCount;		// record the net's occurance in the grids
+	
+	//vector< gGrid_C* > vOverflowGrid;	// record the overflow grid
+	//vector< int > vGridRemand;		// record the grid remain with overflow
+	//vector< vector< net_C*> > vGNet;	// record the net routed through the grid
+	
+	set< net_C* > sINet; // net connected instance
+	for( int i=0; i<vNet.size(); i++ )
+	{
+		sINet.insert( vNet[i] );
+	}
+	bool bIsOverflow = true;
+
+	// added at 0705 15:20
+	if( vOverflowGrid.size() == 0 )
+		bIsOverflow = false;
+	// end added at 0705 15:20
+
+
+	while( bIsOverflow )
+	{
+		for( int i=0; i<vOverflowGrid.size(); i++ )
+		{
+			if( vGridRemand[i] < 0 )
+			{
+				
+				if( vGridRemand[i] + vGNet[i].size() < 0 )
+				{
+					bIsOverflow = false;
+					vRipNet.clear();
+					break;
+				}
+				else
+				{
+					vGridRemand[i] = vGridRemand[i] + vGNet[i].size();
+					for( int n=0; n<vGNet[i].size(); n++ )
+					{
+						net_C* pGNet = vGNet[i][n];
+						if( sCanRemovedNet.count( pGNet ) == 0 )
+						{
+							sCanRemovedNet.insert( pGNet );
+							vRipNet.push_back( pGNet );
+						}
+					}
+				
+				}
+
+			}
+		}
+	}
+	// end added at 0705 03:30
+
+	removeInstOnGraph( pInst );
+	pInst->setPlaced( nOrigX, nOrigY );
+	for( int i=0; i<vNet.size(); i++ )
+	{
+		addNetOnGraph( m_pDesign, vNet[i] );
+	}
+//	return true;
+	
+	// added at 0705 03:30
+	if( bIsOverflow )
+		return false;
+	else
+		return true;
+	// end added at 0705 03:30
+}
+// /end added at 0711 23:30
+
+
+// added 0705 02:30
+bool router_C::isPlaceable( gGrid_C* pGrid, instance_C* pInst, vector< net_C* > &vRipNet  )
+{
+	int nOrigX = pInst->getPlacedX();
+	int nOrigY = pInst->getPlacedY();
+
+	//bool bIsOverflow = false;
+	int nX, nY, nZ;
+	pGrid->getPosition( nX, nY, nZ );
+	nZ = m_nOffsetZ;
+	// routing information
+	
+	// added at 0705 02:30
+	vector< networkForced_C* > vNF = m_vForced[ pInst->getId() ].m_vNetwork;
+	vector< net_C* > vNet;
+	for( int i=0; i<vNF.size(); i++  )
+	{
+		vNet.push_back( vNF[i]->m_pNet );	
+	}
+	ripupNet( vNet );
+	// end added at 0705 02:30
+	
+	putInstOnGraph( pInst, nX, nY, 0 );
+	
+	calNeighborCellDemand( m_pDesign, pGrid );
+	int nNumLayer = m_pDesign->getLayer().size();
+	vector<int> vPinDemand;
+	for( int i=0; i<nNumLayer; i++ )
+	{
+		vPinDemand.push_back(0);	
+	}
+
+	vector< pin_C > vPin = pInst->getPin();
+	for( int i=0; i<vPin.size(); i++ )
+	{
+		pin_C* pPin = &vPin[i];
+		int nLayerId = pPin->getLayerId();
+		vPinDemand[ nLayerId - nZ ]++;
+	}
+
+	
+	// added at 0705 02:30
+	vector< net_C* > vCanRemovedNet;	// record the net that can be removed 
+	set< net_C* > sCanRemovedNet;		// query the net that can be removed	
+	vector< int > vNetCount;		// record the net's occurance in the grids
+	
+	vector< gGrid_C* > vOverflowGrid;	// record the overflow grid
+	vector< int > vGridRemand;		// record the grid remain with overflow
+	vector< vector< net_C*> > vGNet;	// record the net routed through the grid
+	// end added at 0705 02:30
+
+	gGrid_C* pLGrid = pGrid;
+	// added at 0705 06:30
+	set< net_C* > sTmpNet;
+	vector< instance_C* > vTmpInst = pGrid->getInstance();
+	for( int i=0; i<vTmpInst.size(); i++ )
+	{
+		forced_C &cF = m_vForced[ vTmpInst[i]->getId() ];
+		vector< networkForced_C* > vNF = cF.m_vNetwork;
+		for( int n=0; n<vNF.size(); n++ )
+			sTmpNet.insert( vNF[n]->m_pNet );
+
+	}
+	// end added at 0705 06:30
+	
+	for( int l=0; l<nNumLayer; l++ )
+	{
+		// added at 0705 02:30
+		int nNetCost = 0;
+		for( int i=0; i<vNet.size(); i++ )
+		{
+			if( pLGrid->findNet( vNet[i] ) )
+				nNetCost++;
+		}
+		// end added at 0705 02:30
+		// added at 0705 06:30
+		set< net_C* > sTmpNet;
+		for( int i=0; i<vNet.size(); i++ )
+		{
+			if( pLGrid->findNet( vNet[i] ) )
+				nNetCost++;
+		}
+		// end added at 0705 06:30
+		int nRemand = pLGrid->getRemand() - vPinDemand[l] + nNetCost;
+		if( nRemand < 0 )
+		{
+			//bIsOverflow = true;
+			//break;
+			// added at 0705 03:30
+			vOverflowGrid.push_back( pLGrid );
+			vGridRemand.push_back( pLGrid->getRemand() - vPinDemand[l] + nNetCost ); 
+			vector< net_C* > vTmpNet = pLGrid->getNet();
+			for( int n=vTmpNet.size() - 1; n>=0; n-- )
+			{
+				if( sTmpNet.count(vTmpNet[n]) != 0 )
+					vTmpNet.erase( vTmpNet.begin() + n );
+			}
+			vGNet.push_back( vTmpNet );
+			// end added at 0705 03:30
+		}
+		pLGrid = graphTravel( m_pDesign, pLGrid, 0, 0, 1 );
+	}
+
+	// added at 0705 06:30
+	sTmpNet.clear();
+	vTmpInst.clear();
+	// end added at 0705 06:30
+
+	/*	
+	if( bIsOverflow )
+	{
+		removeInstOnGraph( pInst );
+		return false;
+	}
+	*/
+	gGrid_C* pNGrid;	
+	
+	pNGrid = graphTravel( m_pDesign, pGrid, 1, 0, 0 );
+	// added at 0705 06:30
+	if( pNGrid != NULL )
+	{
+		vTmpInst = pNGrid->getInstance();
+		for( int i=0; i<vTmpInst.size(); i++ )
+		{
+			forced_C &cF = m_vForced[ vTmpInst[i]->getId() ];
+			vector< networkForced_C* > vNF = cF.m_vNetwork;
+			for( int n=0; n<vNF.size(); n++ )
+				sTmpNet.insert( vNF[n]->m_pNet );
+
+		}
+	}
+	// end added at 0705 06:30
+	
+	if( pNGrid != NULL )
+	{
+		calNeighborCellDemand( m_pDesign, pNGrid );
+	
+		pLGrid = pNGrid;
+		for( int l=0; l<nNumLayer; l++ )
+		{
+			int nRemand = pLGrid->getRemand();
+			if( nRemand < 0 )
+			{
+				//bIsOverflow = true;
+				//break;
+				// added at 0705 03:30
+				vOverflowGrid.push_back( pLGrid );
+				vGridRemand.push_back( pLGrid->getRemand() ); 
+				vector< net_C* > vTmpNet = pLGrid->getNet();
+				for( int n=vTmpNet.size() - 1; n>=0; n-- )
+				{
+					if( sTmpNet.count(vTmpNet[n]) != 0 )
+						vTmpNet.erase( vTmpNet.begin() + n );
+				}
+				vGNet.push_back( vTmpNet );
+				// end added at 0705 03:30
+			}
+			pLGrid = graphTravel( m_pDesign, pLGrid, 0, 0, 1 );
+		}
+		/*
+		if( bIsOverflow )
+		{
+			removeInstOnGraph( pInst );
+			return false;
+		}	
+		*/
+	}
+
+	// added at 0705 06:30
+	sTmpNet.clear();
+	vTmpInst.clear();
+	// end added at 0705 06:30
+
+
+	pNGrid = graphTravel( m_pDesign, pGrid, -1, 0, 0 );	
+	
+	// added at 0705 06:30
+	if( pNGrid != NULL )
+	{
+		vTmpInst = pNGrid->getInstance();
+		for( int i=0; i<vTmpInst.size(); i++ )
+		{
+			forced_C &cF = m_vForced[ vTmpInst[i]->getId() ];
+			vector< networkForced_C* > vNF = cF.m_vNetwork;
+			for( int n=0; n<vNF.size(); n++ )
+				sTmpNet.insert( vNF[n]->m_pNet );
+
+		}
+	}
+	// end added at 0705 06:30
+	
+	if( pNGrid != NULL )
+	{
+		calNeighborCellDemand( m_pDesign, pNGrid );
+	
+		pLGrid = pNGrid;
+		for( int l=0; l<nNumLayer; l++ )
+		{
+			int nRemand = pLGrid->getRemand();
+			if( nRemand < 0 )
+			{
+				//bIsOverflow = true;
+				//break;
+				// added at 0705 03:30
+				vOverflowGrid.push_back( pLGrid );
+				vGridRemand.push_back( pLGrid->getRemand() ); 
+				vector< net_C* > vTmpNet = pLGrid->getNet();
+				for( int n=vTmpNet.size() - 1; n>=0; n-- )
+				{
+					if( sTmpNet.count(vTmpNet[n]) != 0 )
+						vTmpNet.erase( vTmpNet.begin() + n );
+				}
+				vGNet.push_back( vTmpNet );
+				// end added at 0705 03:30
+			}
+			pLGrid = graphTravel( m_pDesign, pLGrid, 0, 0, 1 );
+		}
+		/*
+		if( bIsOverflow )
+		{
+			removeInstOnGraph( pInst );
+			return false;
+		}
+		*/
+	}
+	// added at 0705 06:30
+	sTmpNet.clear();
+	vTmpInst.clear();
+	// end added at 0705 06:30
+	
+	pNGrid = graphTravel( m_pDesign, pGrid, 0, 1, 0 );
+	
+	// added at 0705 06:30
+	if( pNGrid!= NULL )
+	{
+		vTmpInst = pNGrid->getInstance();
+		for( int i=0; i<vTmpInst.size(); i++ )
+		{
+			forced_C &cF = m_vForced[ vTmpInst[i]->getId() ];
+			vector< networkForced_C* > vNF = cF.m_vNetwork;
+			for( int n=0; n<vNF.size(); n++ )
+				sTmpNet.insert( vNF[n]->m_pNet );
+
+		}
+	}
+	// end added at 0705 06:30
+	
+	if( pNGrid != NULL )
+	{
+		calNeighborCellDemand( m_pDesign, pNGrid );
+	
+		pLGrid = pNGrid;
+		for( int l=0; l<nNumLayer; l++ )
+		{
+			int nRemand = pLGrid->getRemand();
+			if( nRemand < 0 )
+			{
+				//bIsOverflow = true;
+				//break;
+				// added at 0705 03:30
+				vOverflowGrid.push_back( pLGrid );
+				vGridRemand.push_back( pLGrid->getRemand() ); 
+				vector< net_C* > vTmpNet = pLGrid->getNet();
+				for( int n=vTmpNet.size() - 1; n>=0; n-- )
+				{
+					if( sTmpNet.count(vTmpNet[n]) != 0 )
+						vTmpNet.erase( vTmpNet.begin() + n );
+				}
+				vGNet.push_back( vTmpNet );
+				// end added at 0705 03:30
+			}
+			pLGrid = graphTravel( m_pDesign, pLGrid, 0, 0, 1 );
+		}
+		/*
+		if( bIsOverflow )
+		{
+			removeInstOnGraph( pInst );
+			return false;
+		}
+		*/
+	}
+	// added at 0705 06:30
+	sTmpNet.clear();
+	vTmpInst.clear();
+	// end added at 0705 06:30
+
+	pNGrid = graphTravel( m_pDesign, pGrid, 0, -1, 0 );
+	// added at 0705 06:30
+	if( pNGrid != NULL )
+	{
+		vTmpInst = pNGrid->getInstance();
+		for( int i=0; i<vTmpInst.size(); i++ )
+		{
+			forced_C &cF = m_vForced[ vTmpInst[i]->getId() ];
+			vector< networkForced_C* > vNF = cF.m_vNetwork;
+			for( int n=0; n<vNF.size(); n++ )
+				sTmpNet.insert( vNF[n]->m_pNet );
+
+		}
+	}
+	// end added at 0705 06:30
+	if( pNGrid != NULL )
+	{
+		calNeighborCellDemand( m_pDesign, pNGrid );	
+
+		pLGrid = pNGrid;
+		for( int l=0; l<nNumLayer; l++ )
+		{
+			int nRemand = pLGrid->getRemand();
+			if( nRemand < 0 )
+			{
+				//bIsOverflow = true;
+				//break;
+				// added at 0705 03:30
+				vOverflowGrid.push_back( pLGrid );
+				vGridRemand.push_back( pLGrid->getRemand() ); 
+				vector< net_C* > vTmpNet = pLGrid->getNet();
+				for( int n=vTmpNet.size() - 1; n>=0; n-- )
+				{
+					if( sTmpNet.count(vTmpNet[n]) != 0 )
+						vTmpNet.erase( vTmpNet.begin() + n );
+				}
+				vGNet.push_back( vTmpNet );
+				// end added at 0705 03:30
+			}
+			pLGrid = graphTravel( m_pDesign, pLGrid, 0, 0, 1 );
+		}
+		/*
+		if( bIsOverflow )
+		{
+			removeInstOnGraph( pInst );
+			return false;
+		}
+		*/
+	}
+	// added at 0705 06:30
+	sTmpNet.clear();
+	vTmpInst.clear();
+	// end added at 0705 06:30
+
+	
+	// added at 0705 03:30
+	// see if the net can be removed
+	
+	//vector< net_C* > vCanRemovedNet;	// record the net that can be removed 
+	//set< net_C* > sCanRemovedNet;		// query the net that can be removed	
+	//vector< int > vNetCount;		// record the net's occurance in the grids
+	
+	//vector< gGrid_C* > vOverflowGrid;	// record the overflow grid
+	//vector< int > vGridRemand;		// record the grid remain with overflow
+	//vector< vector< net_C*> > vGNet;	// record the net routed through the grid
+	
+	set< net_C* > sINet; // net connected instance
+	for( int i=0; i<vNet.size(); i++ )
+	{
+		sINet.insert( vNet[i] );
+	}
+	bool bIsOverflow = true;
+
+	// added at 0705 15:20
+	if( vOverflowGrid.size() == 0 )
+		bIsOverflow = false;
+	// end added at 0705 15:20
+
+
+	while( bIsOverflow )
+	{
+		for( int i=0; i<vOverflowGrid.size(); i++ )
+		{
+			if( vGridRemand[i] <= 0 )
+			{
+				for( int n=0; n<vGNet[i].size(); n++ )
+				{
+					net_C* pGNet = vGNet[i][n];
+					// if the pGNet is the net connect to the pInst, then do nothing
+					if( sINet.count( pGNet ) != 0 ) 
+						continue;
+
+					bool bFind = false;
+					for( int r=0; r<vCanRemovedNet.size(); r++ )
+					{
+						if( pGNet == vCanRemovedNet[r] )
+						{
+							bFind = true;
+							vNetCount[r]++;
+							break;
+						}
+					}
+					if( !bFind )
+					{
+						vCanRemovedNet.push_back( pGNet );
+						vNetCount.push_back(1);
+					}
+				}
+			}
+		}
+		int nIndex = -1;
+		int nMaxNet = 0;
+		for( int i=0; i<vNetCount.size(); i++ )
+		{
+			if( vNetCount[i] > nMaxNet )
+			{
+				nMaxNet = vNetCount[i];
+				nIndex = i;
+			}
+		}
+
+		if( nIndex == -1 ) // no net can eliminate overflow
+		{
+			vRipNet.clear();
+			break;
+		}
+		else
+		{
+			net_C* pRemovedNet = vCanRemovedNet[ nIndex ];
+			for( int i=0; i<vOverflowGrid.size(); i++ )
+			{
+				if( vOverflowGrid[i]->findNet( pRemovedNet ) )
+				{
+					vGridRemand[i]++;	
+					for( int n=vGNet[i].size() - 1; n>=0; n-- )
+					{
+						if( vGNet[i][n] == pRemovedNet )
+						{
+							vGNet[i].erase( vGNet[i].begin() + n );
+							break;
+						}
+					}
+				}
+			}
+			vRipNet.push_back( pRemovedNet );
+		}
+		vCanRemovedNet.clear();
+		vNetCount.clear();
+	}
+	// end added at 0705 03:30
+
+	removeInstOnGraph( pInst );
+	pInst->setPlaced( nOrigX, nOrigY );
+	for( int i=0; i<vNet.size(); i++ )
+	{
+		addNetOnGraph( m_pDesign, vNet[i] );
+	}
+//	return true;
+	
+	// added at 0705 03:30
+	if( bIsOverflow )
+		return false;
+	else
+		return true;
+	// end added at 0705 03:30
+}
+// end added 0705 02:30
+
+bool router_C::isPlaceable( gGrid_C* pGrid, instance_C* pInst )
+{
+	int nOrigX = pInst->getPlacedX();
+	int nOrigY = pInst->getPlacedY();
+
+	bool bIsOverflow = false;
+	int nX, nY, nZ;
+	pGrid->getPosition( nX, nY, nZ );
+	nZ = m_nOffsetZ;
+	// routing information
+	
+	// added at 0705 02:30
+	vector< networkForced_C* > vNF = m_vForced[ pInst->getId() ].m_vNetwork;
+	vector< net_C* > vNet;
+	for( int i=0; i<vNF.size(); i++  )
+	{
+		vNet.push_back( vNF[i]->m_pNet );	
+	}
+	// end added at 0705 02:30
+	
+	putInstOnGraph( pInst, nX, nY, 0 );
+	
+	calNeighborCellDemand( m_pDesign, pGrid );
+	int nNumLayer = m_pDesign->getLayer().size();
+	vector<int> vPinDemand;
+	for( int i=0; i<nNumLayer; i++ )
+	{
+		vPinDemand.push_back(0);	
+	}
+
+	vector< pin_C > vPin = pInst->getPin();
+	
+	for( int i=0; i<vPin.size(); i++ )
+	{
+		pin_C* pPin = &vPin[i];
+		int nLayerId = pPin->getLayerId();
+		vPinDemand[ nLayerId - nZ ]++;
+	}
+
+	gGrid_C* pLGrid = pGrid;
+	for( int l=0; l<nNumLayer; l++ )
+	{
+		// added at 0705 02:30
+		int nNetCost = 0;
+		for( int i=0; i<vNet.size(); i++ )
+		{
+			if( pLGrid->findNet( vNet[i] ) )
+				nNetCost++;
+		}
+		// end added at 0705 02:30
+		int nRemand = pLGrid->getRemand() - vPinDemand[l] + nNetCost;
+		if( nRemand < 0 )
+		{
+			bIsOverflow = true;
+			break;
+		}
+		pLGrid = graphTravel( m_pDesign, pLGrid, 0, 0, 1 );
+	}
+	
+	if( bIsOverflow )
+	{
+		removeInstOnGraph( pInst );
+		return false;
+	}
+
+	gGrid_C* pNGrid;
+	pNGrid = graphTravel( m_pDesign, pGrid, 1, 0, 0 );
+	if( pNGrid != NULL )
+	{
+		calNeighborCellDemand( m_pDesign, pNGrid );
+	
+		pLGrid = pNGrid;
+		for( int l=0; l<nNumLayer; l++ )
+		{
+			int nRemand = pLGrid->getRemand();
+			if( nRemand < 0 )
+			{
+				bIsOverflow = true;
+				break;
+			}
+			pLGrid = graphTravel( m_pDesign, pLGrid, 0, 0, 1 );
+		}
+
+		if( bIsOverflow )
+		{
+			removeInstOnGraph( pInst );
+			return false;
+		}	
+	}
+
+
+
+	pNGrid = graphTravel( m_pDesign, pGrid, -1, 0, 0 );	
+	if( pNGrid != NULL )
+	{
+		calNeighborCellDemand( m_pDesign, pNGrid );
+	
+		pLGrid = pNGrid;
+		for( int l=0; l<nNumLayer; l++ )
+		{
+			int nRemand = pLGrid->getRemand();
+			if( nRemand < 0 )
+			{
+				bIsOverflow = true;
+				break;
+			}
+			pLGrid = graphTravel( m_pDesign, pLGrid, 0, 0, 1 );
+		}
+
+		if( bIsOverflow )
+		{
+			removeInstOnGraph( pInst );
+			return false;
+		}
+	}
+	
+	pNGrid = graphTravel( m_pDesign, pGrid, 0, 1, 0 );
+	if( pNGrid != NULL )
+	{
+		calNeighborCellDemand( m_pDesign, pNGrid );
+	
+		pLGrid = pNGrid;
+		for( int l=0; l<nNumLayer; l++ )
+		{
+			int nRemand = pLGrid->getRemand();
+			if( nRemand < 0 )
+			{
+				bIsOverflow = true;
+				break;
+			}
+			pLGrid = graphTravel( m_pDesign, pLGrid, 0, 0, 1 );
+		}
+
+		if( bIsOverflow )
+		{
+			removeInstOnGraph( pInst );
+			return false;
+		}
+	}
+
+	pNGrid = graphTravel( m_pDesign, pGrid, 0, -1, 0 );
+	if( pNGrid != NULL )
+	{
+		calNeighborCellDemand( m_pDesign, pNGrid );	
+
+		pLGrid = pNGrid;
+		for( int l=0; l<nNumLayer; l++ )
+		{
+			int nRemand = pLGrid->getRemand();
+			if( nRemand < 0 )
+			{
+				bIsOverflow = true;
+				break;
+			}
+			pLGrid = graphTravel( m_pDesign, pLGrid, 0, 0, 1 );
+		}
+
+		if( bIsOverflow )
+		{
+			removeInstOnGraph( pInst );
+			return false;
+		}
+	}
+	
+	removeInstOnGraph( pInst );
+	pInst->setPlaced( nOrigX, nOrigY );
+	return true;
+}
+
+bool router_C::checkConnectivity( net_C* pNet )
+{
+
+}
+
+bool router_C::fixConnection( net_C* pNet )
+{
+
+}
+
+bool router_C::isExchangable( gGrid_C* pGrid, instance_C* pPInst, instance_C* pRInst )
+{
+	int nPX = pPInst->getPlacedX();
+	int nPY = pPInst->getPlacedY();
+	
+	if( !pRInst->isMovable() )
+		return false;
+	
+	removeInstOnGraph( pRInst );
+	putInstOnGraph( pPInst, pRInst->getPlacedX(), pRInst->getPlacedY(), m_nOffsetZ );
+	vector< instance_C* > vGInst = pGrid->getInstance();
+	vector< net_C* > vGNet = pGrid->getNet();
+	set< net_C* > sNet;
+	for( int i=0; i<vGInst.size(); i++ )
+	{
+		instance_C* pGInst = vGInst[i];
+		forced_C &cF = m_vForced[ pGInst->getId() ];
+		vector< networkForced_C* > vNetwork = cF.m_vNetwork;
+		for( int n=0; n<vNetwork.size(); n++ )
+		{
+			sNet.insert( vNetwork[n]->m_pNet );
+		}
+	}
+
+	vector<int> vNetCost;
+	int nDX = 0;
+	int nDY = 0;
+	int nDZ = 1;
+	gGrid_C* pTmpGrid = getGrid( m_pDesign, pRInst->getPlacedX(), pRInst->getPlacedY(), m_nOffsetZ );
+	do
+	{
+		vector< net_C* > vTmpNet = pTmpGrid->getNet();
+		int nNumNet = 0;
+		for( int n=0; n<vTmpNet.size(); n++ )
+		{
+			net_C* pNet = vTmpNet[n];
+			if( sNet.count( pNet ) > 0 )
+				nNumNet++;
+		}
+		vNetCost.push_back( nNumNet );
+		pTmpGrid = graphTravel( m_pDesign, pTmpGrid, nDX, nDY, nDZ );
+	}
+	while( pTmpGrid != NULL );
+
+	vector< pin_C > vPin = pPInst->getPin();
+	for( int i=0; i<vPin.size(); i++ )
+	{
+		int nLayer = vPin[i].getLayerId();
+		vNetCost[ nLayer - m_nOffsetZ ]++;
+	}
+
+	bool bIsExchangable = true;
+	pTmpGrid = getGrid( m_pDesign, pRInst->getPlacedX(), pRInst->getPlacedY(), m_nOffsetZ );
+	for( int i=0; i<vNetCost.size(); i++ )
+	{
+		int nSupply = pTmpGrid->getSupply();
+		int nDemand = pTmpGrid->getDemand();
+		int nExtraDemand = pTmpGrid->getExtraDemand();
+		int nNetCost = vNetCost[i];
+		if( nSupply - ( nDemand + nExtraDemand + nNetCost ) < 0 )
+		{
+			bIsExchangable = false;
+			break;
+		}
+	}
+
+
+	removeInstOnGraph( pPInst );
+	putInstOnGraph( pRInst, pRInst->getPlacedX(), pRInst->getPlacedY(), m_nOffsetZ );
+	return bIsExchangable;
+}
+
+bool router_C::reroute( instance_C* pInst, vector< net_C* > &vRerouteNet )
+{
+
+	if( pInst == m_vForced[ pInst->getId() ].m_pInstance )
+	{
+		vector< networkForced_C* > vNF = m_vForced[ pInst->getId() ].m_vNetwork;
+		for( int n=0; n<vNF.size(); n++ )
+		{
+			vRerouteNet.push_back( vNF[n]->m_pNet );
+		}
+	}
+	else
+	{
+		for( int f=0; f<m_vForced.size(); f++ )
+		{
+			if( pInst == m_vForced[f].m_pInstance )
+			{
+				vector< networkForced_C* > vNF = m_vForced[f].m_vNetwork;
+				for( int n=0; n<vNF.size(); n++ )
+				{
+					vRerouteNet.push_back( vNF[n]->m_pNet );
+				}
+				break;
+			}
+		}
+	}
+
+	// remove double exist nets
+	for( int n=0; n<vRerouteNet.size(); n++ )
+	{
+		for( int m=n+1; m<vRerouteNet.size(); m++ )
+		{
+			if( vRerouteNet[n] == vRerouteNet[m] )
+			{
+				vRerouteNet.erase( vRerouteNet.begin() + m );
+				m--;
+			}
+		}
+	}
+
+	// sort by length
+	for( int i=1; i<vRerouteNet.size(); i++ )
+	{
+		for( int j=i-1; j>=0; j-- )
+		{
+			int nLength_b = calWireLength( vRerouteNet[j+1] );
+			int nLength_f = calWireLength( vRerouteNet[j] );
+			if( nLength_f <= nLength_b )
+				break;
+			else
+			{
+				net_C* pNet = vRerouteNet[j+1];
+				vRerouteNet[j+1] = vRerouteNet[j];
+				vRerouteNet[j] = pNet;
+			}
+		}
+	}
+
+	int nPreviousLength = 0;
+	for( int n=0; n<vRerouteNet.size(); n++ )
+	{
+		nPreviousLength = nPreviousLength + calWireLength( vRerouteNet[n] );
+	}
+		//cout<<"backup net"<<endl;
+	backupNet( vRerouteNet );
+	//cout<<"ripup net"<<endl;
+	ripupNet( vRerouteNet );
+	cleanWire( vRerouteNet );
+	//cout<<"route the net..."<<endl;
+	
+	bool bFail = false;
+	int nNetIndex = vRerouteNet.size();
+	// change at 0711 20:50
+	int nLengthConstraint = nPreviousLength;	
+	// end change
+	for( int r=0; r<vRerouteNet.size(); r++ )
+	{
+		// change at 0711 20:50
+		//vector< gGrid_C* > vResult = routeNet( vRerouteNet[r] );
+		vector< gGrid_C* > vResult = routeNet_length_constraint( vRerouteNet[r], nLengthConstraint );	
+		// end change
+		if( vResult.size() == 0 )
+		{
+			nNetIndex = r;
+			bFail = true;
+			break;
+		}	
+		else
+		{
+			bool bOverflow = false;
+			for( int g=0; g<vResult.size(); g++ )
+			{
+				if( vResult[g]->getRemand() - 1 < 0 )
+				{
+					bOverflow = true;
+					break;
+				}
+			}
+			if( bOverflow )
+			{
+				nNetIndex = r;
+				vResult.clear();
+				bFail = true;
+				break;
+			}
+		}
+		
+		saveNet( vRerouteNet[r], vResult );
+		addNetOnGraph( m_pDesign, vRerouteNet[r] );
+		// change at 0711 20:50
+		nLengthConstraint = nLengthConstraint - calWireLength( vRerouteNet[r] );
+		// end change
+	}
+	//cout<<"Here"<<endl;
+	int nNewLength = 0;
+	if( !bFail )
+	{
+		for( int n=0; n<vRerouteNet.size(); n++ )
+		{
+			nNewLength = nNewLength + calWireLength( vRerouteNet[n] );
+		}
+		//cout<<"Previous wire length: "<<nPreviousLength<<endl;
+		//cout<<"New wire length: "<<nNewLength<<endl;
+		//m_nFailed++;
+		//cout<<"failed"<<endl;
+	}
+
+	if( bFail || nNewLength >= nPreviousLength ) // change from ">" to ">=" at 0711 16:30
+	{
+		//cout<<"Failed to optimize the design, recover."<<endl;
+		vector< net_C* > vRoutedNet;
+		
+		
+		for( int rr=0; rr<nNetIndex; rr++ )
+			vRoutedNet.push_back( vRerouteNet[rr] );
+		
+		ripupNet( vRoutedNet );
+		recoverNet( vRerouteNet );
+		
+		for( int r=0; r<vRerouteNet.size(); r++ )
+		{
+			addNetOnGraph( m_pDesign, vRerouteNet[r] );
+		}
+		//m_nFailed++;
+		//cout<<"failed"<<endl;
+		/*	
+		for( int i=0; i<m_vBackupNet.size(); i++ )
+		{
+			m_vBackupNet[i].cleanWire();
+		}
+		m_vBackupNet.clear();
+		*/
+#ifdef _DEBUG_MODE
+		nTmpFailedRoute++;
+#endif
+		return false;
+	}
+	else
+	{
+
+		for( int i=0; i<vRerouteNet.size(); i++ )
+			vRerouteNet[i]->addReroute();
+		
+		for( int i=0; i<m_vBackupNet.size(); i++ )
+		{
+			m_vBackupNet[i].cleanWire();
+		}
+		m_vBackupNet.clear();
+		//m_nSuccess++;
+		//cout<<"complete"<<endl;
+		return true;
+	}
+}
+
+// added at 0705 02:00
+bool router_C::singleCellMovement_ver3( instance_C* pInst ) // add more operation in this version
+{
+	backupInstance( pInst );
+// remove the instance on grpah
+		
+	if( removeInstOnGraph( pInst ) )
+	{
+		//cout<<"complete"<<endl;
+	}
+
+	//strInfo = "Find the place for " + strInstName;
+	//cout<<setw(COUTWIDTH)<<left<<setfill('.')<<strInfo;
+	vector< gGrid_C* > vBestGrid = findPlaceToMove_ver3( pInst );
+	gGrid_C* pBGrid = NULL;
+	if( vBestGrid.size() == 0 )
+	{
+		//cout<<"failed"<<endl;
+		//m_nFailed++;
+		lockInstance( pInst );
+		//removeInstOnGraph( pInst );
+		recoverInstance( pInst );
+		putInstOnGraph( pInst, pInst->getPlacedX(), pInst->getPlacedY(), m_nOffsetZ );
+		//cout<<pInst->getPlacedX()<<" "<<pInst->getPlacedY()<<endl;
+		//continue;
+#ifdef _DEBUG_MODE
+		nTmpCantPlaced++;
+#endif
+
+		return false;
+	}
+	else
+	{
+		cout<<" P: "<<vBestGrid.size()<<" ";
+		// change at 0711 15:00
+		/*
+		int nOrigX = m_cBackupInstance.getPlacedX();
+		int nOrigY = m_cBackupInstance.getPlacedY();
+		int nPlacedX, nPlacedY, nPlacedZ;
+		pBGrid = vBestGrid.front();
+		pBGrid->getPosition( nPlacedX, nPlacedY, nPlacedZ );
+		int nDX = nOrigX - nPlacedX;
+		int nDY = nOrigY - nPlacedY;
+		if( nDX != 0 )
+			lockInstance( pInst, 'X' );
+		else
+			lockInstance( pInst, 'Y' );
+		*/
+		//lockInstance( pInst );
+		// end change
+	}
+
+	vector< net_C* > vRipNet;
+	bool bFindSolution = false;	
+	cout<<" R: ";
+	for( int i=vBestGrid.size() - 1; i>=0; i-- )
+	{
+		int nX, nY, nZ;
+		pBGrid = vBestGrid[i];
+		pBGrid->getPosition( nX, nY, nZ );
+		if( isPlaceable( pBGrid, pInst, vRipNet ) )
+		{
+			cout<<vRipNet.size()<<" ";
+			putInstOnGraph( pInst, nX, nY, nZ );
+			if( reroute( pInst, vRipNet ) )
+			{
+				//cout<<" R: "<<vRipNet.size();
+				bFindSolution = true;
+				break;
+				//return true;
+			}
+			else
+			{	
+				removeInstOnGraph( pInst );
+			}
+		}
+		else
+		{
+			// added at 0713 20:50
+			// the origin place of instance 
+			gGrid_C* pOGrid = getGrid( m_pDesign, pInst->getPlacedX(), pInst->getPlacedY(), m_nOffsetZ );
+			// all the instance that can swap
+			vector< instance_C* > vSwapInstance = findSwapInstance( pBGrid, pOGrid, pInst); 
+			//cout<<endl;
+			//cout<<"Number of swapable instance: "<<vSwapInstance.size()<<endl;
+			// find the instance that swap without generating overlap
+			for( int s=0; s<vSwapInstance.size(); s++ )
+			{
+				instance_C* pSInst = vSwapInstance[s];
+				instance_C cLocalBackupInstance;
+				// local backup pSInst
+				cLocalBackupInstance.setPlaced( pSInst->getPlacedX(), pSInst->getPlacedY() );
+				removeInstOnGraph( pSInst );
+				if( swapInstance( pBGrid, pOGrid, pInst, pSInst, vRipNet ) )	
+				{
+					int nX, nY, nZ;
+					pBGrid->getPosition( nX, nY, nZ );
+					putInstOnGraph( pInst, nX, nY, nZ );
+					pOGrid->getPosition( nX, nY, nZ );
+					putInstOnGraph( pSInst, nX, nY, nZ );
+					if( reroute( pInst, vRipNet ) )
+					{
+						bFindSolution = true;
+						if( !pSInst->hasBeenMoved() )
+						{
+							pSInst->hasMoved();
+							m_vMovedInstance.push_back( pSInst );
+							updateForcedModel( pSInst );
+							freeForcedModel( pSInst );	
+						}
+						break;
+					}
+					else
+					{
+						removeInstOnGraph( pInst );
+						removeInstOnGraph( pSInst );
+						// recover pSInst 
+						recoverInstance( pInst );
+						pSInst->setPlaced( cLocalBackupInstance.getPlacedX(), cLocalBackupInstance.getPlacedY() );
+						putInstOnGraph( pSInst, pSInst->getPlacedX(), pSInst->getPlacedY(), m_nOffsetZ ); 
+					}
+				}
+				else
+				{
+					// recover instance, put instance back on the graph
+					int nX, nY, nZ;
+					pBGrid->getPosition( nX, nY, nZ );
+					putInstOnGraph( pSInst, nX, nY, nZ );
+					recoverInstance( pInst );
+				}
+			}
+			if( bFindSolution )
+				break;
+			// end added at 0713 20:50
+			
+			cout<<vRipNet.size()<<" ";
+		}	
+		vRipNet.clear();
+	}
+
+	if( bFindSolution )
+	{
+		if( !pInst->hasBeenMoved() )
+		{
+			pInst->hasMoved();
+			m_vMovedInstance.push_back( pInst );
+		}
+		//m_nSuccess++;
+		updateForcedModel( pInst );
+		freeForcedModel( pInst );	
+		return true;
+	}
+	else
+	{
+		recoverInstance( pInst );
+		putInstOnGraph( pInst, pInst->getPlacedX(), pInst->getPlacedY(), m_nOffsetZ );
+		lockInstance( pInst );
+		return false;	
+	}
+}
+// end added at 0705 02:00
+ 
+// added at 0704 22:00
+bool router_C::singleCellMovement_ver2( instance_C* pInst ) // add more operation in this version
+{
+	backupInstance( pInst );
+// remove the instance on grpah
+		
+	if( removeInstOnGraph( pInst ) )
+	{
+		//cout<<"complete"<<endl;
+	}
+
+	//strInfo = "Find the place for " + strInstName;
+	//cout<<setw(COUTWIDTH)<<left<<setfill('.')<<strInfo;
+	vector< gGrid_C* > vBestGrid = findPlaceToMove( pInst );
+	gGrid_C* pBGrid = NULL;
+	if( vBestGrid.size() == 0 )
+	{
+		cout<<" F: "<<vBestGrid.size()<<" ";
+		//cout<<"failed"<<endl;
+		//m_nFailed++;
+		lockInstance( pInst );
+		//removeInstOnGraph( pInst );
+		recoverInstance( pInst );
+		putInstOnGraph( pInst, pInst->getPlacedX(), pInst->getPlacedY(), m_nOffsetZ );
+		//cout<<pInst->getPlacedX()<<" "<<pInst->getPlacedY()<<endl;
+		//continue;
+#ifdef _DEBUG_MODE
+		nTmpCantPlaced++;
+#endif
+
+		return false;
+	}
+	else
+	{
+		cout<<" F: "<<vBestGrid.size()<<" ";
+		int nOrigX = m_cBackupInstance.getPlacedX();
+		int nOrigY = m_cBackupInstance.getPlacedY();
+		int nPlacedX, nPlacedY, nPlacedZ;
+		// change at 0706 19:30
+		//pBGrid = vBestGrid.back();
+		pBGrid = vBestGrid.front();
+		// end change
+		pBGrid->getPosition( nPlacedX, nPlacedY, nPlacedZ );
+		int nDX = nOrigX - nPlacedX;
+		int nDY = nOrigY - nPlacedY;
+		if( nDX != 0 )
+			lockInstance( pInst, 'X' );
+		else
+			lockInstance( pInst, 'Y' );
+	}
+	//else
+	//	cout<<"complete"<<endl;
+	/*
+	cout<<"Check is ("<<nX<<","<<nY<<","<<nZ<<") is available to place the instance"<<endl;
+	if( isPlaceable( getGrid( m_pDesign, nX, nY, nZ), pInst ) )
+	{
+		cout<<"Yes"<<endl;	
+	}
+	else
+		cout<<"No"<<endl;
+	*/
+	//pBGrid->getPosition( nX, nY, nZ );
+	//cout<<"The best place is ("<<nX<<","<<nY<<","<<nZ<<") for "<< strInstName <<endl;
+	
+	//strInstName = pInst->getName();
+	//strInfo = "Put " + strInstName + " on graph";
+	//cout<<setw(COUTWIDTH)<<left<<setfill('.')<<strInfo;
+	//putInstOnGraph( pInst, nX, nY, nZ );
+	
+
+	vector< net_C* > vRipNet;
+	bool bFindSolution = false;	
+	for( int i=vBestGrid.size() - 1; i>=0; i-- )
+	{
+		int nX, nY, nZ;
+		pBGrid = vBestGrid[i];
+		pBGrid->getPosition( nX, nY, nZ );
+		putInstOnGraph( pInst, nX, nY, nZ );
+		if( reroute( pInst, vRipNet ) )
+		{
+			bFindSolution = true;
+			break;
+			//return true;
+		}
+		else
+		{	
+			removeInstOnGraph( pInst );
+			//recoverInstance( pInst );
+			//putInstOnGraph( pInst, pInst->getPlacedX(), pInst->getPlacedY(), m_nOffsetZ );
+			//return false;
+		}
+	}
+
+	if( bFindSolution )
+	{
+		if( !pInst->hasBeenMoved() )
+		{
+			pInst->hasMoved();
+			m_vMovedInstance.push_back( pInst );
+		}
+		//m_nSuccess++;
+		updateForcedModel( pInst );
+		freeForcedModel( pInst );	
+		return true;
+	}
+	else
+	{
+		recoverInstance( pInst );
+		putInstOnGraph( pInst, pInst->getPlacedX(), pInst->getPlacedY(), m_nOffsetZ );
+		return false;	
+	}
+}
+// end added at 0704 22:00
+/*
+bool router_C::singleCellMovement( instance_C* pInst )
+{
+
+	//cout<<endl;
+	//cout<<"Check "<<m_vBackupNet.size()<<endl;
+	backupInstance( pInst );
+// remove the instance on grpah
+		
+	if( removeInstOnGraph( pInst ) )
+	{
+		//cout<<"complete"<<endl;
+	}
+
+	//strInfo = "Find the place for " + strInstName;
+	//cout<<setw(COUTWIDTH)<<left<<setfill('.')<<strInfo;
+	gGrid_C* pBGrid = findPlaceToMove( pInst );
+	if( pBGrid == NULL )
+	{
+		//cout<<"failed"<<endl;
+		//m_nFailed++;
+		lockInstance( pInst );
+		//removeInstOnGraph( pInst );
+		recoverInstance( pInst );
+		putInstOnGraph( pInst, pInst->getPlacedX(), pInst->getPlacedY(), m_nOffsetZ );
+		//cout<<pInst->getPlacedX()<<" "<<pInst->getPlacedY()<<endl;
+		//continue;
+#ifdef _DEBUG_MODE
+		nTmpCantPlaced++;
+#endif
+
+		return false;
+	}
+	else
+	{
+		int nOrigX = m_cBackupInstance.getPlacedX();
+		int nOrigY = m_cBackupInstance.getPlacedY();
+		int nPlacedX, nPlacedY, nPlacedZ;
+		pBGrid->getPosition( nPlacedX, nPlacedY, nPlacedZ );
+		int nDX = nOrigX - nPlacedX;
+		int nDY = nOrigY - nPlacedY;
+		if( nDX != 0 )
+			lockInstance( pInst, 'X' );
+		else
+			lockInstance( pInst, 'Y' );
+	}
+	//else
+	//	cout<<"complete"<<endl;
+	int nX;
+	int nY;
+	int nZ;
+	
+	//cout<<"Check is ("<<nX<<","<<nY<<","<<nZ<<") is available to place the instance"<<endl;
+	//if( isPlaceable( getGrid( m_pDesign, nX, nY, nZ), pInst ) )
+	//{
+	//	cout<<"Yes"<<endl;	
+	//}
+	//else
+	//	cout<<"No"<<endl;
+	
+	pBGrid->getPosition( nX, nY, nZ );
+	//cout<<"The best place is ("<<nX<<","<<nY<<","<<nZ<<") for "<< strInstName <<endl;
+	
+	//strInstName = pInst->getName();
+	//strInfo = "Put " + strInstName + " on graph";
+	//cout<<setw(COUTWIDTH)<<left<<setfill('.')<<strInfo;
+	putInstOnGraph( pInst, nX, nY, nZ );
+	
+	vector< net_C* > vRipNet;
+
+	if( reroute( pInst, vRipNet ) )
+	{
+		if( !pInst->hasBeenMoved() )
+		{
+			pInst->hasMoved();
+			m_vMovedInstance.push_back( pInst );
+		}
+		//m_nSuccess++;
+		updateForcedModel( pInst );
+		freeForcedModel( pInst );
+		return true;
+	}
+	else
+	{	
+		removeInstOnGraph( pInst );
+		recoverInstance( pInst );
+		putInstOnGraph( pInst, pInst->getPlacedX(), pInst->getPlacedY(), m_nOffsetZ );
+		return false;
+	}
+}
+*/
+
+bool router_C::swapInstance( gGrid_C* pSGrid, gGrid_C* pTGrid, instance_C* pInst, instance_C* pSInst, vector< net_C* > &vRipNet )
+{
+	// both of the instances are not on the graph now
+	int nIX, nIY, nIZ;
+	int nSX, nSY, nSZ;
+	pSGrid->getPosition( nSX, nSY, nSZ );
+	pTGrid->getPosition( nIX, nIY, nIZ );
+	// put instances on the graph and check if there exists any overflow	
+	putInstOnGraph( pInst, nSX, nSY, m_nOffsetZ );	
+	putInstOnGraph( pSInst, nIX, nIY, m_nOffsetZ );	
+
+	bool bIsOverflow = false;	
+	// check the instance is placeable
+	/*
+	vector< net_C* > vTmpRipNet;
+	if( isPlaceable_ver3( pSGrid, pInst, vTmpRipNet ) )
+	{
+		if( isPlaceable_ver3( pTGrid, pSInst, vTmpRipNet ) )
+		{
+			// the variable record the routing nets connected to two instances
+			vector< net_C* > vNet; //main net
+			set< net_C* > sNet; // query; to check is the net is in the vNet
+
+			// ripup the net 
+			
+			forced_C* pTmpF = &m_vForced[ pInst->getId() ];
+			for( int i=0; i<pTmpF->m_vNetwork.size(); i++ )
+			{
+				net_C* pTmpNet = pTmpF->m_vNetwork[i]->m_pNet;
+				if( sNet.count( pTmpNet ) == 0 )
+				{
+					vNet.push_back( pTmpNet );
+					sNet.insert( pTmpNet );
+				}
+			}
+
+			pTmpF = &m_vForced[ pSInst->getId() ];
+			for( int i=0; i<pTmpF->m_vNetwork.size(); i++ )
+			{
+				net_C* pTmpNet = pTmpF->m_vNetwork[i]->m_pNet;
+				if( sNet.count( pTmpNet ) == 0 )
+				{
+					vNet.push_back( pTmpNet );
+					sNet.insert( pTmpNet );
+				}
+			}
+		
+			for( int i=0; i<vNet.size(); i++ )
+			{
+				vTmpRipNet.push_back( vNet[i] );
+			}
+			vRipNet = vTmpRipNet;
+		}
+		else
+			bIsOverflow = true;
+	}
+	else
+	{
+		bIsOverflow = true;
+	}
+	*/
+	// the variable record if is there exist overlap
+		
+	// the variable record the routing nets connected to two instances
+	vector< net_C* > vNet; //main net
+	set< net_C* > sNet; // query; to check is the net is in the vNet
+
+	// ripup the net 
+	
+	forced_C* pTmpF = &m_vForced[ pInst->getId() ];
+	for( int i=0; i<pTmpF->m_vNetwork.size(); i++ )
+	{
+		net_C* pTmpNet = pTmpF->m_vNetwork[i]->m_pNet;
+		if( sNet.count( pTmpNet ) == 0 )
+		{
+			vNet.push_back( pTmpNet );
+			sNet.insert( pTmpNet );
+		}
+	}
+
+	pTmpF = &m_vForced[ pSInst->getId() ];
+	for( int i=0; i<pTmpF->m_vNetwork.size(); i++ )
+	{
+		net_C* pTmpNet = pTmpF->m_vNetwork[i]->m_pNet;
+		if( sNet.count( pTmpNet ) == 0 )
+		{
+			vNet.push_back( pTmpNet );
+			sNet.insert( pTmpNet );
+		}
+	}
+
+	ripupNet( vNet );
+
+	
+	// check if is no overflow
+	gGrid_C* pGrid = pSGrid;
+	int nNumLayer = m_pDesign->getLayer().size(); 
+	for( int i=0; i<nNumLayer; i++ )
+	{
+		if( pGrid->getRemand() < 0 )
+		{
+			bIsOverflow = true;
+			break;
+		}
+		pGrid = graphTravel( m_pDesign, pGrid, 0, 0, 1 );
+	}
+
+	if( !bIsOverflow )
+	{
+		pGrid = graphTravel( m_pDesign, pSGrid, 0, 1, 0 );
+		if( pGrid != NULL )
+		{
+			for( int i=0; i<nNumLayer; i++ )
+			{
+				if( pGrid->getRemand() < 0 )
+				{
+					bIsOverflow = true;
+					break;
+				}
+				pGrid = graphTravel( m_pDesign, pGrid, 0, 0, 1 );
+			}			
+		}
+	}
+
+	if( !bIsOverflow )
+	{
+		pGrid = graphTravel( m_pDesign, pSGrid, 0, -1, 0 );
+		if( pGrid != NULL )
+		{
+			for( int i=0; i<nNumLayer; i++ )
+			{
+				if( pGrid->getRemand() < 0 )
+				{
+					bIsOverflow = true;
+					break;
+				}
+				pGrid = graphTravel( m_pDesign, pGrid, 0, 0, 1 );
+			}			
+		}
+	}
+	
+	if( !bIsOverflow )
+	{
+		pGrid = pTGrid;
+		for( int i=0; i<nNumLayer; i++ )
+		{
+			if( pGrid->getRemand() < 0 )
+			{
+				bIsOverflow = true;
+				break;
+			}
+			pGrid = graphTravel( m_pDesign, pGrid, 0, 0, 1 );
+		}			
+	}
+
+	if( !bIsOverflow )
+	{
+		pGrid = graphTravel( m_pDesign, pTGrid, 0, 1, 0 );
+		if( pGrid != NULL )
+		{
+			for( int i=0; i<nNumLayer; i++ )
+			{
+				if( pGrid->getRemand() < 0 )
+				{
+					bIsOverflow = true;
+					break;
+				}
+				pGrid = graphTravel( m_pDesign, pGrid, 0, 0, 1 );
+			}			
+		}
+	}
+
+	if( !bIsOverflow )
+	{
+		pGrid = graphTravel( m_pDesign, pTGrid, 0, -1, 0 );
+		if( pGrid != NULL )
+		{
+			for( int i=0; i<nNumLayer; i++ )
+			{
+				if( pGrid->getRemand() < 0 )
+				{
+					bIsOverflow = true;
+					break;
+				}
+				pGrid = graphTravel( m_pDesign, pGrid, 0, 0, 1 );
+			}			
+		}
+	}
+	// recover all the data
+	removeInstOnGraph( pInst );
+	removeInstOnGraph( pSInst );
+	
+	for( int i=0; i<vNet.size(); i++ )
+	{
+		addNetOnGraph( m_pDesign, vNet[i] );
+	}
+		
+
+	// return the result; if no overlap(true) the ripup net will also be returned  
+	if( bIsOverflow )
+		return false;
+	else
+	{
+		vRipNet = vNet;
+		return true;
+	}
+		
+}
+
+vector< instance_C* > router_C::findSwapInstance( gGrid_C* pSGrid, gGrid_C* pTGrid, instance_C* pInst ) // grid that instance will put, grid that instance orign place, instance
+{
+	// instance in the source grid;
+	vector< instance_C* > vInst = pSGrid->getInstance();	
+	// candidate of swapping instance, will be sorted by forced;
+	vector< instance_C* > vCandidate;
+	vector< int > vScore;
+
+	// tmp variable 
+	vector< forced_C* > vForced;
+	int nTX, nTY, nTZ;
+	pTGrid->getPosition( nTX, nTY, nTZ );
+	
+	// find all the forced model of instance in the grid
+	for( int i=0; i<vInst.size(); i++ )
+	{
+		forced_C* pF = &m_vForced[ vInst[i]->getId() ];
+		//if( !pF->m_bLockInX && !pF->m_bLockInY )
+			vForced.push_back( pF );
+	}
+
+	for( int i=0; i<vForced.size(); i++ )
+	{
+		forced_C* pF = vForced[i];
+		if( pF->m_nBoundX1 <= nTX && nTX <= pF->m_nBoundX2 
+		 && pF->m_nBoundY1 <= nTY && nTY <= pF->m_nBoundY2 )
+		{
+			int nCenterX = ( pF->m_nBoundX1 + pF->m_nBoundX2 )/2;
+			int nCenterY = ( pF->m_nBoundY1 + pF->m_nBoundY2 )/2;
+			int nCost = abs( nCenterX - nTX ) + abs( nCenterY - nTY );
+			vScore.push_back( nCost );
+			vCandidate.push_back( pF->m_pInstance );
+		}
+	}
+
+	// increasing order
+	for( int i=1; i<vScore.size(); i++ )
+	{
+		for( int j=i-1; j>=0; j-- )
+		{
+			int nFCost = vScore[j];
+			int nBCost = vScore[j+1];
+			if( nFCost <= nBCost )
+				break;
+			else
+			{
+				instance_C* pFInst = vCandidate[j];
+				instance_C* pBInst = vCandidate[j+1];
+				vCandidate[ j ] = pBInst;
+				vCandidate[ j+1 ] = pFInst; 
+				vScore[ j ] = nBCost;
+				vScore[ j+1 ] = nFCost;
+			}
+		}
+	}
+
+	return vCandidate;
+}
+
+bool multipleCellMovement( instance_C* pInst )
+{
+	pseudoInstance_C* pPInst = ( pseudoInstance_C* )pInst;		
+}
+
+
+//#define _NORMAL_MODE // mark if what to test
+
+#ifndef _NORMAL_MODE
+	#define _TEST_MODE
+	#define _TEST_LOOP 20
+	#define _TEST_INST "C1"
+	#define _TEST_CELL "MC1"
+#endif
+
+bool router_C::startOpt()
+{
+	//time_t start, end;
+	//start = time( NULL );
+	cout<<"Start Routing Optimization"<<endl;
+	int nNumMaxCell = m_pDesign->getMaxCellConstraint();
+	//int nTmpSuccess = 0;
+	//vector< instance_C* > vFailedInst;
+
+
+	vector< net_C* > vTmpNet = m_pDesign->getNet();
+/*	
+#ifdef _DEBUG_MODE
+	for( int i=0; i<vTmpNet.size(); i++ )
+	{
+		//cout<<"Dump Net: "<<vRerouteNet[i]->getName()<<endl;
+		matlab_graph(vTmpNet[i]->getName(), vTmpNet[i]->getName(), m_pDesign, 0);
+	}
+#endif
+*/
+	time_t tStartRoute = time( NULL );
+	rrr( vTmpNet );
+	time_t tEndRoute = time( NULL );
+	time_t tRequiredTime = tEndRoute - tStartRoute;
+//------------------- testing ------------------------
+#ifdef _TEST_MODE	
+	//for( int i=0; i<_TEST_LOOP; i++ ) 
+	while( m_vMovedInstance.size() < nNumMaxCell )
+	//while( m_vMovedInstance.size() < 200 )
+	{
+// pick instance
+	
+		//if( m_nTX >= 13 && m_nTY >= 14 && getGrid( m_pDesign, 13, 14, 2)->isOverflow() )
+		//	cout<<"Find (13, 14, 2) Overflow"<<endl;
+		
+
+		endt = time( NULL );
+		int nTime = endt - start;
+		if( nTime >= (time_t)TIMECONST - tRequiredTime - (time_t)10 )
+			break;
+
+		instance_C* pInst;
+		pInst = pickInstanceToMove();
+		if( pInst == NULL )
+			break;
+
+		m_nIteration++;
+		/*
+		vector< instance_C* > vInst = m_pDesign->getInstance();
+		for( int i=0; i<vInst.size(); i++ )
+		{
+			if( vInst[i]->getName() == _TEST_INST && vInst[i]->getType() == _TEST_CELL )
+			{
+				pInst = vInst[i];
+				break;
+			}
+		}
+		*/
+		//cout<<setw(COUTWIDTH)<<left<<setfill('.')<<"Update forced model";
+		string strInstName = pInst->getName();
+		string strInfo = ": Moving " + strInstName;
+		cout<<"Iter "<<m_nIteration<<setw(COUTWIDTH - 6)<<left<<setfill('.')<<strInfo;
+		
+		//if( singleCellMovement_ver2( pInst ) ) // it can get gain 4460 for case 3 // test for more place to move
+		if( singleCellMovement_ver3( pInst ) )
+		{
+			m_nSuccess++;
+		//	nTmpSuccess++;
+			cout<<"complete"<<endl;
+		}
+		else
+		{
+			m_nFailed++;
+		//	vFailedInst.push_back( pInst );
+			//nTmpFailed++;
+			cout<<"failed"<<endl;
+		}
+		/*
+		if( nTmpFailed == 10 )
+		{
+			m_nIteration++;
+			strInfo = ": Routing refinement";
+			cout<<"Iter "<<m_nIteration<<setw(COUTWIDTH - 6)<<left<<setfill('.')<<strInfo;
+			rrr( vTmpNet );
+			cout<<"complete"<<endl;
+			nTmpFailed = 0;
+			m_nNumRefinement++;
+		}
+		*/
+		/*
+		if( nTmpSuccess == 20 /
+		{
+			rrr( vTmpNet );
+			for( int i=0; i<vFailedInst.size(); i++ )
+			{
+				freeInstance( vFailedInst[i] );
+			}
+			nTmpSuccess = 0;
+			vFailedInst.clear();
+		}
+		*/
+// setup the bounding box
+// find out the candidate grid for instance 
+// find out the best position for instance
+// map the candidates and best position
+
+
+
+#endif
+
+//------------------- normal -------------------------
+#ifdef _NORMAL_MODE
+	cout<<"Normal"<<endl;
+	while(1)
+	{
+		break;
+#endif
+	}
+	
+	cout<<endl;
+	cout<<"Start post-routing optimization"<<endl;
+	//vector< net_C* > vTmpNet = m_pDesign->getNet();
+
+	rrr( vTmpNet );
+
+	cout<<"End optimization"<<endl;
+	cout<<endl;
+	
+	endt = time( NULL );
+	//cout<<"Time: "<< end - start <<endl;
+
+	return true;
+}
+
+bool router_C::test()
+{
+	vector< net_C* > vNet = m_pDesign->getNet();
+	string strCheckNet = "N2";
+	for( int i=0; i<vNet.size(); i++ )
+	{
+		if( vNet[i]->getName() == strCheckNet )
+		{
+			
+			matlab_graph("out", strCheckNet, m_pDesign, 0);
+			int nLength = calWireLength( vNet[i] );
+			cout<<"Previous length: "<<nLength<<endl;
+			vector< net_C* > vTmpNet;
+			vector< forced_C* > vF = m_vNetworkForced[ vNet[i]->getId() ].m_vForced;
+			unsigned int *nX = new unsigned int[ vF.size() ];
+			unsigned int *nY = new unsigned int[ vF.size() ];
+			for( int p=0; p<vF.size(); p++ )
+			{
+				nX[p] = vF[p]->m_pInstance->getPlacedX();
+				nY[p] = vF[p]->m_pInstance->getPlacedY();
+			}
+			int nWL = flute_wl(vF.size(), nX, nY, ACCURACY );
+			cout<<"Estimate: "<<nWL<<endl;
+			
+			vTmpNet.push_back( vNet[i] );
+			backupNet( vTmpNet );
+			ripupNet( vTmpNet );
+			cleanWire( vTmpNet );
+			//vector< gGrid_C* > vResult = routeNet( vNet[i] );
+			vector< gGrid_C* > vResult = routeNet_length_constraint( vNet[i], nLength);
+			saveNet( vNet[i], vResult );
+			addNetOnGraph( m_pDesign, vNet[i] );
+
+			nLength = calWireLength( vNet[i] );
+			cout<<"After reroute: "<<nLength<<endl;
+			
+			matlab_graph("out", strCheckNet, m_pDesign, 1);
+			ripupNet( vTmpNet );
+
+			recoverNet( vTmpNet );
+			
+			addNetOnGraph( m_pDesign, vNet[i] );
+			
+			m_vBackupNet.clear();
+		}
+	}
+}
+
+bool router_C::rrr( vector< net_C* > &vNet )
+{
+	for( int i=0; i<vNet.size(); i++ )
+	{	
+		endt = time(NULL);
+		int nTime = endt - start;
+		if( endt - start > TIMECONST )
+			break;
+		
+		//if( vNet[i]->getNumReroute() > 0  )
+		//	continue;
+
+		vector< net_C* > vRerouteNet;
+		vRerouteNet.push_back( vNet[i] );
+
+		int nPreviousLength = 0;
+		for( int n=0; n<vRerouteNet.size(); n++ )
+		{
+			nPreviousLength = nPreviousLength + calWireLength( vRerouteNet[n] );
+		}
+
+		//cout<<"backup net"<<endl;
+		backupNet( vRerouteNet );
+		//cout<<"ripup net"<<endl;
+		ripupNet( vRerouteNet );
+		cleanWire( vRerouteNet );
+		//cout<<"route the net..."<<endl;
+		
+		bool bFail = false;
+		int nNetIndex = vRerouteNet.size();
+		for( int r=0; r<vRerouteNet.size(); r++ )
+		{
+			vector< gGrid_C* > vResult = routeNet_length_constraint( vRerouteNet[r], nPreviousLength );
+			/*
+			cout<<"Route net result"<<endl;
+			for( int j=0; j<vResult.size(); j++ )
+			{
+				int nX, nY, nZ;
+				vResult[j]->getPosition( nX, nY, nZ );
+				//cout<<"( "<<nX<<" , "<<nY<<" , "<<nZ<<" )"<<endl;
+			}
+			cout<<endl;
+			*/
+			/*
+			if( vRerouteNet[r]->getName() == "N2202" || vRerouteNet[r]->getName() == "N2174" )
+			{
+				ofstream ferr;
+				ferr.open("routing_info.log", ios::app );
+				ferr<<"RRR: "<<endl;
+				ferr<<vRerouteNet[r]->getName()<<endl;
+				int nRX, nRY, nRZ;
+				for( int g=0; g<vResult.size(); g++ )
+				{
+					vResult[g]->getPosition( nRX, nRY, nRZ );
+					ferr<<nRX<<" "<<nRY<<" "<<nRZ<<endl;
+				}
+				ferr<<endl;
+			}
+			*/
+			if( vResult.size() == 0 )
+			{
+				//cout<<"Routing failed"<<endl;
+				//recoverNet( vRerouteNet[r] );
+				nNetIndex = r;
+				bFail = true;
+				break;
+			}		
+			else
+			{
+				bool bOverflow = false;
+				for( int g=0; g<vResult.size(); g++ )
+				{
+					if( vResult[g]->getRemand() - 1 < 0 )
+					{
+						bOverflow = true;
+						break;
+					}
+				}
+				if( bOverflow )
+				{
+					nNetIndex = r;
+					vResult.clear();
+					bFail = true;
+					break;
+				}
+			}
+			
+			saveNet( vRerouteNet[r], vResult );
+			addNetOnGraph( m_pDesign, vRerouteNet[r] );
+		}
+		//cout<<"Here"<<endl;
+
+		int nNewLength = 0;
+		if( !bFail )
+		{
+			for( int n=0; n<vRerouteNet.size(); n++ )
+			{
+				nNewLength = nNewLength + calWireLength( vRerouteNet[n] );
+			}
+			//cout<<"Previous wire length: "<<nPreviousLength<<endl;
+			//cout<<"New wire length: "<<nNewLength<<endl;
+		}
+
+		if( bFail || nNewLength > nPreviousLength )
+		{
+			//cout<<"Failed to optimize the design, recover."<<endl;
+		
+			vector< net_C* > vRoutedNet;
+			//if( bFail )
+			//{
+				for( int rr=0; rr<nNetIndex; rr++ )
+					vRoutedNet.push_back( vRerouteNet[rr] );
+			//}
+			ripupNet( vRoutedNet );
+
+			recoverNet( vRerouteNet );
+			
+			for( int r=0; r<vRerouteNet.size(); r++ )
+			{
+				addNetOnGraph( m_pDesign, vRerouteNet[r] );
+			}
+			/*
+			for( int b=0; b<m_vBackupNet.size(); b++ )
+			{
+				m_vBackupNet[b].cleanWire();
+			}
+			m_vBackupNet.clear();
+			*/
+		}
+		else
+		{
+			
+			for( int b=0; b<m_vBackupNet.size(); b++ )
+			{
+				m_vBackupNet[b].cleanWire();
+			}
+			m_vBackupNet.clear();
+
+		}
+	}
+	return true;
+}
+
+bool router_C::dumpResult( char* strFileName )
+{
+	ofstream fout;
+	fout.open( strFileName, ios::out );
+	
+	fout << "NumMovedCellInst "<<m_vMovedInstance.size()<<endl;
+	for( int i=0; i<m_vMovedInstance.size(); i++ )
+	{
+		instance_C* pInst = m_vMovedInstance[i];
+		int nX, nY;
+		nX = pInst->getPlacedX();
+		nY = pInst->getPlacedY();
+		string strInstName = pInst->getName();
+		fout << "CellInst "<<strInstName<<" "<<nX<<" "<<nY<<endl;
+	}
+	fout<<endl;
+
+	int nNumNet = 0;
+	vector< net_C* > vNet = m_pDesign->getNet();
+	vector< wire_C* > vTmpWire;
+	/*
+	for( int i=0; i<vNet.size(); i++ )
+	{
+		vector< wire_C* > vWire = vNet[i]->getWire();
+		if( vWire.size() == 1 )
+		{
+			if( vWire[0]->getGrid1() == vWire[0]->getGrid2() )
+				continue;
+		}
+		nNumNet = nNumNet + vNet[i]->getWire().size();
+	}
+	*/
+	for( int i=0; i<vNet.size(); i++ )
+	{
+//#ifdef _DEBUG_MODE
+//		matlab_graph(vNet[i]->getName(), vNet[i]->getName(), m_pDesign, 1);
+//#endif
+		//
+		vector< wire_C* > vWire = vNet[i]->getWire();
+		for( int j=0; j<vWire.size(); j++ )
+		{
+			if( vWire[j]->getGrid1() == vWire[j]->getGrid2() )
+				continue;
+			else
+			{
+				vTmpWire.push_back( vWire[j] );
+				nNumNet++;
+			}
+		}
+	}
+
+	fout<< "NumRoutes "<<nNumNet<<endl;
+	/*
+	for( int i=0; i<vNet.size(); i++ )
+	{
+		vector< wire_C* > vWire = vNet[i]->getWire();
+		for( int j=0; j<vWire.size(); j++ )
+		{
+			wire_C* pWire = vWire[j];
+			gGrid_C* pGrid1 = pWire->getGrid1();
+			gGrid_C* pGrid2 = pWire->getGrid2();
+			if( vWire.size() == 1 && pGrid1 == pGrid2 )
+				continue;
+			
+			int nX, nY, nZ;
+			pGrid1->getPosition( nX, nY, nZ );
+			fout<<nX<<" "<<nY<<" "<<nZ<<" ";
+			pGrid2->getPosition( nX, nY, nZ );
+			fout<<nX<<" "<<nY<<" "<<nZ<<" ";
+			fout<<vNet[i]->getName()<<endl;
+		}
+	}
+	*/
+	for( int i=0; i<vTmpWire.size(); i++ )
+	{
+		wire_C* pWire = vTmpWire[i];
+		gGrid_C* pGrid1 = pWire->getGrid1();
+		gGrid_C* pGrid2 = pWire->getGrid2();
+			
+		int nX, nY, nZ;
+		pGrid1->getPosition( nX, nY, nZ );
+		fout<<nX<<" "<<nY<<" "<<nZ<<" ";
+		pGrid2->getPosition( nX, nY, nZ );
+		fout<<nX<<" "<<nY<<" "<<nZ<<" ";
+		fout<<pWire->getNet()->getName()<<endl;
+	}
+	fout.close();
+}
+
+bool router_C::dumpDetailInfo()
+{
+	ofstream fout;
+	fout.open("detailInfo.log", ios::out);
+	for( int l=m_nDZ; l<=m_nTZ; l++ )
+	{
+		for( int x = m_nDX; x <= m_nTX; x++ )
+		{
+			for( int y = m_nDY; y <= m_nTY; y++ )
+			{
+				gGrid_C* pGrid = getGrid( m_pDesign, x, y, l );
+				fout<<x<<" "<<y<<" "<<l<<" "<<pGrid->getSupply();
+				fout<<" "<<pGrid->getDemand();
+				fout<<" "<<pGrid->getExtraDemand();
+				fout<<" "<<pGrid->getNet().size();
+				for( int i=0; i<pGrid->getNet().size(); i++ )
+				{
+					fout<<" "<<pGrid->getNet()[i]->getName()<<" ";
+				}
+				fout<<endl;
+			}
+		}
+	}
+	fout.close();
+}
