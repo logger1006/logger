@@ -609,10 +609,12 @@ inline bool router_C::calPseudoPinDemand( instance_C* pInst, int nX, int nY, int
 		int nLayerId = pPin->getLayerId();
 		vZGrid[nLayerId - nZ]->addPinDemand();
 	}
+	/*
 	if( pInst->getName() == "C1112" )
 	for( int i=0; i<vZGrid.size(); i++ )
 		cout <<vZGrid[i]->getPinDemand() << " ";
 	cout << endl;
+	*/
 }
 
 inline bool router_C::putInstOnGraph(instance_C *pInst, int nX, int nY, int nZ)
@@ -2984,6 +2986,8 @@ bool router_C::reduceOverflow( vector< net_C* > &vRoutedNet, gGrid_C* pOGrid, in
 			{
 				for (int gg = 0; gg < vNewResult[g].size(); gg++)
 				{
+					int nPinDemand = vNewResult[g][gg]->getPinDemand();
+					
 					if (vNewResult[g][gg]->getRemand() - 1 - vNewResult[g][gg]->getPinDemand() < 0)
 					{
 						bStillOverflow = true;
@@ -3052,7 +3056,7 @@ bool router_C::multiNetRouting( vector< net_C* > &vNet, const int nConstraint, i
 						cout <<"Overflow here: ";
 						cout << pOGrid->getRemand() << endl;				
 						bool bFix = reduceOverflow( vRoutedNet, pOGrid, nLengthConstraint );
-						pOGrid->delPinDemand();
+						//pOGrid->delPinDemand();
 						if( !bFix )
 							break;
 						else
@@ -3064,7 +3068,11 @@ bool router_C::multiNetRouting( vector< net_C* > &vNet, const int nConstraint, i
 								break;
 							}
 							else
+							{
+								g = 0;
+								gg = -1;
 								bOverflow = false;
+							}
 							//getchar();
 						}
 					}
@@ -8259,7 +8267,7 @@ vector< forced_C* > router_C::moveingCellCollection_ver2( int nForcedId )
 	int nIndex = -1;
 	int nMaxForced = abs( pTarget->m_nR - pTarget->m_nL ) + abs( pTarget->m_nT - pTarget->m_nD );
 	double dMaxForced = 0;
-	/*
+	/*	
 	for( int i=0; i<vTmpNet.size(); i++ )
 	{
 		int nTmpForced = abs( vLF[i] - vRF[i] ) + abs( vTF[i] - vDF[i] );
@@ -8270,6 +8278,7 @@ vector< forced_C* > router_C::moveingCellCollection_ver2( int nForcedId )
 		}
 	}
 	*/
+	
 	for( int i=0; i<vTmpNet.size(); i++ )
 	{
 		double dTmpForced = abs( vLF[i] - vRF[i] ) + abs( vTF[i] - vDF[i] );
@@ -8280,6 +8289,7 @@ vector< forced_C* > router_C::moveingCellCollection_ver2( int nForcedId )
 			nIndex = i;
 		}
 	}
+	
 	if( nIndex != -1 )
 	{
 		cout << "Pick net: " << vTmpNet[ nIndex ]->m_pNet->getName() << endl;
@@ -8291,6 +8301,27 @@ vector< forced_C* > router_C::moveingCellCollection_ver2( int nForcedId )
 				sForced.insert( vTmpNet[ nIndex]->m_vForced[i] );
 			}
 		}
+// graph checker
+/*
+		matlab_graph( "Before", vTmpNet[nIndex]->m_pNet->getName(), m_pDesign, true, 0 );		
+		vector< forced_C* > vTmpF = vTmpNet[nIndex]->m_vForced;
+		set< networkForced_C* > sTmpNF;
+		sTmpNF.insert( vTmpNet[ nIndex] );
+		for( int i=0; i < vTmpF.size(); i++ )
+		{
+			vector< networkForced_C* > vTmpNF = vTmpF[i]->m_vNetwork;	
+			for( int j=0; j<vTmpNF.size(); j++ )
+			{
+				if( sTmpNF.count( vTmpNF[j] ) == 0 )
+				{
+					matlab_graph( "Before", vTmpNF[ j ]->m_pNet->getName(), m_pDesign, false, 1 );		
+					sTmpNF.insert( vTmpNF[ j ] );
+					
+				}
+			}
+		}
+*/
+//
 	}
 
 	return vAvailMovedForced;
@@ -12626,7 +12657,7 @@ bool router_C::multipleCellMovement_ver4( vector< instance_C* > &vInst )
 	for( int i=0; i<vIInst.size(); i++ )
 	{
 		sInst.insert( vIInst[i] );
-		vInst[ nMoveCount - 1 - i ] = vIInst[i];	
+		//vInst[ nMoveCount - 1 - i ] = vIInst[i];	
 	}
 	
 	vector< net_C* > vRipNet;
@@ -16798,7 +16829,7 @@ bool router_C::startOpt()
 		
 		if( moveCell( vInst ) )
 		{
-			
+			//getchar();	
 			m_nSuccess++;
 			//	nTmpSuccess++;
 			cout << "Iter " << m_nIteration << setw(COUTWIDTH - 6) << left << setfill('.') << " " <<"left: "<<m_pDesign->getMaxCellConstraint() - m_vMovedInstance.size() << endl;
