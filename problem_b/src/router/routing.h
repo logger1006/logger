@@ -210,6 +210,9 @@ class router_C
 	vector< vector< gGrid_C* > > routeNet_length_constraint_ver2( net_C*, const int );
 	vector< gGrid_C* > routeNet_ver2( net_C* );
 	vector< gGrid_C* > routeNet( net_C*, vector< gGrid_C* > & );
+	
+	bool multiNetRouting( vector< net_C* > &, const int, int & );
+	
 	bool rrr( vector< net_C* > & );
 	bool pre_route( vector< net_C* > & );
 	bool saveNet( net_C*, vector< gGrid_C* > & );
@@ -283,9 +286,11 @@ class router_C
 	bool multipleCellMovement( vector< instance_C* > & );
 	bool multipleCellMovement_ver2( vector< instance_C* > & );
 	bool multipleCellMovement_ver3( vector< instance_C* > & );
+	bool multipleCellMovement_ver4( vector< instance_C* > & ); // with multiNet ripup & reroute
 	bool multipleCellMovement( net_C* );
 	bool moveCell( vector< instance_C* >& );
 	int calDistanceFromPath( rGrid_C*, int );
+	bool reduceOverflow( vector< net_C* > &, gGrid_C*, int & );
 
 	unordered_map< instance_C*, vector< instance_C > > m_vInstHistory;
 
