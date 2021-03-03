@@ -47,6 +47,7 @@ class forced_C
 	instance_C* m_pInstance;
 	vector< networkForced_C* > m_vNetwork;
 	int m_nT, m_nD, m_nR, m_nL; // forced direction
+	int m_nC;
 	bool m_bLockInX;
 	bool m_bLockInY;
 	int m_nBoundX1, m_nBoundY1;
@@ -85,7 +86,8 @@ class networkForced_C
 	unordered_map< forced_C*, int > m_mPRF;
 	unordered_map< forced_C*, int > m_mPTF;
 	unordered_map< forced_C*, int > m_mPDF;
-	
+
+	// bounding box without considering forced_C*
 	unordered_map< forced_C*, int > m_mMinX;
 	unordered_map< forced_C*, int > m_mMaxX;
 	unordered_map< forced_C*, int > m_mMinY;
@@ -192,6 +194,7 @@ class router_C
 	bool calForceDirection( vector< instance_C* > & );
 	bool evaluateForceDirection( net_C* );
 	instance_C* pickInstanceToMove();
+	instance_C* pickInstanceToMove_ver2();
 	vector< instance_C* > pickInstanceToMove( int ); // rest of cost
 
 	instance_C* pickHasMovedInstanceToMove();
@@ -231,10 +234,12 @@ class router_C
 	bool freeForcedModel( instance_C* );
 	bool calForcedModel( forced_C& );
 	bool calForcedModel_ver2( forced_C& );
+	bool calForcedModel_ver3( forced_C& );
 	bool calForcedModel( forced_C&, set< net_C* > & );
 	bool calForcedModel( forced_C&, vector< net_C* > &, int &, int &, int &, int & );
 	bool calNetForcedModel( forced_C& );
 	bool calForcedNetwork( networkForced_C& );
+	bool calForcedNetwork_ver2( networkForced_C& );
 	bool calForcedNetwork( networkForced_C&, set< instance_C* > &);
 	bool calNetForcedModel( forced_net_C& );
 	bool linkForcedModel();

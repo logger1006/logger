@@ -76,12 +76,12 @@ bool router_C::init()
 	cerr << " Net Forced "<<endl;
 	for (int i = 0; i < m_vNetworkForced.size(); i++)
 	{
-		calForcedNetwork(m_vNetworkForced[i]);
+		calForcedNetwork_ver2(m_vNetworkForced[i]);
 	}
 	cerr << "Forced "<<endl;
 	for (int i = 0; i < m_vForced.size(); i++)
 	{
-		calForcedModel(m_vForced[i]);
+		calForcedModel_ver3(m_vForced[i]);
 	}
 	/*
 	for( int i=0; i< m_vNetForced.size(); i++ )
@@ -5957,12 +5957,12 @@ bool router_C::updateForcedModel(instance_C *pInst)
 
 	for (int i = 0; i < vNetwork.size(); i++)
 	{
-		calForcedNetwork(*vNetwork[i]);
+		calForcedNetwork_ver2(*vNetwork[i]);
 	}
 
 	for (int i = 0; i < vForced.size(); i++)
 	{
-		calForcedModel(*vForced[i]);
+		calForcedModel_ver3(*vForced[i]);
 	}
 
 	return true;
@@ -6783,6 +6783,386 @@ bool router_C::calForcedModel(forced_C &cF, set< net_C* > &sNet )
 	//cout << cF.m_pInstance->getName()  << " " << abs( nDF - nTF ) + abs( nRF - nLF ) << endl;
 	return true;
 }
+
+bool router_C::calForcedModel_ver3(forced_C &cF)
+{
+	int nX = cF.m_pInstance->getPlacedX();
+	int nY = cF.m_pInstance->getPlacedY();
+
+	int nTF = 0;
+	int nDF = 0;
+	int nRF = 0;
+	int nLF = 0;
+	int nCF = 0;
+
+	for (int i = 0; i < cF.m_vNetwork.size(); i++)
+	{
+		networkForced_C *cNF = cF.m_vNetwork[i];
+		bool bNoForcedInX = false;
+		bool bNoForcedInY = false;
+
+		int nCenterX = cNF->m_nCenterX;
+		int nCenterY = cNF->m_nCenterY;
+		int nHalfX = cNF->m_nXHalf;
+		int nHalfY = cNF->m_nYHalf;
+		//cout << cNF->m_pNet->getName() << " " << nCenterX << " " << nHalfX << " " << nCenterY << " " << nHalfY << endl;
+		if( nCenterX > nX )
+		{
+			nTF++;
+		}
+		else if( nCenterX < nX )
+		{
+			nDF++;
+		}
+		else if( nCenterX == nX && nHalfX == 1 )
+		{
+			nTF++;
+		}
+		else
+		{
+			bNoForcedInX = true;
+		}	
+		
+		if( nCenterY > nY )
+		{
+			nRF++;
+		}
+		else if( nCenterY < nY )
+		{
+			nLF++;
+		}
+		else if( nCenterY == nY && nHalfY == 1 )
+		{
+			nRF++;
+		}
+		else
+		{
+			bNoForcedInY = true;
+		}	
+
+		if( bNoForcedInX && bNoForcedInY )
+			nCF++;
+
+	}
+	
+
+	//cout << "Forced: " << nTF << " " << nDF << " " << nRF << " " << nLF << " " << nCF << endl;
+	// added at 0712 22:00
+	int nBX1, nBX2;
+	int nBY1, nBY2;
+	nBX1 = cF.m_pInstance->getPlacedX();
+	nBY1 = cF.m_pInstance->getPlacedY();
+	nBX2 = nBX1;
+	nBY2 = nBY1;
+
+	vector<int> vMinX;
+	vector<int> vMaxX;
+
+	vector<int> vMinY;
+	vector<int> vMaxY;
+	//cout << "cal bound"<<endl;
+	vector<networkForced_C *> &vNetWork = cF.m_vNetwork;
+	vector<vector<instance_C *>> vBoundingBox;
+	for (int i = 0; i < vNetWork.size(); i++)
+	{
+		networkForced_C *pNF = vNetWork[i];
+		vMinX.push_back( pNF->m_mMinX.find( &cF )->second );
+		vMaxX.push_back( pNF->m_mMaxX.find( &cF )->second );
+		vMinY.push_back( pNF->m_mMinY.find( &cF )->second );
+		vMaxY.push_back( pNF->m_mMaxY.find( &cF )->second );
+		if( pNF->m_mMinX.find( &cF )->second > nX  )
+		{
+			nTF++;
+		}
+		if( pNF->m_mMaxX.find( &cF )->second < nX  )
+		{
+			nDF++;
+		}
+		if( pNF->m_mMinY.find( &cF )->second > nY  )
+		{
+			nRF++;
+		}
+		if( pNF->m_mMaxY.find( &cF )->second < nY  )
+		{
+			nLF++;
+		}
+		
+	}
+	
+	cF.m_nT = nTF;
+	cF.m_nD = nDF;
+	cF.m_nR = nRF;
+	cF.m_nL = nLF;
+	cF.m_nC = nCF;
+	/*
+	cout << cF.m_pInstance->getName()<<endl;
+	for( int i=0; i<vMinX.size(); i++ )
+	{
+		cout << vMinX[i] << " " << vMinY[i] << " " << vMaxX[i] << " " << vMaxY[i] << endl;
+	}
+	cout << "Forced: " << nTF << " " << nDF << " " << nRF << " " << nLF << " " << nCF << endl;
+	*/
+	//cout << "end bound"<<endl;
+	int nGain = 0;
+	int nXGain = 0;
+	int nYGain = 0;
+	bool bBalanceInX = false;
+	bool bBalanceInY = false;
+
+	int nDX = 0;
+	int nDY = 0;
+	if (!cF.m_bLockInX)
+	{
+		nDX = cF.m_nT - cF.m_nD;
+	}
+
+	if( abs( cF.m_nT - cF.m_nD ) - cF.m_nC != 0 && nDX != 0 )
+	{
+		nDX = nDX / abs(nDX);
+		nDY = 0;
+		//cout << "Move direction in X: "<< nDX << endl;
+		// moving instance
+		int nBest;
+		int nTmp;
+		nTmp = cF.m_pInstance->getPlacedX();
+
+		nBest = boundingBoxCost(nTmp, vMinX, vMaxX);
+		gGrid_C *pBestGrid = NULL;
+		gGrid_C *pGrid = getGrid(m_pDesign, cF.m_pInstance->getPlacedX(), cF.m_pInstance->getPlacedY(), m_nDZ);
+		while (graphTravel(m_pDesign, pGrid, nDX, nDY, 0) != NULL)
+		{
+			pGrid = graphTravel(m_pDesign, pGrid, nDX, nDY, 0);
+			// check placeable
+			//if( !isPlaceable( pGrid, pInst ) )
+			//	continue;
+			//
+			int nTmpX, nTmpY, nTmpZ;
+			pGrid->getPosition(nTmpX, nTmpY, nTmpZ);
+			nTmp = nTmpX;
+
+			int nTmpBest = boundingBoxCost(nTmp, vMinX, vMaxX);
+			// change at 0706 19:30
+			//if( nTmpBest <= nBest ) // change from <
+			//{
+			//	nBest = nTmpBest;
+			//	pBestGrid = pGrid;
+			//	vBestGrid.push_back( pBestGrid );
+			//}
+			//else
+			//	break;
+
+			if (nTmpBest <= nBest) // change from <
+			{
+	//			if( nBest - nTmpBest > nXGain )
+	//				nXGain = nBest - nTmpBest;
+				pBestGrid = pGrid;
+				nBX2 = nBX2 + nDX;
+			}
+			else
+				break;
+
+			// end change
+			//cout<<nBest<<endl;
+		}
+	}
+	else
+	{
+		bBalanceInX = true;
+	}
+
+	if (!cF.m_bLockInY)
+		nDY = cF.m_nR - cF.m_nL;
+
+	if( abs( cF.m_nR - cF.m_nL ) - cF.m_nC != 0 && nDY != 0 )
+	{
+		nDY = nDY / abs(nDY);
+		nDX = 0;
+		//cout << "Move direction in y: "<< nDY << endl;
+		// moving instance
+		int nBest;
+		int nTmp;
+		nTmp = cF.m_pInstance->getPlacedY();
+
+		nBest = boundingBoxCost(nTmp, vMinY, vMaxY);
+		gGrid_C *pBestGrid = NULL;
+		gGrid_C *pGrid = getGrid(m_pDesign, cF.m_pInstance->getPlacedX(), cF.m_pInstance->getPlacedY(), m_nDZ);
+		while (graphTravel(m_pDesign, pGrid, nDX, nDY, 0) != NULL)
+		{
+			pGrid = graphTravel(m_pDesign, pGrid, nDX, nDY, 0);
+			// check placeable
+			//if( !isPlaceable( pGrid, pInst ) )
+			//	continue;
+			//
+			int nTmpX, nTmpY, nTmpZ;
+			pGrid->getPosition(nTmpX, nTmpY, nTmpZ);
+			nTmp = nTmpY;
+
+			int nTmpBest = boundingBoxCost(nTmp, vMinY, vMaxY);
+			// change at 0706 19:30
+			//if( nTmpBest <= nBest ) // change from <
+			//{
+			//	nBest = nTmpBest;
+			//	pBestGrid = pGrid;
+			//	vBestGrid.push_back( pBestGrid );
+			//}
+			//else
+			//	break;
+
+			if (nTmpBest <= nBest) // change from <
+			{
+	//			if( nBest - nTmpBest > nYGain )
+	//				nYGain = nBest - nTmpBest;
+				pBestGrid = pGrid;
+				nBY2 = nBY2 + nDY;
+			}
+			else
+				break;
+
+			// end change
+			//cout<<nBest<<endl;
+		}
+	}
+	else
+	{
+		bBalanceInY = true;
+	}
+
+	if( bBalanceInX && bBalanceInY )
+	{
+		nDX = -1;
+		nDY = 0;
+		int nBest;
+		int nTmp;
+		nTmp = cF.m_pInstance->getPlacedX();
+
+		nBest = boundingBoxCost(nTmp, vMinX, vMaxX);
+		gGrid_C *pBestGrid = NULL;
+		gGrid_C *pGrid = getGrid(m_pDesign, cF.m_pInstance->getPlacedX(), cF.m_pInstance->getPlacedY(), m_nDZ);
+		while (graphTravel(m_pDesign, pGrid, nDX, nDY, 0) != NULL)
+		{
+			pGrid = graphTravel(m_pDesign, pGrid, nDX, nDY, 0);
+			int nTmpX, nTmpY, nTmpZ;
+			pGrid->getPosition(nTmpX, nTmpY, nTmpZ);
+			nTmp = nTmpX;
+
+			int nTmpBest = boundingBoxCost(nTmp, vMinX, vMaxX);
+
+			if (nTmpBest <= nBest) // change from <
+			{
+				pBestGrid = pGrid;
+				nBX1 = nBX1 + nDX;
+			}
+			else
+				break;
+		}
+		
+		nDX = 1;
+		nDY = 0;
+		nTmp = cF.m_pInstance->getPlacedX();
+
+		nBest = boundingBoxCost(nTmp, vMinX, vMaxX);
+		pBestGrid = NULL;
+		pGrid = getGrid(m_pDesign, cF.m_pInstance->getPlacedX(), cF.m_pInstance->getPlacedY(), m_nDZ);
+		while (graphTravel(m_pDesign, pGrid, nDX, nDY, 0) != NULL)
+		{
+			pGrid = graphTravel(m_pDesign, pGrid, nDX, nDY, 0);
+			int nTmpX, nTmpY, nTmpZ;
+			pGrid->getPosition(nTmpX, nTmpY, nTmpZ);
+			nTmp = nTmpX;
+
+			int nTmpBest = boundingBoxCost(nTmp, vMinX, vMaxX);
+
+			if (nTmpBest <= nBest) // change from <
+			{
+				pBestGrid = pGrid;
+				nBX2 = nBX2 + nDX;
+			}
+			else
+				break;
+		}
+		
+		nDY = -1;
+		nDX = 0;
+		nTmp = cF.m_pInstance->getPlacedY();
+
+		nBest = boundingBoxCost(nTmp, vMinY, vMaxY);
+		pBestGrid = NULL;
+		pGrid = getGrid(m_pDesign, cF.m_pInstance->getPlacedX(), cF.m_pInstance->getPlacedY(), m_nDZ);
+		while (graphTravel(m_pDesign, pGrid, nDX, nDY, 0) != NULL)
+		{
+			pGrid = graphTravel(m_pDesign, pGrid, nDX, nDY, 0);
+			int nTmpX, nTmpY, nTmpZ;
+			pGrid->getPosition(nTmpX, nTmpY, nTmpZ);
+			nTmp = nTmpY;
+
+			int nTmpBest = boundingBoxCost(nTmp, vMinY, vMaxY);
+
+			if (nTmpBest <= nBest) // change from <
+			{
+				pBestGrid = pGrid;
+				nBY1 = nBY1 + nDY;
+			}
+			else
+				break;
+		}
+	
+		nDY = 1;
+		nDX = 0;
+		nTmp = cF.m_pInstance->getPlacedY();
+
+		nBest = boundingBoxCost(nTmp, vMinY, vMaxY);
+		pBestGrid = NULL;
+		pGrid = getGrid(m_pDesign, cF.m_pInstance->getPlacedX(), cF.m_pInstance->getPlacedY(), m_nDZ);
+		while (graphTravel(m_pDesign, pGrid, nDX, nDY, 0) != NULL)
+		{
+			pGrid = graphTravel(m_pDesign, pGrid, nDX, nDY, 0);
+			int nTmpX, nTmpY, nTmpZ;
+			pGrid->getPosition(nTmpX, nTmpY, nTmpZ);
+			nTmp = nTmpY;
+
+			int nTmpBest = boundingBoxCost(nTmp, vMinY, vMaxY);
+
+			if (nTmpBest <= nBest) // change from <
+			{
+				pBestGrid = pGrid;
+				nBY2 = nBY2 + nDY;
+			}
+			else
+				break;
+		}
+	
+	}
+
+
+	//nGain = nXGain + nYGain;
+	cF.m_nGain = nGain;
+	if( nBX1 > nBX2 )
+	{
+		int nTmpX = nBX1;
+		nBX1 = nBX2;
+		nBX2 = nTmpX;
+	}
+	
+	if( nBY1 > nBY2 )
+	{
+		int nTmpY = nBY1;
+		nBY1 = nBY2;
+		nBY2 = nTmpY;
+	}
+	//cout << nBX1 << " " << nBY1 << " " << nBX2 << " " << nBY2 << endl;
+	cF.m_nBoundX1 = nBX1;
+	cF.m_nBoundX2 = nBX2;
+	cF.m_nBoundY1 = nBY1;
+	cF.m_nBoundY2 = nBY2;
+	cF.m_vMinX = vMinX;
+	cF.m_vMaxX = vMaxX;
+
+	cF.m_vMinY = vMinY;
+	cF.m_vMaxY = vMaxY;
+	
+	return true;
+}
+
 
 bool router_C::calForcedModel_ver2(forced_C &cF)
 {
@@ -7759,6 +8139,261 @@ bool router_C::calForcedNetwork(networkForced_C &cNF, set< instance_C* > &sUnpla
 	return true;
 }
 
+bool router_C::calForcedNetwork_ver2(networkForced_C &cNF)
+{
+	net_C* pNet = cNF.m_pNet;
+	vector< instance_C* > vInst = pNet->getInst();
+
+	int nCount = 0;
+	int nTmpX = -1;
+	int nTmpY = -1;
+	
+	int nTotalX = 0;
+	int nTotalY = 0;
+	int nHalfX = 0;
+	int nHalfY = 0;
+	int nMaxX = INT_MIN;
+	int nMinX = INT_MAX;
+	int nMaxY = INT_MIN;
+	int nMinY = INT_MAX;
+	int n2MaxX = INT_MIN;
+	int n2MinX = INT_MAX;
+	int n2MaxY = INT_MIN;
+	int n2MinY = INT_MAX;
+	int nMinXCount = 0;
+	int nMaxXCount = 0;
+	int nMinYCount = 0;
+	int nMaxYCount = 0;
+	vector< int > vLF;
+	vector< int > vRF;
+	vector< int > vTF;
+	vector< int > vDF;
+
+	bool bHasFixedInst = false;
+	for (int i = 0; i < cNF.m_vForced.size(); i++)
+	{
+		forced_C *cF = cNF.m_vForced[i];
+		instance_C *pInst = cF->m_pInstance;
+		if( !pInst->isMovable() )
+		{
+			bHasFixedInst = true;
+		}
+		//cout<< m_vTargetGraph.size() <<endl ;
+		int nX = pInst->getPlacedX();
+		int nY = pInst->getPlacedY();
+		
+		nTotalX = nTotalX + nX;
+		nTotalY = nTotalY + nY;
+
+		if (nX < nMinX)
+		{
+			n2MinX = nMinX;
+			nMinX = nX;
+			nMinXCount = 1;
+		}
+		else if (nX == nMinX)
+		{
+			n2MinX = nMinX;
+			nMinXCount++;
+		}
+		else if( nX < n2MinX )
+		{
+			n2MinX = nX;
+		}
+
+		if (nX > nMaxX)
+		{
+			n2MaxX = nMaxX;
+			nMaxX = nX;
+			nMaxXCount = 1;
+		}
+		else if (nX == nMaxX)
+		{	
+			n2MaxX = nMaxX;
+			nMaxXCount++;
+		}
+		else if( nX > n2MaxX)
+		{
+			n2MaxX = nX;
+		}
+
+		if (nY < nMinY)
+		{
+			n2MinY = nMinY;
+			nMinY = nY;
+			nMinYCount = 1;
+		}
+		else if (nY == nMinY)
+		{
+			n2MinY = nMinY;
+			nMinYCount++;
+		}
+		else if( nY < n2MinY )
+		{
+			n2MinY = nY;
+		}
+
+		if (nY > nMaxY)
+		{
+			n2MaxY = nMaxY;
+			nMaxY = nY;
+			nMaxYCount = 1;
+		}
+		else if (nY == nMaxY)
+		{
+			n2MaxY = nMaxY;
+			nMaxYCount++;
+		}
+		else if( nY > n2MaxY )
+		{
+			n2MaxY = nY;
+		}
+		nCount++;
+
+	}
+	
+	if( n2MinX == INT_MAX )
+		n2MinX = nMaxX;
+	
+	if( n2MaxX == INT_MIN )
+		n2MaxX = nMinX;
+	
+	if( n2MinY == INT_MAX )
+		n2MinY = nMaxY;
+	
+	if( n2MaxY == INT_MIN )
+		n2MaxY = nMinY;
+
+	if( bHasFixedInst )
+	{
+		int nTotalX = 0;
+		int nTotalY = 0;
+		nCount = 0;
+		for (int i = 0; i < cNF.m_vForced.size(); i++)
+		{
+			forced_C *cF = cNF.m_vForced[i];
+			instance_C *pInst = cF->m_pInstance;
+			if( !pInst->isMovable() )
+			{
+				int nX = pInst->getPlacedX();
+				int nY = pInst->getPlacedY();
+				
+				nTotalX = nTotalX + nX;
+				nTotalY = nTotalY + nY;
+			}
+			nCount++;
+		}
+	}
+
+	if( nTotalX%nCount  == 0 )
+	{
+		nTotalX = nTotalX / nCount;
+	}
+	else
+	{
+		nTotalX = nTotalX / nCount;
+		nHalfX = 1;
+	}
+	
+	if( nTotalY%nCount  == 0 )
+	{
+		nTotalY = nTotalY / nCount;
+	}
+	else
+	{
+		nTotalY = nTotalY / nCount;
+		nHalfY = 1;
+	}
+
+	unordered_map< forced_C*, int > mMinX;
+	unordered_map< forced_C*, int > mMaxX;
+	unordered_map< forced_C*, int > mMinY;
+	unordered_map< forced_C*, int > mMaxY;
+	
+	for (int i = 0; i < cNF.m_vForced.size(); i++)
+	{
+		forced_C *pF = cNF.m_vForced[i];
+		instance_C *pInst = pF->m_pInstance;
+		
+		//cout<< m_vTargetGraph.size() <<endl ;
+		int nX = pInst->getPlacedX();
+		int nY = pInst->getPlacedY();
+		
+		if( nMinXCount == 1 )
+		{
+			if( nX == nMinX )
+				mMinX[pF] = n2MinX;	
+			else
+				mMinX[pF] = nMinX;
+		}
+		else
+		{
+			mMinX[ pF ] = nMinX;
+		}
+
+		if( nMaxXCount == 1 )
+		{
+			if( nX == nMaxX )
+				mMaxX[pF] = n2MaxX;
+			else
+				mMaxX[pF] = nMaxX;
+		}
+		else
+		{
+			mMaxX[ pF ] = nMaxX;
+		}
+		
+		if( nMinYCount == 1 )
+		{
+			if( nY == nMinY )
+				mMinY[pF] = n2MinY;
+			else
+				mMinY[pF] = nMinY;
+		}
+		else
+		{
+			mMinY[pF] = nMinY;
+		}
+		
+		if( nMaxYCount == 1 )
+		{
+			if( nY == nMaxY )
+				mMaxY[pF] = n2MaxY;
+			else
+				mMaxY[pF] = nMaxY;
+		}
+		else
+		{
+			mMaxY[pF] = nMaxY;
+		}
+
+	}
+
+	cNF.m_nCenterX = nTotalX;
+	cNF.m_nCenterY = nTotalY;
+	cNF.m_nXHalf = nHalfX;
+	cNF.m_nYHalf = nHalfY;
+	cNF.m_nMinX = nMinX;
+	cNF.m_nMaxX = nMaxX;
+	cNF.m_nMinY = nMinY;
+	cNF.m_nMaxY = nMaxY;
+	cNF.m_n2MinX = n2MinX;
+	cNF.m_n2MaxX = n2MaxX;
+	cNF.m_n2MinY = n2MinY;
+	cNF.m_n2MaxY = n2MaxY;
+	cNF.m_nMinXCount = nMinXCount;
+	cNF.m_nMaxXCount = nMaxXCount;
+	cNF.m_nMinYCount = nMinYCount;
+	cNF.m_nMaxYCount = nMaxYCount;
+	
+	cNF.m_mMinX = mMinX;
+	cNF.m_mMaxX = mMaxX;
+	cNF.m_mMinY = mMinY;
+	cNF.m_mMaxY = mMaxY;
+
+	return true;
+}
+
 bool router_C::calForcedNetwork(networkForced_C &cNF)
 {
 
@@ -8303,10 +8938,10 @@ vector< forced_C* > router_C::moveingCellCollection_ver2( int nForcedId )
 		}
 // graph checker
 /*
-		matlab_graph( "Before", vTmpNet[nIndex]->m_pNet->getName(), m_pDesign, true, 0 );		
 		vector< forced_C* > vTmpF = vTmpNet[nIndex]->m_vForced;
 		set< networkForced_C* > sTmpNF;
 		sTmpNF.insert( vTmpNet[ nIndex] );
+		bool bFirst = true;
 		for( int i=0; i < vTmpF.size(); i++ )
 		{
 			vector< networkForced_C* > vTmpNF = vTmpF[i]->m_vNetwork;	
@@ -8314,12 +8949,20 @@ vector< forced_C* > router_C::moveingCellCollection_ver2( int nForcedId )
 			{
 				if( sTmpNF.count( vTmpNF[j] ) == 0 )
 				{
-					matlab_graph( "Before", vTmpNF[ j ]->m_pNet->getName(), m_pDesign, false, 1 );		
+					if( bFirst )
+					{
+						matlab_graph( "Before", vTmpNF[ j ]->m_pNet->getName(), m_pDesign, false, 0 );		
+						bFirst = false;
+					}
+					else
+						matlab_graph( "Before", vTmpNF[ j ]->m_pNet->getName(), m_pDesign, false, 1 );		
 					sTmpNF.insert( vTmpNF[ j ] );
 					
 				}
 			}
 		}
+		matlab_graph( "Before", vTmpNet[nIndex]->m_pNet->getName(), m_pDesign, true, 1 );		
+		getchar();	
 */
 //
 	}
@@ -8486,6 +9129,68 @@ vector< forced_C* > router_C::recalForced( int nForcedId )
 
 	return vAvailMovedForced;
 
+}
+
+instance_C *router_C::pickInstanceToMove_ver2()
+{
+	cout<<"Picking Instance..."<<endl;
+	vector<int> vSumOfForced;
+	vector<int> vMaxForced;
+	vector<int> vArea;
+	int nMaxSForced = 0; // sum of forced;
+
+	vector<forced_C *> vForced;
+	/*
+	for (int i = 0; i < m_vForced.size(); i++)
+	{
+		vForced.push_back(&m_vForced[i]);
+	}
+	*/
+	int nGlobalSumOfForced = 0;
+	int nGlobalMaxForced = 0;
+	//int nMinArea = INT_MAX;
+	int nMaxArea = 0;
+	int nMinAreaId = -1;
+	int nPickId = -1;
+	int nMinConnection = 0;
+	for (int i = 0; i < m_vForced.size(); i++)
+	{
+		forced_C *pF = &m_vForced[i];
+		int nFX;
+		if (pF->m_bLockInX)
+			nFX = 0;
+		else
+			nFX = abs(pF->m_nR - pF->m_nL) - pF->m_nC;
+		int nFY;
+		if (pF->m_bLockInY)
+			nFY = 0;
+		else
+			nFY = abs(pF->m_nT - pF->m_nD) - pF->m_nC;;
+		int nSumOfForced = nFX + nFY;
+		int nMaxForced = max(nFX, nFY);
+		//int nArea = ( pF->m_nBoundX2 - pF->m_nBoundX1 +1 )*( pF->m_nBoundY2 - pF->m_nBoundY1 + 1 );
+		//nMaxSForced = max(nMaxSForced, nSumOfForced);
+		//cout << nArea <<endl;
+		if( nMaxSForced < nSumOfForced )
+		{
+			nMaxSForced = nSumOfForced;
+			//nMinConnection = pF->m_vNetwork.size();
+			nPickId = i;
+			//nMaxArea = nArea;
+		}
+		vSumOfForced.push_back(nSumOfForced);
+		vMaxForced.push_back(nMaxForced);
+	}
+	//cout<<nPickMaxForced<<endl;
+	//int nPickId = nMinAreaId;
+	if (nPickId < 0)
+	{
+		//cout<<"No instances are picked"<<endl;
+		return NULL;
+	}
+	cout<<"Pick instance: "<<m_vForced[nPickId].m_pInstance->getName() << " Max forced: " << nMaxSForced <<endl;
+	//cout<<nPickId<<endl;
+	return m_vForced[nPickId].m_pInstance;
 }
 
 instance_C *router_C::pickInstanceToMove()
@@ -9247,7 +9952,7 @@ vector<gGrid_C *> router_C::findPlaceToMove_ver3(instance_C *pInst)
 	int &nEndY = cF->m_nBoundY2;
 
 	//if( pInst->getName() == "C1200" )
-	//	cout<<"Range: "<<nStartX<<" "<<nStartY<<" "<<nEndX<<" "<<nEndY<<endl;
+//		cout<<"Range: "<<nStartX<<" "<<nStartY<<" "<<nEndX<<" "<<nEndY<<endl;
 
 	for (int nX = nStartX; nX <= nEndX; nX++)
 	{
@@ -12769,8 +13474,8 @@ bool router_C::multipleCellMovement_ver4( vector< instance_C* > &vInst )
 		ripupNet( vLocalNet );
 
 		//cout << "Find"<<endl;
-		vector< gGrid_C* > vBestGrid = findPlaceToMove_ver4( pInst );		
-		//vector< gGrid_C* > vBestGrid = findPlaceToMove_ver3( pInst );		
+		//vector< gGrid_C* > vBestGrid = findPlaceToMove_ver4( pInst );		
+		vector< gGrid_C* > vBestGrid = findPlaceToMove_ver3( pInst );		
 		//cout << "Choice "<< vBestGrid.size() << endl;
 		gGrid_C* pBGrid = NULL;
 		if( vBestGrid.size() == 0 )
@@ -13246,7 +13951,7 @@ bool router_C::multipleCellMovement_ver4( vector< instance_C* > &vInst )
 			resetPseudoPinDemand( pInst, pInst->getPlacedX(), pInst->getPlacedY(), m_nOffsetZ );
 			//if( pInst->getName() == "C1" )
 			//	cout << "C1: "<<pInst->getPlacedX() <<", "<<pInst->getPlacedY() << endl;
-			calForcedModel( m_vForced[ pInst->getId() ] );
+			calForcedModel_ver3( m_vForced[ pInst->getId() ] );
 		}
 		recoverNet( vRipNet );
 		for( int i=0; i<vRipNet.size(); i++ )
@@ -16759,7 +17464,7 @@ bool router_C::startOpt()
 		vector< instance_C* > vInst;
 
 		if (m_vMovedInstance.size() < nNumMaxCell)
-			pInst = pickInstanceToMove();
+			pInst = pickInstanceToMove_ver2();
 		else
 			pInst = pickHasMovedInstanceToMove();
 
@@ -16824,9 +17529,8 @@ bool router_C::startOpt()
 			cout << "Iter " << m_nIteration << setw(COUTWIDTH - 6) << left << setfill('.') << " " <<"left: "<<m_pDesign->getMaxCellConstraint() - m_vMovedInstance.size() << endl;	
 			nSglCount++;
 		}
-		
+		/*
 		else
-		
 		if( moveCell( vInst ) )
 		{
 			//getchar();	
@@ -16839,7 +17543,7 @@ bool router_C::startOpt()
 			vProcessResult.push_back(true);
 #endif
 		}
-		
+		*/
 		/*
 		else	
 		if (singleCellMovement_ver3(pInst))
