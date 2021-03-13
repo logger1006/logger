@@ -59,6 +59,7 @@ private:
 	string m_strName;
 	int m_nNumNet;
 	string m_strConstraint;
+	int m_nConstraintLayerId;
 	int m_nId;
 
 protected:
@@ -85,6 +86,7 @@ public:
 	void setnz(int temp) { nz.push_back(temp); }
 	void addInst(instance_C *temp) { m_vInst.push_back(temp); }
 	void setLength(int nLength) { m_nLength = nLength; }
+	void setConstraintLayerId( int nLayerId ){ m_nConstraintLayerId = nLayerId; }
 
 	// get data
 	string getName()
@@ -97,6 +99,7 @@ public:
 	vector<wire_C *> getWire() { return m_vWire; }
 	int getNumReroute() { return m_nReroute; }
 	int getId() { return m_nId; }
+	int getConstraintLayerId(){ return m_nConstraintLayerId; }
 	vector<int> getnx() { return nx; }
 	vector<int> getny() { return ny; }
 	vector<int> getnz() { return nz; }
@@ -133,19 +136,21 @@ private:
 protected:
 	cell_C *m_pCell;
 	int m_nLayerId;
-
+	net_C* m_pNet;
 public:
-	pin_C(){};
+	pin_C():m_pNet(NULL), m_pCell(NULL){};
 	~pin_C(){};
 	// set data
 	void setName(string strName) { m_strName = strName; }
 	void setCell(cell_C *pCell) { m_pCell = pCell; }
 	void setLayerId(int nId) { m_nLayerId = nId; }
+	void setNet( net_C* pNet ){ m_pNet = pNet; }
 
 	// get data
 	string getName() { return m_strName; }
 	cell_C *getCell() { return m_pCell; }
 	int getLayerId() { return m_nLayerId; }
+	net_C* getNet(){ return m_pNet; }
 };
 
 class blkg_C

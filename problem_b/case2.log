@@ -1,0 +1,352 @@
+ICCAD Contest B
+Input:  ../testcase/case2.txt
+Output: ./result/case2.out
+
+Parsing input...
+Non complete
+Cell complete
+Extra complete
+Instance complete
+Net complete
+parser route complete
+Design boundary: 4 x 4
+Number of layer: 3
+Number of cell: 2
+Number of instance: 6
+Number of net: 6
+Maximum of Cell Movement: 3
+Total wire length: 30
+
+Call RCM Router...
+Initial routing engine
+Loading design information..............complete
+Creating routing graph..................complete
+Creating forced model...................complete
+Creating network........................complete
+Linking network.........................complete
+N1 L
+2 2 4 4
+3 1 3 1
+N1 L 2 1 4 1
+N1 R
+2 1 4 2
+3 3 3 3
+N1 R 2 1 4 4
+N1 T
+2 2 2 4
+3 1 3 1
+3 3 3 3
+N1 T 2 1 4 4
+N1 D
+4 1 4 4
+3 3 3 3
+3 1 3 1
+N1 D 2 1 4 4
+N2 L
+4 4 4 4
+3 3 3 3
+N2 L 3 3 4 3
+N2 R
+2 1 4 2
+3 3 3 3
+N2 R 3 1 4 4
+N2 T
+2 1 4 2
+3 3 3 3
+N2 T 3 3 4 4
+N2 D
+4 4 4 4
+3 3 3 3
+N2 D 3 3 3 4
+N3 L
+3 3 3 3
+2 2 2 2
+4 4 4 4
+N3 L 3 3 3 3
+N3 R
+3 3 3 3
+2 2 2 2
+4 4 4 4
+N3 R 3 3 3 3
+N3 T
+3 3 3 3
+2 2 2 2
+4 4 4 4
+N3 T 3 3 3 3
+N3 D
+3 3 3 3
+2 2 2 2
+4 4 4 4
+N3 D 3 3 3 3
+N4 L
+4 1 4 4
+3 3 3 3
+3 1 3 1
+N4 L 2 2 3 3
+N4 R
+3 3 3 3
+2 2 2 2
+N4 R 2 3 3 3
+N4 T
+3 3 3 3
+2 2 2 2
+N4 T 3 2 3 3
+N4 D
+4 1 4 4
+3 3 3 3
+3 1 3 1
+N4 D 2 2 4 3
+N5 L
+2 2 2 2
+4 1 4 1
+N5 L 2 1 3 1
+N5 R
+4 1 4 4
+3 3 3 3
+3 1 3 1
+N5 R 2 1 3 2
+N5 T
+2 2 2 2
+4 1 4 1
+N5 T 2 1 3 2
+N5 D
+4 1 4 4
+3 3 3 3
+3 1 3 1
+N5 D 2 1 4 2
+N6 L
+2 2 2 2
+4 -1 4 -1
+2 2 4 4
+N6 L 3 1 4 3
+N6 R
+2 2 2 2
+4 -1 4 -1
+2 2 4 4
+N6 R 3 1 4 3
+N6 T
+2 2 4 4
+3 1 3 1
+N6 T 3 1 4 1
+N6 D
+2 2 2 2
+4 1 4 1
+N6 D 3 1 4 1
+
+Start Routing Optimization
+Picking Instances...
+Pick: N1 D 2 F: 3 Instance: C3 (2 2) 
+at single cell
+at single
+Range: 2 1 4 3
+Place at: 3 3
+N1 L
+3 3 4 4
+3 1 3 1
+N1 L 3 1 4 1
+N1 R
+3 1 4 3
+3 3 3 3
+N1 R 3 2 4 4
+N1 D
+4 1 4 4
+3 3 3 3
+3 1 3 1
+N1 D 3 1 3 4
+N1 T
+3 3 3 4
+3 1 3 1
+3 3 3 3
+N1 T 3 1 4 4
+N4 L
+4 1 4 4
+3 -1 3 -1
+3 1 3 1
+3 3 3 3
+N4 L 3 3 3 3
+N4 R
+4 1 4 4
+3 -1 3 -1
+3 1 3 1
+3 3 3 3
+N4 R 3 1 3 3
+N4 D
+4 1 4 4
+-1 3 -1 3
+3 1 3 1
+3 3 3 3
+N4 D 3 3 3 3
+N4 T
+4 1 4 4
+-1 3 -1 3
+3 1 3 1
+3 3 3 3
+N4 T 3 3 3 3
+N5 L
+3 3 3 3
+4 1 4 1
+N5 L 3 1 3 1
+N5 R
+4 1 4 4
+3 3 3 3
+3 1 3 1
+N5 R 3 3 3 3
+N5 D
+4 1 4 4
+3 3 3 3
+-1 1 -1 1
+4 1 4 1
+N5 D 3 1 4 3
+N5 T
+4 1 4 4
+3 3 3 3
+-1 1 -1 1
+4 1 4 1
+N5 T 3 1 4 3
+Iter 1 .................................left: 2
+Pass the pseudo pin check
+Picking Instances...
+Pick: N5 T 3 F: -3 Instance: C3 (3 3) C6 (3 1) 
+at multiple cell
+at multipleCellMovement
+Range: 3 1 4 3
+Range: 3 1 4 3
+Original Length: 15 New Length: 12
+N4 6
+N5 1
+N6 1
+N1 4
+N1 L
+4 4 4 4
+3 1 3 1
+3 3 3 3
+4 1 4 1
+N1 L 4 1 4 1
+N1 R
+4 1 4 1
+3 3 3 3
+N1 R 4 1 4 4
+N1 D
+-1 1 -1 4
+3 1 3 1
+3 3 3 3
+3 3 3 3
+4 1 4 1
+N1 D 3 1 4 4
+N1 T
+-1 1 -1 4
+3 1 3 1
+3 3 3 3
+3 3 3 3
+4 1 4 1
+N1 T 3 1 4 4
+N4 L
+4 1 4 4
+3 3 3 3
+4 1 4 1
+N4 L 3 1 4 1
+N4 R
+3 3 3 3
+4 1 4 1
+N4 R 3 3 4 3
+N4 D
+3 3 3 3
+4 1 4 1
+N4 D 3 1 3 3
+N4 T
+4 1 4 4
+3 3 3 3
+4 1 4 1
+N4 T 4 1 4 3
+N5 L
+4 1 4 4
+3 3 3 3
+4 -1 4 -1
+4 1 4 1
+N5 L 4 1 4 1
+N5 R
+4 1 4 4
+3 3 3 3
+4 -1 4 -1
+4 1 4 1
+N5 R 4 1 4 1
+N5 D
+4 1 4 4
+3 3 3 3
+-1 1 -1 1
+4 1 3 1
+N5 D 4 1 4 1
+N5 T
+4 1 4 4
+3 3 3 3
+-1 1 -1 1
+4 1 3 1
+N5 T 4 1 4 1
+N5 L
+4 1 4 4
+3 3 3 3
+4 -1 4 -1
+4 1 4 1
+N5 L 4 1 4 1
+N5 R
+4 1 4 4
+3 3 3 3
+4 -1 4 -1
+4 1 4 1
+N5 R 4 1 4 1
+N5 D
+4 1 4 4
+3 3 3 3
+-1 1 -1 1
+4 1 4 1
+N5 D 4 1 4 1
+N5 T
+4 1 4 4
+3 3 3 3
+-1 1 -1 1
+4 1 4 1
+N5 T 4 1 4 1
+N6 L
+4 1 4 1
+4 -1 4 -1
+4 1 4 4
+N6 L 4 1 4 1
+N6 R
+4 1 4 1
+4 -1 4 -1
+4 1 4 4
+N6 R 4 1 4 1
+N6 D
+4 1 4 1
+4 1 4 1
+4 1 4 4
+N6 D 4 1 4 1
+N6 T
+4 1 4 1
+4 1 4 1
+4 1 4 4
+N6 T 4 1 4 1
+return  multipleCellMovement result
+Iter 2 .................................left: 1
+Pass the pseudo pin check
+Picking Instances...
+Single Cell Move:   1
+Single Cell Failed Move:   0
+Multiple Cell Move: 1
+Multiple Cell Failed Move: 0
+Failed Move:        0
+
+Start post-routing optimization
+End optimization
+
+SUMMARY
+Number of Iteration:                    2
+Number of success movement:             2
+Number of failed movement:              0
+Number of routing refinement:           0
+Number of moved instance:               2
+Additional Information for debug
+Number of routing failed:               0
+Number of placed failed:                0
+Writing to output...
+Spend time: 0

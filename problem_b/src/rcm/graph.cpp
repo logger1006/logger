@@ -696,6 +696,7 @@ bool removeNeighborCellDemand(design_C *pDesign, gGrid_C *pGrid, instance_C *pIn
 	{
 		cout << endl
 			 << "Remove Fail : can't find inst " << pInst->getName() << " in grid :(" << nX << "," << nY << "," << nZ << ")" << endl;
+		getchar();
 		auto test = pGrid->getInstance();
 		if (test.size() == 0)
 			cout << "zerooooooooooooo";
@@ -1427,13 +1428,14 @@ bool addNetOnGraph(design_C *pDesign, net_C *pNet)
 	vector<wire_C *> vSegment;
 	vSegment = pNet->getWire();
 	//cout<<"test"<<endl;
+	//cout << pNet << endl;
 	for (int i = 0; i < vSegment.size(); i++)
 	{
 		wire_C *pWire = vSegment[i];
 		gGrid_C *pGrid1 = pWire->getGrid1();
 		gGrid_C *pGrid2 = pWire->getGrid2();
 		net_C *pNet = pWire->getNet();
-
+		//cout << pNet <<endl; 
 		int nX1, nY1, nZ1;
 		int nX2, nY2, nZ2;
 		pGrid1->getPosition(nX1, nY1, nZ1);
@@ -1486,12 +1488,27 @@ bool delNetOnGraph(design_C *pDesign, net_C *pNet)
 	vector<wire_C *> vSegment;
 	vSegment = pNet->getWire();
 	//cout<<"test"<<endl;
+	//cout << vSegment.size() << endl;
 	for (int i = 0; i < vSegment.size(); i++)
 	{
+		//cout << "i " << i <<endl;
+		//cout << vSegment[i] << endl;
+		//if( vSegment[i] == NULL )
+		//	cout << "no wire"<<endl;
 		wire_C *pWire = vSegment[i];
+		//cout << pWire << endl;
 		gGrid_C *pGrid1 = pWire->getGrid1();
 		gGrid_C *pGrid2 = pWire->getGrid2();
+		//cout << "Here"<<endl;
+		//if( pGrid1 == NULL || pGrid2 == NULL )
+		//	cerr << "error here"<<endl;
 		net_C *pNet = pWire->getNet();
+		//cerr << pNet << endl;
+		//if( pNet == NULL )
+		//	cout << "No net"<<endl;
+		//else 
+		//	cout << "Has net"<<endl;
+		//cerr << pNet->getId() << endl;
 
 		int nX1, nY1, nZ1;
 		int nX2, nY2, nZ2;
@@ -1501,6 +1518,8 @@ bool delNetOnGraph(design_C *pDesign, net_C *pNet)
 		ndX = nX2 - nX1;
 		ndY = nY2 - nY1;
 		ndZ = nZ2 - nZ1;
+		//cout << nX1<<nY1<<nZ1<<endl;
+		//cout << nX2<<nY2<<nZ2<<endl;
 
 		if (ndX != 0)
 			ndX = ndX / abs(ndX);

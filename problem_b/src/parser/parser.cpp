@@ -398,6 +398,22 @@ bool parseNet(design_C *pDesign, ifstream &fin)
 		net_C *pNet = new net_C;
 		pNet->setName(strNetName);
 		pNet->setConstraint(strConstraint);
+		int nLayerConstraint = 1;
+		if (strConstraint == "NoCstr")
+		{
+			nLayerConstraint = 1;
+		}
+
+		vector<layer_C *> vLayer = pDesign->getLayer();
+		for (int l = 0; l < vLayer.size(); l++)
+		{
+			if (strConstraint == vLayer[l]->getName())
+			{
+				nLayerConstraint = vLayer[l]->getId();
+				break;
+			}
+		}
+		pNet->setConstraintLayerId( nLayerConstraint );
 		pNet->setId(i);
 		string strInst;
 		string strPin;
@@ -426,6 +442,7 @@ bool parseNet(design_C *pDesign, ifstream &fin)
 			//vector< pin_C* > vPin = pInst->getPin();
 			pin_C *pPin = NULL;
 			pPin = pInst->getPin(strPin);
+			pPin->setNet( pNet );
 			pNet->setnx(pInst->getPlacedX());
 			pNet->setny(pInst->getPlacedY());
 			pNet->addInst(pInst);

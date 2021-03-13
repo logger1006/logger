@@ -21,9 +21,9 @@ void matlab_graph(string file, string netname, design_C *pDesign, bool main, boo
         f.open("./graph/" + file + ".m", ios::out);
     else if (op == 1)
         f.open("./graph/" + file + ".m", ios::app);
-    if (!f)
-        cout
-            << "output 3D-graph error!" << endl;
+    //if (!f)
+    //    cout
+    //        << "output 3D-graph error!" << endl;
     else
     {
         unordered_map<string, net_C *> vNet_map = pDesign->getNet_map();
