@@ -314,7 +314,8 @@ protected:
 	bool m_bRouted;
 	unordered_map<string, int> gGInstMap;
 	int m_nPseudoPinDemand;
-
+	unordered_map< net_C*, int > m_mPseudoPinDemand;
+	
 public:
 	gGrid_C() : m_nSupply(0), m_nDemand(0), m_nExtraDemand(0), m_bRouted(false), m_nPseudoPinDemand(0){};
 	~gGrid_C(){};
@@ -351,15 +352,22 @@ public:
 			}
 		}
 		if (!bFind)
+		{
 			m_vNet.push_back(pNet);
+			//if( pNet->getName() == "N13" )
+			//	cout << "N13 at "<< m_nX << " " << m_nY << " " << m_nZ << endl;
+		
+		}
 	}
 	void delNet(net_C *pNet)
 	{
+		bool bFind = false;
 		for (int i = m_vNet.size() - 1; i >= 0; i--)
 		{
 			if (m_vNet[i] == pNet)
 			{
 				m_vNet.erase(m_vNet.begin() + i);
+				bFind = true;
 				break;
 			}
 		}

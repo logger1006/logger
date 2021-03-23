@@ -1445,6 +1445,10 @@ bool addNetOnGraph(design_C *pDesign, net_C *pNet)
 		ndY = nY2 - nY1;
 		ndZ = nZ2 - nZ1;
 
+		//if( pNet->getName() == "N13" )
+		//	cout << nX1 << " " << nY1 << " " << nZ1 << " to " << nX2 << " " << nY2 << " " << nZ2 << endl;
+
+
 		if (ndX != 0)
 			ndX = ndX / abs(ndX);
 		if (ndY != 0)

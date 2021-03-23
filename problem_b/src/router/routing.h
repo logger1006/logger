@@ -69,6 +69,7 @@ class boundry_C
 	bool m_bLock;
 	bool m_bMovable;
 	networkForced_C* m_pNetwork;
+	vector< networkForced_C* > m_vNetwork;
 	vector< forced_C* > m_vForced;
 	int m_nT, m_nD, m_nR, m_nL;
 	int m_nCX, m_nCY;
@@ -207,6 +208,7 @@ class router_C
 	int estimateHPWL( net_C* );
 	int calWireLength( net_C* );
 	int estimateHPWLwithoutLayer( net_C* );
+	int calTotalWireLength();
 
 	// instance operation
 // change at 0704 2230
@@ -220,8 +222,10 @@ class router_C
 	vector< gGrid_C* >findPlaceToMove_ver3( instance_C*, boundry_C* );
 	vector< gGrid_C* >findPlaceToMove_ver4( instance_C* );
 	vector< gGrid_C* >findPlaceToMove_ver4( instance_C*, boundry_C* );
+	vector< gGrid_C* >findPlaceToMove_ver4( instance_C*, boundry_C*, set< instance_C* > & );
 	vector< gGrid_C* >findPlaceToMove_ver4( instance_C*, set< net_C* > &, set< instance_C* > &);
 	bool iterPlaceInst( int &, int, vector< instance_C* > &, vector< vector< gGrid_C* > > &, vector< net_C* >, int, vector< instance_C* >, vector< int > );
+	bool iterPlaceInst_ver2( int &, int, vector< instance_C* > &, vector< vector< gGrid_C* > > &, vector< net_C* >, int, vector< instance_C* >, vector< int >, vector< instance_C* > &, const int );
 // end change 
 	bool removeInstOnGraph( instance_C* );
 	bool putInstOnGraph( instance_C*, int, int, int );
@@ -235,6 +239,7 @@ class router_C
 	instance_C* pickInstanceToMove_ver2();
 	boundry_C* pickInstanceToMove_ver3();
 	boundry_C* pickInstanceToMove_ver4();
+	boundry_C* pickInstanceToMove_ver5();
 	vector< instance_C* > pickInstanceToMove( int ); // rest of cost
 
 	instance_C* pickHasMovedInstanceToMove();
@@ -252,6 +257,8 @@ class router_C
 	vector< gGrid_C* > routeNet_neg_length_constraint( net_C*, const int, vector< int > & , vector< gGrid_C* > &);
 	vector< vector< gGrid_C* > > routeNet_length_constraint_ver2( net_C*, const int );
 	vector< vector< gGrid_C* > > routeNet_length_constraint_ver3( net_C*, int &, int n = 0 );
+	int routeNet_ideal( net_C*, set< instance_C* > & );
+	int routeNet_ideal( net_C* );
 	vector< vector< gGrid_C* > > routeNet_length_constraint_ver4( net_C*, const int );
 	vector< gGrid_C* > routeNet_ver2( net_C* );
 	vector< gGrid_C* > routeNet( net_C*, vector< gGrid_C* > & );
@@ -261,6 +268,7 @@ class router_C
 	bool multiNetRouting( vector< net_C* > , const int );
 	bool multiNetRouting_ver2( vector< net_C* > , int &, vector< net_C* > & );
 	bool rrr( vector< net_C* > &, vector< gGrid_C* > &, unordered_map<net_C*, int > &, int &, vector< net_C* > & );
+	bool rrr_ver2( vector< net_C* > &, vector< gGrid_C* > &, unordered_map<net_C*, int > &, int &, vector< net_C* > & );
 
 	bool rrr( vector< net_C* > & );
 	bool pre_route( vector< net_C* > & );
@@ -295,6 +303,7 @@ class router_C
 	bool calForcedNetwork( networkForced_C&, set< instance_C* > &);
 	bool calNetForcedModel( forced_net_C& );
 	bool calBoundryModel( boundry_C* );
+	bool calBoundryModel_ver2( boundry_C* );
 	bool linkForcedModel();
 	vector< gGrid_C* > routingGridAnalysis( int, int, int, int ); // boundingbox; dx, tx, dy, ty;
 	vector< gGrid_C* > adjBoundingBoxAnalysis( instance_C* pInst );
@@ -307,8 +316,10 @@ class router_C
 	
 	bool swapInstance( gGrid_C*, gGrid_C*, instance_C*, instance_C*, vector< net_C* > & );
 	bool swapInstance_ver2( gGrid_C*, gGrid_C*, instance_C*, instance_C*, vector< net_C* > & );
+	bool swapInstance_ver3( gGrid_C*, gGrid_C*, instance_C*, instance_C*, vector< net_C* > & , vector< net_C* > &);
 	bool swapInstance( gGrid_C*, gGrid_C*, vector< instance_C* > &, vector< instance_C* > &, vector< net_C* > & );
 	vector< instance_C* > findSwapInstance( gGrid_C*, gGrid_C*, instance_C* );
+	vector< instance_C* > findSwapInstance_ver2( gGrid_C*, gGrid_C*, instance_C* );
 
 	// other operation
 	bool isExchangable( gGrid_C*, instance_C*, instance_C* ); // target grid, to place instance, to remove instance.
@@ -352,6 +363,7 @@ class router_C
 	bool multipleCellMovement_ver3( vector< instance_C* > & );
 	bool multipleCellMovement_ver4( vector< instance_C* > & ); // with multiNet ripup & reroute
 	bool multipleCellMovement_ver4( vector< instance_C* > &, boundry_C* ); // with multiNet ripup & reroute
+	bool multipleCellMovement_ver4_2( vector< instance_C* > &, boundry_C* ); // with multiNet ripup & reroute
 	bool multipleCellMovement_ver5( vector< instance_C* > &, boundry_C* ); // with multiNet ripup & reroute
 	bool multipleCellMovement( net_C* );
 	bool moveCell( vector< instance_C* >&, boundry_C* );
@@ -369,6 +381,7 @@ class router_C
 
 	bool checkOverflow();
 	bool checkPseudoPin();
+	bool checkLength();
 	bool dumpResult( char* );
 	bool dumpDetailInfo();
 	bool showSummary();
