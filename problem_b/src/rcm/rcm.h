@@ -443,10 +443,39 @@ public:
 		return &gGInstMap;
 	}
 
-	int getPinDemand(){ return m_nPseudoPinDemand; }
+	//int getPinDemand(){ return m_nPseudoPinDemand; }
+	int getPinDemand(){ return m_mPseudoPinDemand.size(); }
 	void addPinDemand(){ m_nPseudoPinDemand++; }
+	void addPinDemand( net_C* pNet )
+	{
+		if( m_mPseudoPinDemand.find( pNet ) == m_mPseudoPinDemand.end() )
+		{
+			m_mPseudoPinDemand[ pNet ] = 1;
+		}
+		else
+		{
+			//m_mPseudoPinDemand[ pNet ] = m_mPseudoPinDemand[ pNet ]++;
+			m_mPseudoPinDemand[ pNet ]++;
+		}
+	}
 	void delPinDemand(){ m_nPseudoPinDemand--; }
-	void resetPinDemand(){ m_nPseudoPinDemand = 0; }
+	void delPinDemand( net_C* pNet )
+	{
+		if( m_mPseudoPinDemand.find( pNet ) != m_mPseudoPinDemand.end() )
+		{
+			m_mPseudoPinDemand[ pNet ]--;
+			if( m_mPseudoPinDemand[ pNet ] == 0 )
+			{
+				m_mPseudoPinDemand.erase( pNet );
+			}
+		}
+		else
+		{
+			cout << "No net " << pNet->getName() << "in gird "<< m_nX << " " << m_nY <<  " " << m_nZ << endl;
+		}
+	}
+	void resetPinDemand(){ m_mPseudoPinDemand.clear(); }
+	//void resetPinDemand(){ m_nPseudoPinDemand = 0; }
 };
 
 class layer_C

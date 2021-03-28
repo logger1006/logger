@@ -1,0 +1,1223 @@
+ICCAD Contest B
+Input:  ../testcase/case3.txt
+Output: ./result/case3.out
+
+Parsing input...
+Non complete
+Cell complete
+Extra complete
+Instance complete
+Net complete
+parser route complete
+Design boundary: 27 x 33
+Number of layer: 7
+Number of cell: 250
+Number of instance: 2735
+Number of net: 2644
+Maximum of Cell Movement: 820
+Total wire length: 32600
+
+Call RCM Router...
+Initial routing engine
+Loading design information..............complete
+Creating routing graph..................complete
+Creating forced model...................complete
+Creating network........................complete
+Linking network.........................complete
+
+Start Routing Optimization
+Fix overflow
+Overflow at: 13 13 1
+Net at grid 13 13 1 : N241 N371 N370 N344 N247 N152 N325 N329 N1076 N328 N449 N448 N438 N446 N447 N439 N505 N806 N1301 N440 
+Reroute net: N440
+Detour length: 0
+Fix overflow
+Overflow at: 12 6 1
+Net at grid 12 6 1 : N371 N370 N344 N872 N19 N80 N81 N360 N459 N1267 N143 N1268 N804 N460 N1269 N803 N149 N461 N454 
+Reroute net: N19
+Detour length: 0
+Fix overflow
+Overflow at: 18 9 1
+Net at grid 18 9 1 : N2193 N141 N140 N2017 N2477 N2616 N2224 N2050 
+Reroute net: N2050
+Detour length: 0
+Fix overflow
+Overflow at: 2 11 1
+Net at grid 2 11 1 : N1338 N1455 N1508 N1360 N1430 N1511 N1510 N1456 N1442 N1431 N1441 N1432 N1454 N1443 N1507 
+Reroute net: N1507
+Detour length: 0
+N1507 3 4
+Reroute net: N1507
+Detour length: 3
+Fix overflow
+Overflow at: 9 27 1
+Net at grid 9 27 1 : N836 N851 N1006 N1005 N644 N682 N679 N873 N680 N1144 N776 N1147 N1298 N1306 N1134 N1307 N1291 N1283 N915 N1225 N1224 
+Reroute net: N1224
+Detour length: 0
+N1224 3 4
+Reroute net: N1224
+Detour length: 3
+Fix overflow
+Overflow at: 7 11 1
+Net at grid 7 11 1 : N836 N988 N1843 N664 N80 N1921 N846 N1072 N1256 N1011 N1010 N960 N1154 N1141 N1041 N1153 N949 
+Reroute net: N80
+Detour length: 0
+Fix overflow
+Overflow at: 2 8 2
+Net at grid 2 8 2 : N1743 N52 N1701 N1826 N1779 N1722 N1984 
+Reroute net: N52
+Detour length: 0
+N52 1 1
+Reroute net: N1701
+Detour length: 0
+Fix overflow
+Overflow at: 2 8 2
+Net at grid 2 8 2 : N1743 N1826 N1779 N1722 N1984 N52 N1701 
+Reroute net: N1701
+Detour length: 0
+Fix overflow
+Overflow at: 13 20 2
+Net at grid 13 20 2 : N957 N859 N242 N678 N332 N29 N198 N276 N63 N340 N168 N910 N676 N750 N705 N1993 N908 N1091 
+Reroute net: N29
+Detour length: 0
+Fix overflow
+Overflow at: 21 14 2
+Net at grid 21 14 2 : N2191 N2056 N2198 N2193 N301 N2286 N501 N2494 N2271 N2164 N2404 N2273 N2272 N2174 N2075 N2405 
+Reroute net: N2174
+Detour length: 0
+Fix overflow
+Overflow at: 21 14 2
+Net at grid 21 14 2 : N2191 N2056 N2198 N2193 N301 N2286 N501 N2494 N2271 N2164 N2404 N2273 N2272 N2075 N2405 N2174 
+Reroute net: N2174
+Detour length: 0
+Fix overflow
+Overflow at: 26 3 1
+Net at grid 26 3 1 : N2340 N2568 N2254 N2067 
+Reroute net: N2067
+Detour length: 0
+Fix overflow
+Overflow at: 2 8 2
+Net at grid 2 8 2 : N1743 N1826 N1779 N1722 N1984 N52 N1701 
+Reroute net: N1779
+Detour length: 0
+Fix overflow
+Overflow at: 2 8 2
+Net at grid 2 8 2 : N1743 N1826 N1722 N1984 N52 N1701 N1779 
+Reroute net: N1779
+Detour length: 0
+Fix overflow
+Overflow at: 5 16 1
+Net at grid 5 16 1 : N851 N1006 N1063 N661 N689 N1003 N1070 N1356 N1358 N1357 N1223 N1026 N722 N721 N785 N1328 N1071 N1472 
+Reroute net: N1472
+Detour length: 0
+Fix overflow
+Overflow at: 7 14 1
+Net at grid 7 14 1 : N836 N988 N834 N969 N859 N1005 N662 N290 N1516 N689 N1530 N1261 N1103 N925 N1529 N1476 N895 N1232 
+Reroute net: N1232
+Detour length: 0
+Fix overflow
+Overflow at: 10 10 1
+Net at grid 10 10 1 : N238 N321 N23 N318 N90 N46 N746 N50 N58 N57 N1642 N259 N271 N832 N1854 N263 N833 
+Reroute net: N23
+Detour length: 0
+Fix overflow
+Overflow at: 6 19 1
+Net at grid 6 19 1 : N836 N988 N851 N1006 N826 N1063 N686 N992 N1003 N1055 N1184 N993 N1016 N905 N1183 N953 N783 N784 
+Reroute net: N784
+Detour length: 0
+Fix overflow
+Overflow at: 14 4 2
+Net at grid 14 4 2 : N241 N247 N319 N1188 N190 N1171 N2456 N220 N425 N2454 N405 
+Reroute net: N247
+Detour length: 0
+Fix overflow
+Overflow at: 11 20 1
+Net at grid 11 20 1 : N676 N1451 N1341 N1340 N1470 N737 N1342 N1429 N1452 N705 N1789 
+Reroute net: N1789
+Detour length: 0
+N1789 2 3
+Reroute net: N737
+Detour length: 0
+Fix overflow
+Overflow at: 11 20 1
+Net at grid 11 20 1 : N676 N1451 N1341 N1340 N1470 N1342 N1429 N1452 N705 N1789 N737 
+Reroute net: N737
+Detour length: 0
+Fix overflow
+Overflow at: 23 21 2
+Net at grid 23 21 2 : N2347 N2573 N2551 N2513 N2536 N2045 N2498 
+Reroute net: N2045
+Detour length: 0
+Fix overflow
+Overflow at: 23 21 2
+Net at grid 23 21 2 : N2347 N2573 N2551 N2513 N2536 N2498 N2045 
+Reroute net: N2045
+Detour length: 0
+Fix overflow
+Overflow at: 3 22 2
+Net at grid 3 22 2 : N67 N1490 N1394 N1497 N1486 N1485 N1482 N1403 N1527 N1488 
+Reroute net: N67
+Detour length: 0
+Fix overflow
+Overflow at: 27 28 1
+Net at grid 27 28 1 : N239 N133 N3 N131 
+Reroute net: N131
+Detour length: 0
+N131 1 2
+Reroute net: N131
+Detour length: 1
+Fix overflow
+Overflow at: 27 28 1
+Net at grid 27 28 1 : N239 N133 N3 N130 
+Reroute net: N130
+Detour length: 0
+N130 1 2
+Reroute net: N130
+Detour length: 1
+Fix overflow
+Overflow at: 16 33 1
+Net at grid 16 33 1 : N241 N75 N394 N32 
+Reroute net: N32
+Detour length: 0
+Fix overflow
+Overflow at: 19 30 2
+Net at grid 19 30 2 : N76 N75 N37 N43 N9 
+Reroute net: N76
+Detour length: 0
+Fix overflow
+Overflow at: 19 30 2
+Net at grid 19 30 2 : N75 N37 N43 N76 N44 
+Reroute net: N76
+Detour length: 0
+Fix overflow
+Overflow at: 16 33 1
+Net at grid 16 33 1 : N241 N75 N394 N33 
+Reroute net: N33
+Detour length: 0
+N33 1 2
+Reroute net: N33
+Detour length: 1
+Fix overflow
+Overflow at: 3 1 2
+Net at grid 3 1 2 : N80 N79 N78 
+Reroute net: N80
+Detour length: 0
+Fix overflow
+Overflow at: 13 20 2
+Net at grid 13 20 2 : N957 N859 N242 N678 N332 N198 N276 N63 N1993 N908 N29 N705 N750 N676 N910 N168 N340 N65 
+Reroute net: N29
+Detour length: 0
+Fix overflow
+Overflow at: 13 5 1
+Net at grid 13 5 1 : N241 N240 N969 N850 N22 N25 N146 N326 N296 N870 N19 N226 N459 N91 N92 
+Reroute net: N19
+Detour length: 0
+Overflow at: 13 13 1
+Net at grid 13 13 1 : N241 N371 N370 N344 N152 N325 N329 N1076 N505 N806 N1301 N439 N447 N446 N438 N448 N247 N449 N328 N92 
+Reroute net: N92
+Detour length: 0
+N92 2 3
+Reroute net: N92
+Detour length: 2
+N92 3 3
+Reroute net: N92
+Detour length: 3
+Fix overflow
+Overflow at: 14 31 1
+Net at grid 14 31 1 : N371 N370 N344 N245 N482 N75 N250 N392 N435 N436 N434 N395 N396 N252 N29 
+Reroute net: N29
+Detour length: 0
+Fix overflow
+Overflow at: 15 18 1
+Net at grid 15 18 1 : N957 N859 N850 N17 N686 N142 N287 N1245 N1243 N871 N1281 N154 N767 N27 
+Reroute net: N17
+Detour length: 0
+Fix overflow
+Overflow at: 13 31 1
+Net at grid 13 31 1 : N156 N152 N160 N155 N1187 N930 N475 N1186 N929 N26 
+Reroute net: N26
+Detour length: 0
+Fix overflow
+Overflow at: 15 18 1
+Net at grid 15 18 1 : N957 N859 N850 N686 N142 N287 N1245 N1243 N871 N1281 N154 N767 N17 N28 
+Reroute net: N17
+Detour length: 0
+Fix overflow
+Overflow at: 11 26 1
+Net at grid 11 26 1 : N957 N859 N281 N280 N1163 N918 N1263 N919 N311 N1169 N1264 N1262 N1081 N752 N680 N71 
+Reroute net: N71
+Detour length: 0
+N71 1 2
+Reroute net: N71
+Detour length: 1
+Fix overflow
+Overflow at: 14 31 1
+Net at grid 14 31 1 : N371 N370 N344 N245 N482 N75 N250 N392 N435 N436 N434 N395 N396 N252 N24 
+Reroute net: N24
+Detour length: 0
+Fix overflow
+Overflow at: 14 31 1
+Net at grid 14 31 1 : N371 N370 N344 N245 N482 N75 N392 N435 N436 N434 N395 N396 N252 N250 N21 
+Reroute net: N21
+Detour length: 0
+Fix overflow
+Overflow at: 13 31 1
+Net at grid 13 31 1 : N156 N152 N1187 N930 N475 N1186 N929 N155 N160 N25 
+Reroute net: N25
+Detour length: 0
+Fix overflow
+Overflow at: 15 18 1
+Net at grid 15 18 1 : N957 N859 N850 N686 N1245 N1243 N871 N1281 N154 N767 N17 N287 N142 N18 
+Reroute net: N17
+Detour length: 0
+Fix overflow
+Overflow at: 7 7 1
+Net at grid 7 7 1 : N836 N851 N1006 N834 N1063 N698 N324 N669 N845 N1062 N1197 N794 N793 N808 N1093 N547 N1039 N80 
+Reroute net: N80
+Detour length: 0
+Fix overflow
+Overflow at: 10 19 1
+Net at grid 10 19 1 : N826 N902 N1235 N1203 N1927 N1475 N1470 N1170 N800 N1250 N1474 N1466 N1234 N1158 N998 N1789 N704 N675 N901 N331 N23 
+Reroute net: N23
+Detour length: 0
+Fix overflow
+Overflow at: 11 26 1
+Net at grid 11 26 1 : N957 N859 N1163 N918 N1263 N919 N311 N1169 N1264 N1262 N1081 N752 N680 N280 N281 N20 
+Reroute net: N20
+Detour length: 0
+Fix overflow
+Overflow at: 13 31 1
+Net at grid 13 31 1 : N156 N152 N1187 N930 N475 N1186 N929 N155 N160 N22 
+Reroute net: N22
+Detour length: 0
+Fix overflow
+Overflow at: 14 31 1
+Net at grid 14 31 1 : N371 N370 N344 N245 N482 N392 N435 N436 N434 N395 N396 N252 N250 N75 N15 
+Reroute net: N15
+Detour length: 0
+Fix overflow
+Overflow at: 11 26 1
+Net at grid 11 26 1 : N957 N859 N1163 N918 N1263 N919 N311 N1169 N1264 N1262 N1081 N752 N680 N280 N281 N68 
+Reroute net: N68
+Detour length: 0
+Fix overflow
+Overflow at: 15 18 1
+Net at grid 15 18 1 : N957 N859 N850 N686 N1245 N1243 N871 N1281 N154 N767 N287 N142 N17 N14 
+Reroute net: N17
+Detour length: 0
+Fix overflow
+Overflow at: 15 18 1
+Net at grid 15 18 1 : N957 N859 N850 N686 N1245 N1243 N871 N1281 N154 N767 N287 N142 N14 N17 
+Reroute net: N17
+Detour length: 0
+Fix overflow
+Overflow at: 15 18 1
+Net at grid 15 18 1 : N957 N859 N850 N1245 N1243 N871 N1281 N154 N767 N287 N142 N14 N686 N17 
+Reroute net: N17
+Detour length: 0
+Fix overflow
+Overflow at: 16 33 1
+Net at grid 16 33 1 : N241 N394 N75 N16 
+Reroute net: N16
+Detour length: 0
+Fix overflow
+Overflow at: 7 7 1
+Net at grid 7 7 1 : N836 N1062 N1197 N794 N793 N808 N1093 N547 N1039 N845 N669 N324 N698 N1063 N834 N1006 N851 N988 
+Reroute net: N988
+Detour length: 0
+Fix overflow
+Overflow at: 7 7 1
+Net at grid 7 7 1 : N1062 N1197 N794 N793 N808 N1093 N547 N1039 N845 N669 N324 N698 N836 N1006 N834 N1063 N851 N988 
+Reroute net: N988
+Detour length: 0
+Fix overflow
+Overflow at: 16 33 1
+Net at grid 16 33 1 : N394 N75 N241 N16 
+Reroute net: N16
+Detour length: 0
+Fix overflow
+Overflow at: 15 18 1
+Net at grid 15 18 1 : N1245 N1243 N871 N1281 N154 N767 N287 N142 N14 N850 N957 N859 N686 N17 
+Reroute net: N17
+Detour length: 0
+Fix overflow
+Overflow at: 14 31 1
+Net at grid 14 31 1 : N392 N435 N436 N434 N395 N396 N252 N250 N75 N370 N245 N482 N371 N344 N15 
+Reroute net: N15
+Detour length: 0
+Fix overflow
+Overflow at: 11 26 1
+Net at grid 11 26 1 : N1163 N918 N1263 N919 N311 N1169 N1264 N1262 N1081 N752 N680 N280 N281 N957 N859 N20 
+Reroute net: N20
+Detour length: 0
+Fix overflow
+Overflow at: 10 19 1
+Net at grid 10 19 1 : N902 N1235 N1203 N1927 N1475 N1470 N1170 N800 N1250 N1474 N1466 N1234 N1158 N998 N1789 N704 N675 N901 N331 N826 N23 
+Reroute net: N23
+Detour length: 0
+Fix overflow
+Overflow at: 13 31 1
+Net at grid 13 31 1 : N1187 N930 N475 N1186 N929 N155 N160 N156 N152 N22 
+Reroute net: N22
+Detour length: 0
+Fix overflow
+Overflow at: 11 26 1
+Net at grid 11 26 1 : N1163 N918 N1263 N919 N311 N1169 N1264 N1262 N1081 N752 N680 N280 N957 N859 N281 N68 
+Reroute net: N68
+Detour length: 0
+Fix overflow
+Overflow at: 7 7 1
+Net at grid 7 7 1 : N1062 N1197 N794 N793 N808 N1093 N547 N1039 N836 N1006 N834 N1063 N851 N698 N669 N845 N324 N80 
+Reroute net: N80
+Detour length: 0
+Fix overflow
+Overflow at: 15 18 1
+Net at grid 15 18 1 : N1245 N1243 N871 N1281 N154 N767 N287 N142 N850 N957 N859 N686 N14 N18 
+Reroute net: N14
+Detour length: 0
+N14 1 0
+Reroute net: N18
+Detour length: 0
+Fix overflow
+Overflow at: 14 31 1
+Net at grid 14 31 1 : N392 N435 N436 N434 N395 N396 N252 N250 N75 N370 N245 N482 N371 N344 N21 
+Reroute net: N21
+Detour length: 0
+Fix overflow
+Overflow at: 13 31 1
+Net at grid 13 31 1 : N1187 N930 N475 N1186 N929 N160 N156 N152 N155 N25 
+Reroute net: N25
+Detour length: 0
+Fix overflow
+Overflow at: 14 31 1
+Net at grid 14 31 1 : N392 N435 N436 N434 N395 N396 N252 N75 N370 N245 N482 N371 N344 N250 N24 
+Reroute net: N24
+Detour length: 0
+Fix overflow
+Overflow at: 15 18 1
+Net at grid 15 18 1 : N1245 N1243 N871 N1281 N154 N767 N850 N957 N859 N686 N14 N287 N142 N28 
+Reroute net: N28
+Detour length: 0
+Fix overflow
+Overflow at: 13 31 1
+Net at grid 13 31 1 : N1187 N930 N475 N1186 N929 N156 N152 N155 N160 N26 
+Reroute net: N26
+Detour length: 0
+Fix overflow
+Overflow at: 11 26 1
+Net at grid 11 26 1 : N1163 N918 N1263 N919 N311 N1169 N1264 N1262 N1081 N752 N957 N859 N281 N280 N680 N71 
+Reroute net: N71
+Detour length: 0
+N71 1 2
+Reroute net: N71
+Detour length: 1
+Fix overflow
+Overflow at: 14 31 1
+Net at grid 14 31 1 : N392 N435 N436 N434 N395 N396 N252 N370 N245 N482 N371 N344 N250 N75 N29 
+Reroute net: N29
+Detour length: 0
+Fix overflow
+Overflow at: 15 18 1
+Net at grid 15 18 1 : N1245 N1243 N871 N1281 N154 N767 N957 N859 N686 N14 N287 N142 N850 N27 
+Reroute net: N27
+Detour length: 0
+Fix overflow
+Overflow at: 13 5 1
+Net at grid 13 5 1 : N226 N459 N91 N241 N969 N240 N19 N22 N146 N25 N326 N850 N296 N870 N92 
+Reroute net: N19
+Detour length: 0
+Overflow at: 13 13 1
+Net at grid 13 13 1 : N505 N806 N1301 N439 N447 N446 N438 N448 N449 N328 N241 N370 N371 N152 N344 N325 N247 N329 N1076 N92 
+Reroute net: N92
+Detour length: 0
+N92 2 3
+Reroute net: N92
+Detour length: 2
+N92 3 3
+Reroute net: N92
+Detour length: 3
+Fix overflow
+Overflow at: 3 1 2
+Net at grid 3 1 2 : N79 N80 N78 
+Reroute net: N80
+Detour length: 0
+Fix overflow
+Overflow at: 16 33 1
+Net at grid 16 33 1 : N394 N241 N75 N33 
+Reroute net: N33
+Detour length: 0
+N33 1 2
+Reroute net: N33
+Detour length: 1
+Fix overflow
+Overflow at: 8 1 2
+Net at grid 8 1 2 : N1208 N79 N248 N345 N81 N83 N80 N86 
+Reroute net: N80
+Detour length: 0
+Fix overflow
+Overflow at: 16 33 1
+Net at grid 16 33 1 : N394 N241 N75 N32 
+Reroute net: N32
+Detour length: 0
+Fix overflow
+Overflow at: 19 30 2
+Net at grid 19 30 2 : N37 N43 N76 N75 N44 
+Reroute net: N76
+Detour length: 0
+Fix overflow
+Overflow at: 19 30 2
+Net at grid 19 30 2 : N37 N75 N76 N43 N9 
+Reroute net: N76
+Detour length: 0
+Fix overflow
+Overflow at: 27 28 1
+Net at grid 27 28 1 : N133 N3 N239 N130 
+Reroute net: N130
+Detour length: 0
+N130 1 2
+Reroute net: N130
+Detour length: 1
+Fix overflow
+Overflow at: 27 28 1
+Net at grid 27 28 1 : N133 N3 N239 N131 
+Reroute net: N131
+Detour length: 0
+N131 1 2
+Reroute net: N131
+Detour length: 1
+Fix overflow
+Overflow at: 10 10 1
+Net at grid 10 10 1 : N1854 N263 N832 N271 N238 N321 N318 N23 N90 N46 N746 N1642 N57 N50 N58 N259 N833 
+Reroute net: N23
+Detour length: 0
+Fix overflow
+Overflow at: 14 4 2
+Net at grid 14 4 2 : N2456 N220 N425 N2454 N241 N319 N247 N1188 N190 N1171 N405 
+Reroute net: N247
+Detour length: 0
+Fix overflow
+Overflow at: 5 16 2
+Net at grid 5 16 2 : N1356 N1357 N1223 N1026 N721 N1328 N1071 N1006 N1063 N851 N661 N1003 N689 N60 N1070 N1472 
+Reroute net: N851
+Detour length: 0
+N851 1 1
+Reroute net: N60
+Detour length: 0
+N60 1 1
+Reroute net: N1472
+Detour length: 0
+Fix overflow
+Overflow at: 26 3 1
+Net at grid 26 3 1 : N2254 N2340 N2568 N2067 
+Reroute net: N2067
+Detour length: 0
+Fix overflow
+Overflow at: 23 21 2
+Net at grid 23 21 2 : N2551 N2513 N2536 N2498 N2347 N2573 N2045 
+Reroute net: N2498
+Detour length: 0
+Fix overflow
+Overflow at: 23 21 2
+Net at grid 23 21 2 : N2551 N2513 N2536 N2347 N2573 N2045 N2498 
+Reroute net: N2498
+Detour length: 0
+Fix overflow
+Overflow at: 3 22 2
+Net at grid 3 22 2 : N1490 N1394 N1497 N1486 N1485 N1482 N1403 N67 N1527 N1488 
+Reroute net: N67
+Detour length: 0
+Fix overflow
+Overflow at: 23 21 2
+Net at grid 23 21 2 : N2551 N2513 N2536 N2347 N2573 N2045 N2498 
+Reroute net: N2045
+Detour length: 0
+Fix overflow
+Overflow at: 23 21 2
+Net at grid 23 21 2 : N2551 N2513 N2536 N2347 N2573 N2498 N2045 
+Reroute net: N2045
+Detour length: 0
+Fix overflow
+Overflow at: 7 14 1
+Net at grid 7 14 1 : N1530 N1261 N1103 N925 N1529 N1476 N895 N836 N834 N969 N859 N1005 N988 N662 N290 N1516 N689 N1232 
+Reroute net: N1232
+Detour length: 0
+Fix overflow
+Overflow at: 22 14 1
+Net at grid 22 14 1 : N2171 N2202 N2172 N2405 N2174 
+Reroute net: N2202
+Detour length: 0
+N2202 1 -1
+Reroute net: N2174
+Detour length: 0
+Fix overflow
+Overflow at: 9 27 1
+Net at grid 9 27 1 : N1306 N1134 N1307 N1291 N1283 N915 N1225 N1298 N1147 N836 N1006 N1005 N644 N682 N679 N873 N680 N1144 N776 N851 N1224 
+Reroute net: N1224
+Detour length: 0
+N1224 3 4
+Reroute net: N1224
+Detour length: 3
+Fix overflow
+Overflow at: 2 11 1
+Net at grid 2 11 1 : N1511 N1510 N1456 N1442 N1431 N1441 N1432 N1454 N1443 N1338 N1455 N1508 N1360 N1430 N1507 
+Reroute net: N1507
+Detour length: 0
+N1507 3 4
+Reroute net: N1507
+Detour length: 3
+Fix overflow
+Overflow at: 12 6 1
+Net at grid 12 6 1 : N804 N460 N1269 N803 N149 N461 N1268 N143 N1267 N459 N370 N872 N371 N344 N81 N19 N80 N360 N454 
+Reroute net: N19
+Detour length: 0
+Fix overflow
+Overflow at: 6 19 2
+Net at grid 6 19 2 : N993 N1016 N953 N855 N836 N1006 N1063 N988 N686 N826 N992 N1003 N64 N63 N1055 N784 
+Reroute net: N988
+Detour length: 0
+N988 1 0
+Reroute net: N826
+Detour length: 0
+N826 1 0
+Reroute net: N64
+Detour length: 0
+N64 1 0
+Reroute net: N63
+Detour length: 0
+N63 1 0
+Reroute net: N1055
+Detour length: 0
+N1055 1 0
+Reroute net: N855
+Detour length: 0
+Overflow at: 6 19 1
+Net at grid 6 19 1 : N1184 N993 N1016 N905 N1183 N953 N783 N836 N1006 N1063 N686 N992 N1003 N851 N784 N988 N826 N1055 
+Reroute net: N784
+Detour length: 0
+Fix overflow
+Overflow at: 7 11 1
+Net at grid 7 11 1 : N1011 N1010 N960 N1154 N1141 N1041 N1153 N1256 N836 N1843 N664 N1921 N80 N846 N1072 N988 N949 
+Reroute net: N80
+Detour length: 0
+Fix overflow
+Overflow at: 18 9 1
+Net at grid 18 9 1 : N2477 N2616 N2193 N141 N140 N2224 N2017 N2050 
+Reroute net: N2050
+Detour length: 0
+Fix overflow
+Overflow at: 13 13 1
+Net at grid 13 13 1 : N505 N806 N439 N446 N438 N241 N370 N371 N152 N344 N325 N329 N1076 N328 N247 N1301 N449 N448 N447 N440 
+Reroute net: N440
+Detour length: 0
+Fix overflow
+Overflow at: 2 8 2
+Net at grid 2 8 2 : N1826 N1722 N1743 N52 N1701 N1984 N1779 
+Reroute net: N52
+Detour length: 0
+N52 1 0
+Reroute net: N1701
+Detour length: 0
+Fix overflow
+Overflow at: 2 8 2
+Net at grid 2 8 2 : N1826 N1722 N1743 N1984 N1779 N52 N1701 
+Reroute net: N1701
+Detour length: 0
+Fix overflow
+Overflow at: 11 20 1
+Net at grid 11 20 1 : N1341 N1340 N1470 N1342 N1429 N1452 N676 N1789 N705 N1451 N737 
+Reroute net: N1789
+Detour length: 0
+N1789 1 0
+Reroute net: N737
+Detour length: 0
+Fix overflow
+Overflow at: 11 20 1
+Net at grid 11 20 1 : N676 N705 N1451 N1789 N1341 N1340 N1342 N1452 N1429 N1470 N737 
+Reroute net: N737
+Detour length: 0
+Fix overflow
+Overflow at: 2 8 2
+Net at grid 2 8 2 : N1743 N1984 N52 N1701 N1826 N1722 N1779 
+Reroute net: N1984
+Detour length: 0
+Fix overflow
+Overflow at: 2 8 2
+Net at grid 2 8 2 : N1743 N52 N1701 N1826 N1722 N1779 N1984 
+Reroute net: N1984
+Detour length: 0
+Fix overflow
+Overflow at: 13 13 1
+Net at grid 13 13 1 : N241 N370 N371 N152 N344 N325 N329 N1076 N328 N247 N1301 N449 N448 N447 N439 N446 N438 N505 N806 N440 
+Reroute net: N440
+Detour length: 0
+Fix overflow
+Overflow at: 18 9 1
+Net at grid 18 9 1 : N2193 N141 N140 N2224 N2017 N2616 N2477 N2050 
+Reroute net: N2050
+Detour length: 0
+Fix overflow
+Overflow at: 7 11 1
+Net at grid 7 11 1 : N836 N1843 N664 N1921 N846 N1072 N988 N80 N1011 N1010 N1041 N960 N1154 N1141 N1153 N1256 N949 
+Reroute net: N80
+Detour length: 0
+Fix overflow
+Overflow at: 6 19 2
+Net at grid 6 19 2 : N836 N1006 N1063 N686 N992 N1003 N988 N826 N64 N63 N1055 N993 N1016 N953 N855 N784 
+Reroute net: N855
+Detour length: 0
+Overflow at: 6 19 1
+Net at grid 6 19 1 : N836 N1006 N1063 N686 N992 N1003 N851 N988 N826 N1055 N1184 N905 N1183 N993 N1016 N953 N783 N784 
+Reroute net: N784
+Detour length: 0
+Fix overflow
+Overflow at: 12 6 1
+Net at grid 12 6 1 : N370 N872 N371 N344 N81 N360 N19 N804 N460 N803 N143 N149 N1269 N459 N461 N80 N1268 N1267 N454 
+Reroute net: N19
+Detour length: 0
+Fix overflow
+Overflow at: 2 11 1
+Net at grid 2 11 1 : N1338 N1455 N1508 N1360 N1430 N1511 N1510 N1456 N1442 N1431 N1443 N1441 N1432 N1454 N1507 
+Reroute net: N1507
+Detour length: 0
+N1507 3 4
+Reroute net: N1507
+Detour length: 3
+Fix overflow
+Overflow at: 9 27 1
+Net at grid 9 27 1 : N836 N1006 N1005 N644 N682 N679 N873 N680 N1144 N776 N851 N1307 N1283 N1306 N1134 N1291 N1225 N1298 N915 N1147 N1224 
+Reroute net: N1224
+Detour length: 0
+N1224 3 4
+Reroute net: N1224
+Detour length: 3
+Fix overflow
+Overflow at: 22 14 1
+Net at grid 22 14 1 : N2172 N2405 N2202 N2171 N2174 
+Reroute net: N2174
+Detour length: 0
+Fix overflow
+Overflow at: 7 14 1
+Net at grid 7 14 1 : N836 N834 N969 N859 N1005 N662 N290 N1516 N689 N988 N1261 N1103 N1530 N925 N895 N1476 N1529 N1232 
+Reroute net: N1232
+Detour length: 0
+Fix overflow
+Overflow at: 3 22 2
+Net at grid 3 22 2 : N1527 N67 N1497 N1490 N1394 N1486 N1482 N1403 N1485 N1488 
+Reroute net: N67
+Detour length: 0
+Fix overflow
+Overflow at: 23 21 2
+Net at grid 23 21 2 : N2347 N2573 N2551 N2513 N2536 N2498 N2045 
+Reroute net: N2498
+Detour length: 0
+Fix overflow
+Overflow at: 23 21 2
+Net at grid 23 21 2 : N2347 N2573 N2551 N2513 N2536 N2045 N2498 
+Reroute net: N2498
+Detour length: 0
+Fix overflow
+Overflow at: 26 3 1
+Net at grid 26 3 1 : N2340 N2568 N2254 N2067 
+Reroute net: N2067
+Detour length: 0
+Fix overflow
+Overflow at: 5 16 2
+Net at grid 5 16 2 : N1006 N1063 N661 N1003 N689 N1070 N851 N60 N1356 N1357 N1223 N721 N1026 N1328 N1071 N1472 
+Reroute net: N1472
+Detour length: 0
+Fix overflow
+Overflow at: 14 4 2
+Net at grid 14 4 2 : N241 N319 N1188 N190 N1171 N247 N2456 N220 N425 N2454 N405 
+Reroute net: N247
+Detour length: 0
+Fix overflow
+Overflow at: 10 10 1
+Net at grid 10 10 1 : N238 N321 N318 N90 N46 N746 N1642 N57 N50 N58 N259 N23 N1854 N263 N832 N271 N833 
+Reroute net: N23
+Detour length: 0
+Fix overflow
+Overflow at: 27 28 1
+Net at grid 27 28 1 : N239 N133 N3 N131 
+Reroute net: N131
+Detour length: 0
+N131 1 2
+Reroute net: N131
+Detour length: 1
+Fix overflow
+Overflow at: 27 28 1
+Net at grid 27 28 1 : N239 N133 N3 N130 
+Reroute net: N130
+Detour length: 0
+N130 1 2
+Reroute net: N130
+Detour length: 1
+Fix overflow
+Overflow at: 19 30 2
+Net at grid 19 30 2 : N75 N43 N76 N37 N9 
+Reroute net: N76
+Detour length: 0
+Fix overflow
+Overflow at: 19 30 2
+Net at grid 19 30 2 : N75 N37 N76 N43 N44 
+Reroute net: N76
+Detour length: 0
+Fix overflow
+Overflow at: 16 33 1
+Net at grid 16 33 1 : N241 N75 N394 N32 
+Reroute net: N32
+Detour length: 0
+Fix overflow
+Overflow at: 8 1 2
+Net at grid 8 1 2 : N248 N345 N81 N83 N1208 N80 N79 N86 
+Reroute net: N80
+Detour length: 0
+Fix overflow
+Overflow at: 16 33 1
+Net at grid 16 33 1 : N241 N75 N394 N33 
+Reroute net: N33
+Detour length: 0
+N33 1 2
+Reroute net: N33
+Detour length: 1
+Fix overflow
+Overflow at: 3 1 2
+Net at grid 3 1 2 : N79 N80 N78 
+Reroute net: N80
+Detour length: 0
+Fix overflow
+Overflow at: 13 5 1
+Net at grid 13 5 1 : N241 N969 N240 N22 N146 N25 N326 N850 N296 N870 N459 N226 N19 N91 N92 
+Reroute net: N19
+Detour length: 0
+Overflow at: 13 13 1
+Net at grid 13 13 1 : N241 N370 N371 N152 N344 N325 N329 N1076 N439 N446 N438 N505 N806 N447 N448 N449 N1301 N247 N328 N92 
+Reroute net: N92
+Detour length: 0
+N92 2 3
+Reroute net: N92
+Detour length: 2
+N92 3 3
+Reroute net: N92
+Detour length: 3
+Fix overflow
+Overflow at: 15 18 1
+Net at grid 15 18 1 : N957 N859 N686 N14 N287 N142 N850 N1245 N1243 N871 N1281 N154 N767 N27 
+Reroute net: N27
+Detour length: 0
+Fix overflow
+Overflow at: 14 31 1
+Net at grid 14 31 1 : N370 N245 N482 N371 N344 N250 N75 N392 N435 N436 N396 N395 N434 N252 N29 
+Reroute net: N29
+Detour length: 0
+Fix overflow
+Overflow at: 11 26 1
+Net at grid 11 26 1 : N957 N859 N281 N280 N680 N1163 N919 N1169 N918 N1263 N311 N1264 N1081 N1262 N752 N71 
+Reroute net: N71
+Detour length: 0
+N71 1 2
+Reroute net: N71
+Detour length: 1
+Fix overflow
+Overflow at: 13 31 1
+Net at grid 13 31 1 : N156 N152 N155 N160 N1187 N930 N475 N1186 N929 N26 
+Reroute net: N26
+Detour length: 0
+Fix overflow
+Overflow at: 15 18 1
+Net at grid 15 18 1 : N957 N859 N686 N14 N287 N142 N1245 N1243 N871 N1281 N154 N767 N850 N28 
+Reroute net: N28
+Detour length: 0
+Fix overflow
+Overflow at: 14 31 1
+Net at grid 14 31 1 : N370 N245 N482 N371 N344 N250 N392 N435 N436 N396 N395 N434 N252 N75 N24 
+Reroute net: N24
+Detour length: 0
+Fix overflow
+Overflow at: 13 31 1
+Net at grid 13 31 1 : N156 N152 N155 N1187 N930 N475 N1186 N929 N160 N25 
+Reroute net: N25
+Detour length: 0
+Fix overflow
+Overflow at: 14 31 1
+Net at grid 14 31 1 : N370 N245 N482 N371 N344 N392 N435 N436 N396 N395 N434 N252 N75 N250 N21 
+Reroute net: N21
+Detour length: 0
+Fix overflow
+Overflow at: 15 18 1
+Net at grid 15 18 1 : N957 N859 N686 N14 N1245 N1243 N871 N1281 N154 N767 N850 N142 N287 N18 
+Reroute net: N18
+Detour length: 0
+Fix overflow
+Overflow at: 7 7 1
+Net at grid 7 7 1 : N836 N1006 N834 N1063 N698 N669 N845 N324 N851 N1062 N1197 N794 N793 N1093 N808 N547 N1039 N80 
+Reroute net: N80
+Detour length: 0
+Fix overflow
+Overflow at: 11 26 1
+Net at grid 11 26 1 : N957 N859 N281 N1163 N919 N1169 N918 N1263 N311 N1264 N1081 N1262 N752 N680 N280 N68 
+Reroute net: N68
+Detour length: 0
+Fix overflow
+Overflow at: 13 31 1
+Net at grid 13 31 1 : N156 N152 N1187 N930 N475 N1186 N929 N160 N155 N22 
+Reroute net: N22
+Detour length: 0
+Fix overflow
+Overflow at: 10 19 1
+Net at grid 10 19 1 : N902 N1235 N1475 N1203 N800 N1927 N1470 N1170 N1250 N1474 N1466 N1234 N1158 N998 N1789 N704 N675 N901 N331 N826 N23 
+Reroute net: N23
+Detour length: 0
+Fix overflow
+Overflow at: 11 26 1
+Net at grid 11 26 1 : N957 N859 N1163 N919 N1169 N918 N1263 N311 N1264 N1081 N1262 N752 N680 N280 N281 N20 
+Reroute net: N20
+Detour length: 0
+Fix overflow
+Overflow at: 14 31 1
+Net at grid 14 31 1 : N370 N245 N482 N371 N344 N392 N435 N436 N396 N395 N434 N252 N75 N250 N15 
+Reroute net: N15
+Detour length: 0
+Fix overflow
+Overflow at: 15 18 1
+Net at grid 15 18 1 : N957 N859 N686 N1245 N1243 N871 N1281 N154 N767 N850 N142 N287 N14 N17 
+Reroute net: N17
+Detour length: 0
+Fix overflow
+Overflow at: 16 33 1
+Net at grid 16 33 1 : N241 N394 N75 N16 
+Reroute net: N16
+Detour length: 0
+Fix overflow
+Overflow at: 7 7 1
+Net at grid 7 7 1 : N836 N1006 N834 N1063 N851 N1062 N1197 N794 N793 N1093 N808 N547 N1039 N324 N845 N669 N698 N988 
+Reroute net: N988
+Detour length: 0
+After pre reroute: 26115
+Single Cell Move:   0
+Single Cell Failed Move:   0
+Multiple Cell Move: 0
+Multiple Cell Failed Move: 0
+Failed Move:        0
+
+Start post-routing optimization
+Some net out of constraint
+Fix overflow
+Overflow at: 7 7 1
+Net at grid 7 7 1 : N698 N669 N845 N324 N1039 N547 N808 N1093 N793 N794 N1197 N1062 N836 N1006 N834 N1063 N851 N988 
+Reroute net: N988
+Detour length: 0
+Fix overflow
+Overflow at: 16 33 1
+Net at grid 16 33 1 : N75 N394 N241 N16 
+Reroute net: N16
+Detour length: 0
+Fix overflow
+Overflow at: 15 18 1
+Net at grid 15 18 1 : N14 N287 N142 N850 N767 N154 N1281 N871 N1243 N1245 N957 N859 N686 N17 
+Reroute net: N17
+Detour length: 0
+Fix overflow
+Overflow at: 14 31 1
+Net at grid 14 31 1 : N250 N75 N252 N434 N395 N396 N436 N435 N392 N370 N245 N482 N371 N344 N15 
+Reroute net: N15
+Detour length: 0
+Fix overflow
+Overflow at: 11 26 1
+Net at grid 11 26 1 : N281 N280 N680 N752 N1262 N1081 N1264 N311 N1263 N918 N1169 N919 N1163 N957 N859 N20 
+Reroute net: N20
+Detour length: 0
+Fix overflow
+Overflow at: 10 19 1
+Net at grid 10 19 1 : N826 N331 N901 N675 N704 N1789 N998 N1158 N1234 N1466 N1474 N1250 N1170 N1470 N1927 N800 N1203 N1475 N1235 N902 N23 
+Reroute net: N23
+Detour length: 0
+Fix overflow
+Overflow at: 13 31 1
+Net at grid 13 31 1 : N155 N160 N929 N1186 N475 N930 N1187 N156 N152 N22 
+Reroute net: N22
+Detour length: 0
+Fix overflow
+Overflow at: 11 26 1
+Net at grid 11 26 1 : N280 N680 N752 N1262 N1081 N1264 N311 N1263 N918 N1169 N919 N1163 N957 N859 N281 N68 
+Reroute net: N68
+Detour length: 0
+Fix overflow
+Overflow at: 7 7 1
+Net at grid 7 7 1 : N1039 N547 N808 N1093 N793 N794 N1197 N1062 N836 N1006 N834 N1063 N851 N698 N669 N845 N324 N80 
+Reroute net: N80
+Detour length: 0
+Fix overflow
+Overflow at: 15 18 1
+Net at grid 15 18 1 : N287 N142 N850 N767 N154 N1281 N871 N1243 N1245 N957 N859 N686 N14 N18 
+Reroute net: N14
+Detour length: 0
+N14 1 0
+Reroute net: N18
+Detour length: 0
+Fix overflow
+Overflow at: 14 31 1
+Net at grid 14 31 1 : N250 N75 N252 N434 N395 N396 N436 N435 N392 N370 N245 N482 N371 N344 N21 
+Reroute net: N21
+Detour length: 0
+Fix overflow
+Overflow at: 13 31 1
+Net at grid 13 31 1 : N160 N929 N1186 N475 N930 N1187 N156 N152 N155 N25 
+Reroute net: N25
+Detour length: 0
+Fix overflow
+Overflow at: 14 31 1
+Net at grid 14 31 1 : N75 N252 N434 N395 N396 N436 N435 N392 N370 N245 N482 N371 N344 N250 N24 
+Reroute net: N24
+Detour length: 0
+Fix overflow
+Overflow at: 15 18 1
+Net at grid 15 18 1 : N850 N767 N154 N1281 N871 N1243 N1245 N957 N859 N686 N14 N287 N142 N28 
+Reroute net: N28
+Detour length: 0
+Fix overflow
+Overflow at: 13 31 1
+Net at grid 13 31 1 : N929 N1186 N475 N930 N1187 N156 N152 N155 N160 N26 
+Reroute net: N26
+Detour length: 0
+Fix overflow
+Overflow at: 11 26 1
+Net at grid 11 26 1 : N752 N1262 N1081 N1264 N311 N1263 N918 N1169 N919 N1163 N957 N859 N281 N280 N680 N71 
+Reroute net: N71
+Detour length: 0
+N71 1 2
+Reroute net: N71
+Detour length: 1
+Fix overflow
+Overflow at: 14 31 1
+Net at grid 14 31 1 : N252 N434 N395 N396 N436 N435 N392 N370 N245 N482 N371 N344 N250 N75 N29 
+Reroute net: N29
+Detour length: 0
+Fix overflow
+Overflow at: 15 18 1
+Net at grid 15 18 1 : N767 N154 N1281 N871 N1243 N1245 N957 N859 N686 N14 N287 N142 N850 N27 
+Reroute net: N27
+Detour length: 0
+Fix overflow
+Overflow at: 13 5 1
+Net at grid 13 5 1 : N91 N226 N459 N241 N969 N240 N19 N22 N146 N25 N326 N850 N296 N870 N92 
+Reroute net: N19
+Detour length: 0
+Overflow at: 13 13 1
+Net at grid 13 13 1 : N328 N1301 N449 N448 N447 N806 N505 N438 N446 N439 N241 N370 N371 N152 N344 N325 N247 N329 N1076 N92 
+Reroute net: N92
+Detour length: 0
+N92 2 3
+Reroute net: N92
+Detour length: 2
+N92 3 3
+Reroute net: N92
+Detour length: 3
+Fix overflow
+Overflow at: 3 1 2
+Net at grid 3 1 2 : N79 N80 N78 
+Reroute net: N80
+Detour length: 0
+Fix overflow
+Overflow at: 16 33 1
+Net at grid 16 33 1 : N394 N241 N75 N33 
+Reroute net: N33
+Detour length: 0
+N33 1 2
+Reroute net: N33
+Detour length: 1
+Fix overflow
+Overflow at: 8 1 2
+Net at grid 8 1 2 : N79 N1208 N248 N345 N81 N83 N80 N86 
+Reroute net: N80
+Detour length: 0
+Fix overflow
+Overflow at: 16 33 1
+Net at grid 16 33 1 : N394 N241 N75 N32 
+Reroute net: N32
+Detour length: 0
+Fix overflow
+Overflow at: 19 30 2
+Net at grid 19 30 2 : N43 N37 N76 N75 N44 
+Reroute net: N76
+Detour length: 0
+Fix overflow
+Overflow at: 19 30 2
+Net at grid 19 30 2 : N37 N75 N76 N43 N9 
+Reroute net: N76
+Detour length: 0
+Fix overflow
+Overflow at: 27 28 1
+Net at grid 27 28 1 : N3 N133 N239 N130 
+Reroute net: N130
+Detour length: 0
+N130 1 2
+Reroute net: N130
+Detour length: 1
+Fix overflow
+Overflow at: 27 28 1
+Net at grid 27 28 1 : N3 N133 N239 N131 
+Reroute net: N131
+Detour length: 0
+N131 1 2
+Reroute net: N131
+Detour length: 1
+Fix overflow
+Overflow at: 10 10 1
+Net at grid 10 10 1 : N271 N832 N263 N1854 N238 N321 N318 N23 N90 N46 N746 N1642 N57 N50 N58 N259 N833 
+Reroute net: N23
+Detour length: 0
+Fix overflow
+Overflow at: 14 4 2
+Net at grid 14 4 2 : N2454 N425 N220 N2456 N241 N319 N247 N1188 N190 N1171 N405 
+Reroute net: N247
+Detour length: 0
+Fix overflow
+Overflow at: 5 16 2
+Net at grid 5 16 2 : N1071 N1328 N1026 N721 N1223 N1357 N1356 N1006 N1063 N851 N661 N1003 N689 N60 N1070 N1472 
+Reroute net: N851
+Detour length: 0
+N851 1 1
+Reroute net: N60
+Detour length: 0
+N60 1 1
+Reroute net: N1472
+Detour length: 0
+Fix overflow
+Overflow at: 26 3 1
+Net at grid 26 3 1 : N2254 N2340 N2568 N2067 
+Reroute net: N2067
+Detour length: 0
+Fix overflow
+Overflow at: 23 21 2
+Net at grid 23 21 2 : N2045 N2536 N2513 N2551 N2347 N2573 N2498 
+Reroute net: N2045
+Detour length: 0
+Fix overflow
+Overflow at: 23 21 2
+Net at grid 23 21 2 : N2536 N2513 N2551 N2347 N2573 N2498 N2045 
+Reroute net: N2045
+Detour length: 0
+Fix overflow
+Overflow at: 23 21 2
+Net at grid 23 21 2 : N2536 N2513 N2551 N2347 N2573 N2498 N2045 
+Reroute net: N2498
+Detour length: 0
+Fix overflow
+Overflow at: 23 21 2
+Net at grid 23 21 2 : N2536 N2513 N2551 N2347 N2573 N2045 N2498 
+Reroute net: N2498
+Detour length: 0
+Fix overflow
+Overflow at: 3 22 2
+Net at grid 3 22 2 : N1485 N1403 N1482 N1486 N1394 N1490 N1497 N67 N1527 N1488 
+Reroute net: N67
+Detour length: 0
+Fix overflow
+Overflow at: 7 14 1
+Net at grid 7 14 1 : N1529 N1476 N895 N925 N1530 N1103 N1261 N836 N834 N969 N859 N1005 N988 N662 N290 N1516 N689 N1232 
+Reroute net: N1232
+Detour length: 0
+Fix overflow
+Overflow at: 22 14 1
+Net at grid 22 14 1 : N2171 N2202 N2172 N2405 N2174 
+Reroute net: N2202
+Detour length: 0
+N2202 1 -1
+Reroute net: N2174
+Detour length: 0
+Fix overflow
+Overflow at: 9 27 1
+Net at grid 9 27 1 : N1147 N915 N1298 N1225 N1291 N1134 N1306 N1283 N1307 N836 N1006 N1005 N644 N682 N679 N873 N680 N1144 N776 N851 N1224 
+Reroute net: N1224
+Detour length: 0
+N1224 3 4
+Reroute net: N1224
+Detour length: 3
+Fix overflow
+Overflow at: 2 11 1
+Net at grid 2 11 1 : N1454 N1432 N1441 N1443 N1431 N1442 N1456 N1510 N1511 N1338 N1455 N1508 N1360 N1430 N1507 
+Reroute net: N1507
+Detour length: 0
+N1507 3 4
+Reroute net: N1507
+Detour length: 3
+Fix overflow
+Overflow at: 12 6 1
+Net at grid 12 6 1 : N1267 N1268 N461 N459 N1269 N149 N143 N803 N460 N804 N370 N872 N371 N344 N81 N19 N80 N360 N454 
+Reroute net: N19
+Detour length: 0
+Fix overflow
+Overflow at: 6 19 2
+Net at grid 6 19 2 : N855 N953 N1016 N993 N836 N1006 N1063 N988 N686 N826 N992 N1003 N64 N63 N1055 N784 
+Reroute net: N988
+Detour length: 0
+N988 1 0
+Reroute net: N826
+Detour length: 0
+N826 1 0
+Reroute net: N64
+Detour length: 0
+N64 1 0
+Reroute net: N63
+Detour length: 0
+N63 1 0
+Reroute net: N1055
+Detour length: 0
+N1055 1 0
+Reroute net: N855
+Detour length: 0
+Overflow at: 6 19 1
+Net at grid 6 19 1 : N783 N953 N1016 N993 N1183 N905 N1184 N836 N1006 N1063 N686 N992 N1003 N851 N784 N988 N826 N1055 
+Reroute net: N784
+Detour length: 0
+Fix overflow
+Overflow at: 7 11 1
+Net at grid 7 11 1 : N1256 N1153 N1141 N1154 N960 N1041 N1010 N1011 N836 N1843 N664 N1921 N80 N846 N1072 N988 N949 
+Reroute net: N80
+Detour length: 0
+Fix overflow
+Overflow at: 18 9 1
+Net at grid 18 9 1 : N2477 N2616 N2193 N141 N140 N2224 N2017 N2050 
+Reroute net: N2050
+Detour length: 0
+Fix overflow
+Overflow at: 13 13 1
+Net at grid 13 13 1 : N806 N505 N438 N446 N439 N241 N370 N371 N152 N344 N325 N329 N1076 N328 N247 N1301 N449 N448 N447 N440 
+Reroute net: N440
+Detour length: 0
+Fix overflow
+Overflow at: 2 8 2
+Net at grid 2 8 2 : N1722 N1826 N1743 N52 N1701 N1984 N1779 
+Reroute net: N52
+Detour length: 0
+N52 1 0
+Reroute net: N1701
+Detour length: 0
+Fix overflow
+Overflow at: 2 8 2
+Net at grid 2 8 2 : N1722 N1826 N1743 N1984 N1779 N52 N1701 
+Reroute net: N1701
+Detour length: 0
+Fix overflow
+Overflow at: 11 20 1
+Net at grid 11 20 1 : N1470 N1429 N1452 N1342 N1340 N1341 N676 N1789 N705 N1451 N737 
+Reroute net: N1789
+Detour length: 0
+N1789 1 0
+Reroute net: N737
+Detour length: 0
+Grid Length: 26114 Calculate Length: 26114
+Ideal wire length is: 26106
+End optimization
+
+SUMMARY
+Number of Iteration:                    0
+Number of success movement:             0
+Number of failed movement:              0
+Number of routing refinement:           0
+Number of moved instance:               0
+Additional Information for debug
+Number of routing failed:               0
+Number of placed failed:                0
+Writing to output...
+Spend time: 1

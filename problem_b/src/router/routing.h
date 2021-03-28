@@ -272,6 +272,9 @@ class router_C
 
 	bool rrr( vector< net_C* > & );
 	bool pre_route( vector< net_C* > & );
+	bool pre_route_ver2( vector< net_C* > & );
+	bool pre_route_ver3( vector< net_C* > & );
+	bool pre_route_ver4( vector< net_C* > & );
 	bool saveNet( net_C*, vector< gGrid_C* > & );
 	bool saveNet( net_C*, vector< vector< gGrid_C* > > & );
 	bool setRoutingConstraint( net_C* );
