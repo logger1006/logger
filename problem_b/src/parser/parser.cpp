@@ -14,6 +14,7 @@ bool parser(design_C *pDesign, char *pFileName)
 {
 	ifstream fin;
 	fin.open(pFileName, ios::in);
+	ios::sync_with_stdio(false);
 	if (!fin)
 	{
 		return false;

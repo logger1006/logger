@@ -69,9 +69,10 @@ protected:
 	int m_nReroute;
 	vector<int> nx, ny, nz; //pin : x,y,z
 	int m_nLength;
+	int m_nIdealLength;
 
 public:
-	net_C() : m_nNumNet(0), m_nReroute(0), m_nLength(0){};
+	net_C() : m_nNumNet(0), m_nReroute(0), m_nLength(0), m_nIdealLength(0){};
 	~net_C(){};
 	// set data
 	void setName(string strName) { m_strName = strName; }
@@ -87,6 +88,7 @@ public:
 	void addInst(instance_C *temp) { m_vInst.push_back(temp); }
 	void setLength(int nLength) { m_nLength = nLength; }
 	void setConstraintLayerId( int nLayerId ){ m_nConstraintLayerId = nLayerId; }
+	void setIdealLength( int nLength ){ m_nIdealLength = nLength; }
 
 	// get data
 	string getName()
@@ -105,6 +107,7 @@ public:
 	vector<int> getnz() { return nz; }
 	vector<instance_C *> getInst() { return m_vInst; }
 	int getLength() { return m_nLength; }
+	int getIdealLength(){ return m_nIdealLength; }
 	// other operation
 	void cleanWire()
 	{

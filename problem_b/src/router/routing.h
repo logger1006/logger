@@ -224,6 +224,7 @@ class router_C
 	vector< gGrid_C* >findPlaceToMove_ver4( instance_C*, boundry_C* );
 	vector< gGrid_C* >findPlaceToMove_ver4( instance_C*, boundry_C*, set< instance_C* > & );
 	vector< gGrid_C* >findPlaceToMove_ver4( instance_C*, set< net_C* > &, set< instance_C* > &);
+	vector< gGrid_C* >findPlaceToMove_ver5( instance_C*, boundry_C*, set< instance_C* > & );
 	bool iterPlaceInst( int &, int, vector< instance_C* > &, vector< vector< gGrid_C* > > &, vector< net_C* >, int, vector< instance_C* >, vector< int > );
 	bool iterPlaceInst_ver2( int &, int, vector< instance_C* > &, vector< vector< gGrid_C* > > &, vector< net_C* >, int, vector< instance_C* >, vector< int >, vector< instance_C* > &, const int );
 // end change 
@@ -269,6 +270,8 @@ class router_C
 	bool multiNetRouting_ver2( vector< net_C* > , int &, vector< net_C* > & );
 	bool rrr( vector< net_C* > &, vector< gGrid_C* > &, unordered_map<net_C*, int > &, int &, vector< net_C* > & );
 	bool rrr_ver2( vector< net_C* > &, vector< gGrid_C* > &, unordered_map<net_C*, int > &, int &, vector< net_C* > & );
+	bool rrr_ver3( vector< net_C* > &, vector< gGrid_C* > &, unordered_map<net_C*, int > &, int &, vector< net_C* > & );
+	bool rrr_ver4( vector< net_C* > &, vector< gGrid_C* > &, unordered_map<net_C*, int > &, int &, vector< net_C* > & );
 
 	bool rrr( vector< net_C* > & );
 	bool pre_route( vector< net_C* > & );

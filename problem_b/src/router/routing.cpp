@@ -11,6 +11,7 @@
 #include "flute.h"
 #include "3Dresult.h"
 #include "assistant.h"
+#include <queue>
 //#include "omp.h"
 
 using namespace std;
@@ -805,6 +806,7 @@ inline bool router_C::backupNet(vector<net_C *> &vNet)
 			cNet.addWire(pNewWire);
 		}
 		cNet.setLength(pNet->getLength());
+		cNet.setIdealLength( pNet->getIdealLength() );
 		m_vBackupNet.push_back(cNet);
 	}
 }
@@ -825,6 +827,7 @@ inline bool router_C::backupNet( vector< net_C > &vBackupNet, net_C* pNet )
 		cNet.addWire(pNewWire);
 	}
 	cNet.setLength(pNet->getLength());
+	cNet.setIdealLength( pNet->getIdealLength() );
 	vBackupNet.push_back(cNet);
 }
 
@@ -845,6 +848,7 @@ inline bool router_C::backupNet( net_C* pNet )
 		cNet.addWire(pNewWire);
 	}
 	cNet.setLength(pNet->getLength());
+	cNet.setIdealLength( pNet->getIdealLength() );
 	m_vBackupNet.push_back(cNet);
 }
 
@@ -864,6 +868,7 @@ inline bool router_C::recoverNet( vector< net_C > &vBackupNet, net_C * pNet)
 				pNet->addWire(vBWire[k]);
 			}
 			pNet->setLength(cBNet.getLength());
+			pNet->setIdealLength( cBNet.getIdealLength() );
 			//if( pNet->getName() == "N4" )
 			//	cout << vBWire.size() << endl;
 			break;
@@ -900,6 +905,7 @@ inline bool router_C::recoverNet( vector< net_C > &vBackupNet, vector<net_C *> &
 					pNet->addWire(vBWire[k]);
 				}
 				pNet->setLength(cBNet.getLength());
+				pNet->setIdealLength( cBNet.getIdealLength() );
 				//if( pNet->getName() == "N4" )
 				//	cout << vBWire.size() << endl;
 				break;
@@ -938,6 +944,7 @@ inline bool router_C::recoverNet(vector<net_C *> &vNet)
 					pNet->addWire(vBWire[k]);
 				}
 				pNet->setLength(cBNet.getLength());
+				pNet->setIdealLength( cBNet.getIdealLength() );
 				//if( pNet->getName() == "N4" )
 				//	cout << vBWire.size() << endl;
 				break;
@@ -3263,7 +3270,7 @@ bool router_C::multiNetRouting_ver2( vector< net_C* > vNet, int &nLengthConstrai
 	for( int n=0; n < vNet.size(); n++ )
 	{
 		net_C* pNet = vNet[n];
-		cout << pNet->getName() << endl;	
+		//cout << pNet->getName() << endl;	
 		vector<vector<gGrid_C *>> vResult = routeNet_length_constraint_ver3( pNet, nLengthConstraint );
 		if (vResult.size() == 0)
 		{
@@ -3295,12 +3302,14 @@ bool router_C::multiNetRouting_ver2( vector< net_C* > vNet, int &nLengthConstrai
 			bool bOverflow = false;	
 			if( vOGrid.size() > 0  )
 			{
-				cout << "Fix overflow"<<endl;
-				bOverflow = rrr_ver2( vRoutedNet, vOGrid, mLengthTable, nLengthConstraint, vRRRNet );
+				//cout << "Fix overflow"<<endl;
+				//bOverflow = rrr_ver2( vRoutedNet, vOGrid, mLengthTable, nLengthConstraint, vRRRNet );
+				bOverflow = rrr_ver3( vRoutedNet, vOGrid, mLengthTable, nLengthConstraint, vRRRNet );
+				//bOverflow = rrr_ver4( vRoutedNet, vOGrid, mLengthTable, nLengthConstraint, vRRRNet );
 			}
 			if( bOverflow )
 			{
-				cout << "Still overflow"<<endl;
+				//cout << "Still overflow"<<endl;
 				vRoutedNet.push_back( pNet );
 				bRouteAllNet = false;
 				break;
@@ -3409,8 +3418,8 @@ bool router_C::multiNetRouting_ver2( vector< net_C* > vNet, int &nLengthConstrai
 	{	
 		bSuccess = true;
 		cout << "Original Length: " << nConstraint << " New Length: "<< nNewLength<<endl;
-		for( int i=0; i<vRoutedNet.size(); i++ )
-			cout << vRoutedNet[i]->getName() << " " << vRoutedNet[i]->getLength() << endl;
+		//for( int i=0; i<vRoutedNet.size(); i++ )
+		//	cout << vRoutedNet[i]->getName() << " " << vRoutedNet[i]->getLength() << endl;
 	}
 
 	return bSuccess;
@@ -3691,6 +3700,596 @@ vector< gGrid_C* > router_C::checkOverflow( vector< vector< gGrid_C* > > &vResul
 	return vOGrid;	
 }
 
+bool router_C::rrr_ver4( vector< net_C* > &vRoutedNet, vector< gGrid_C* > &vOGrid, unordered_map< net_C*, int > &mLengthTable, int &nLengthConstraint, vector< net_C* > &vTmpRip )
+{
+	bool bOverflow = true;
+	set< net_C* > sRoutedNet;
+	vector< net_C* > vRerouteNet;
+	set< net_C* > sRerouteNet;
+	vector< net_C > vLocalBackup;
+	set< string > sLocalBackupNet;
+	set< string > sBackupNet;
+	for( int i=0; i<vRoutedNet.size(); i++ )
+	{
+		sRoutedNet.insert( vRoutedNet[i] );
+		//mLengthTable[ vRoutedNet[i] ] = vRoutedNet[i]->getLength() - min( vRoutedNet[i]->getLength(), routeNet_ideal( vRoutedNet[i] ) ) ; 
+		//mLengthTable[ vRoutedNet[i] ] = 0 ; 
+		mLengthTable[ vRoutedNet[i] ] = max( 0, vRoutedNet[i]->getLength() - vRoutedNet[i]->getIdealLength() ) ; 
+	}
+
+	for( int i=0; i<m_vBackupNet.size(); i++ )
+	{
+		sBackupNet.insert( m_vBackupNet[i].getName() );
+	}
+
+	for( int i=0; i<vOGrid.size(); i++ )
+	{
+		if( vOGrid[i]->getRemand() < 0 )
+		{
+			//cout << "Num overflow: "<< vOGrid.size() << " at: "<< i << ": "; 
+			bOverflow = true;
+			gGrid_C* pOGrid = vOGrid[i];
+			int nOX, nOY, nOZ;
+			pOGrid->getPosition( nOX, nOY, nOZ );
+			//cout << "Overflow at: "<< nOX << " " << nOY << " " << nOZ << endl;
+			vector< net_C* > vONet = pOGrid->getNet();
+			vector< instance_C* > vInst = getGrid(m_pDesign, nOX, nOY, m_nOffsetZ )->getInstance();
+			set< net_C* > sPinNet;
+			/*
+			for( int j=0; j<vInst.size(); j++ )
+			{
+				instance_C* pInst = vInst[j];
+				forced_C* pF = &m_vForced[ pInst->getId() ];
+				vector< networkForced_C* > &vNF = pF->m_vNetwork;
+				for( int n=0; n<vNF.size(); n++ )
+					sPinNet.insert( vNF[n]->m_pNet );
+			}
+			*/
+			for( int j=0; j<vInst.size(); j++ )
+			{
+				instance_C* pInst = vInst[j];
+				vector< pin_C > vPin = pInst->getPin();
+				for( int k=0; k<vPin.size(); k++ )
+				{
+					if( vPin[k].getNet() == NULL )
+						continue;
+					int nLayer = vPin[k].getLayerId();
+					int nLayerConstraint = vPin[k].getNet()->getConstraintLayerId();
+					if( nLayerConstraint >= nOZ && nLayer <= nOZ || nLayer == nOZ )
+						sPinNet.insert( vPin[k].getNet() );
+				}
+			}
+
+			vector< net_C* > vCanRip;
+			vector< int > vDetourLength;
+			vector< int > vIdealLength;
+			//cout << "Net at grid " << nOX << " " << nOY << " " << nOZ <<" : ";
+			for( int j=0; j<vONet.size(); j++ )
+			{
+				//cout << vONet[j]->getName() << " ";
+				if( sPinNet.count( vONet[j] ) == 0 )
+				{
+					vCanRip.push_back( vONet[j] );
+					//vIdealLength.push_back( routeNet_ideal( vONet[j] ) );
+					vIdealLength.push_back( vONet[j]->getIdealLength() );
+					vDetourLength.push_back( vONet[j]->getLength() - vIdealLength.back() );
+					mLengthTable[ vONet[j] ] = vDetourLength.back();
+				}
+			}
+			//cout << endl;
+			//cout << "Candidate nets: " << vCanRip.size() << endl;
+			if( vCanRip.size() == 0 )
+			{
+				cout << "No net can rip" << endl;
+				break;
+			}
+			else
+			{
+				
+				for( int j=1; j<vCanRip.size(); j++ )
+				{
+					for( int k=j-1; k>=0; k-- )
+					{
+						net_C* pFNet = vCanRip[k];
+						net_C* pBNet = vCanRip[k+1];
+						if( vDetourLength[k] < vDetourLength[k+1] )
+						{
+							break;
+						}
+						else if( vDetourLength[k] == vDetourLength[k+1] )
+						{
+							//if( vIdealLength[k] > vIdealLength[k+1] )
+							if( pFNet->getIdealLength() < pBNet->getIdealLength() )
+							{
+								break;
+							}
+							else
+							{
+								vCanRip[k] = pBNet;
+								vCanRip[k+1] = pFNet;
+								
+								int nTmpLength = vDetourLength[k];
+								vDetourLength[k] = vDetourLength[k+1];
+								vDetourLength[k+1] = nTmpLength;
+								
+								nTmpLength = vIdealLength[k];
+								vIdealLength[k] = vIdealLength[k+1];
+								vIdealLength[k+1] = nTmpLength;
+							}
+						}
+						else
+						{
+							vCanRip[k] = pBNet;
+							vCanRip[k+1] = pFNet;
+							
+							int nTmpLength = vDetourLength[k];
+							vDetourLength[k] = vDetourLength[k+1];
+							vDetourLength[k+1] = nTmpLength;
+							
+							nTmpLength = vIdealLength[k];
+							vIdealLength[k] = vIdealLength[k+1];
+							vIdealLength[k+1] = nTmpLength;
+						}
+					}
+					
+				}
+				
+
+				do
+				{
+					net_C* pRipNet = NULL;
+					int nMaxLength = 0;
+					int nMinDLength = INT_MAX;
+					//int nMinDLength = 0;
+					pRipNet = vCanRip.back();
+					nMinDLength = mLengthTable[pRipNet];
+					nMaxLength = pRipNet->getLength();
+
+					vCanRip.erase( vCanRip.end() - 1 );
+					//cout << "Rip: " << pRipNet->getName() << " in length " << nMaxLength << endl;
+					//cout << "Reroute net: " << pRipNet->getName() << endl;
+					nLengthConstraint = nLengthConstraint + nMaxLength;
+					if( sLocalBackupNet.count( pRipNet->getName() ) == 0 )
+					{
+						backupNet( vLocalBackup, pRipNet );
+						sLocalBackupNet.insert( pRipNet->getName() );
+					}
+					ripupNet( pRipNet );
+					pRipNet->cleanWire();
+					//cout << "Detour length: " << nMinDLength << endl;	
+					//vector< vector< gGrid_C* > > vReroute = routeNet_length_constraint_ver3( pRipNet, nLengthConstraint, nMinDLength );
+					//vector< vector< gGrid_C* > > vReroute = routeNet_length_constraint_ver4( pRipNet, nMaxLength + nMinDLength );
+					//int nIdealLength = routeNet_ideal( pRipNet );
+					int nIdealLength = pRipNet->getIdealLength();
+					vector< vector< gGrid_C* > > vReroute = routeNet_length_constraint_ver4( pRipNet, nIdealLength + nMinDLength );
+					if( vReroute.size() != 0 )
+					{
+						
+						/*
+						for( int p=0; p<vReroute.size(); p++ )
+						{
+							for( int pp=0; pp<vReroute[p].size(); pp++ )
+							{
+								gGrid_C* pPGrid = vReroute[p][pp];
+								int nPX, nPY, nPZ;
+								pPGrid->getPosition( nPX, nPY, nPZ );
+								cout << "("<<nPX << " " << nPY << " " << nPZ << ") ";
+							}
+							cout << endl;
+						}
+						cout << endl;
+						*/
+						vRerouteNet.push_back( pRipNet );
+						sRerouteNet.insert( pRipNet );
+						saveNet( pRipNet, vReroute );
+						addNetOnGraph( m_pDesign, pRipNet );
+						nLengthConstraint = nLengthConstraint - pRipNet->getLength();
+						
+						vector< gGrid_C* > vNewOGrid = checkOverflow( vReroute );
+						if( vNewOGrid.size() == 0 )
+							bOverflow = false;
+							
+						else if( vOGrid[i]->getRemand() < 0 )
+						{
+							bOverflow = true;
+						}
+						else
+						{
+							bOverflow = false;
+							for( int o=0; o<vNewOGrid.size(); o++ )
+								vOGrid.push_back( vNewOGrid[o] );
+						}
+						break;
+					}
+					else // recover the net
+					{
+						nLengthConstraint = nLengthConstraint - nMaxLength;
+						nMinDLength = nMinDLength + max( 1, ( nLengthConstraint - nMinDLength - 1 ) );
+						//nMinDLength = nMinDLength + 1;
+						mLengthTable[ pRipNet ] = nMinDLength;
+						//cout << pRipNet->getName() << " " << nMinDLength << " " << nLengthConstraint << endl;
+						if( nMinDLength > nLengthConstraint )
+						{
+							//vCanRip.erase( vCanRip.begin() + nIndex );
+						}
+						else
+						{
+							bool bInsert = false;
+							for( int n = vCanRip.size() - 1; n>=0; n-- )
+							{
+								if( nMinDLength < mLengthTable[ vCanRip[n] ] )
+								{
+									continue;
+								}
+								else if( nMinDLength == mLengthTable[ vCanRip[n] ] )
+								{
+									if( pRipNet->getIdealLength() < vCanRip[n]->getIdealLength() )
+									{
+										continue;
+									}
+									else
+									{
+										vCanRip.insert( vCanRip.begin() + n+1, pRipNet );	
+										bInsert = true;
+										break;	
+									}
+								}
+								else
+								{
+									vCanRip.insert( vCanRip.begin() + n+1, pRipNet );	
+									bInsert = true;
+									break;
+								}
+							}
+							if( !bInsert )
+							{
+								vCanRip.insert( vCanRip.begin(), pRipNet );	
+							}	
+						}
+						recoverNet( vLocalBackup, pRipNet );
+						addNetOnGraph( m_pDesign, pRipNet );
+						vLocalBackup.erase( vLocalBackup.end() - 1 );
+						sLocalBackupNet.erase( pRipNet->getName() );
+						if( vCanRip.size() == 0 )
+						{
+							cout << "No net can ripup" << endl;
+							break;
+						}
+					}
+				}
+				while( bOverflow );
+
+			}
+			if( bOverflow )
+				break;
+
+		}
+	}
+
+	if( bOverflow )
+	{
+		ripupNet( vRerouteNet );
+		recoverNet( vLocalBackup, vRerouteNet );
+		//cout << "RRR recover: "<<endl;
+		for( int i=0; i<vRerouteNet.size(); i++ )
+		{
+			//cout << vRerouteNet[i]->getName() << endl;
+			addNetOnGraph( m_pDesign, vRerouteNet[i] );
+		}
+	}
+	else
+	{
+		for( int i=0; i<vLocalBackup.size(); i++ )
+		{
+			if( sBackupNet.count( vLocalBackup[i].getName() ) == 0 )
+			{
+				//cout << "Add " << vLocalBackup[i].getName() << " in Backup Lib" << endl; 
+				m_vBackupNet.push_back( vLocalBackup[i] );
+				for( int j=0; j<vRerouteNet.size(); j++ )
+				{
+					if( vRerouteNet[j]->getName() == vLocalBackup[i].getName() )
+					{
+						vTmpRip.push_back( vRerouteNet[j] );
+						break;
+					}
+				}
+			}
+		}
+		for( int i=0; i<vRerouteNet.size(); i++ )
+		{
+			if( sRoutedNet.count( vRerouteNet[i] ) == 0 )
+			{
+				vRoutedNet.push_back( vRerouteNet[i] );
+				sRoutedNet.insert( vRerouteNet[i] );
+			}
+		}
+	}
+	
+	return bOverflow;
+}
+
+
+bool router_C::rrr_ver3( vector< net_C* > &vRoutedNet, vector< gGrid_C* > &vOGrid, unordered_map< net_C*, int > &mLengthTable, int &nLengthConstraint, vector< net_C* > &vTmpRip )
+{
+	bool bOverflow = true;
+	set< net_C* > sRoutedNet;
+	vector< net_C* > vRerouteNet;
+	set< net_C* > sRerouteNet;
+	vector< net_C > vLocalBackup;
+	set< string > sLocalBackupNet;
+	set< string > sBackupNet;
+	for( int i=0; i<vRoutedNet.size(); i++ )
+	{
+		sRoutedNet.insert( vRoutedNet[i] );
+		//mLengthTable[ vRoutedNet[i] ] = vRoutedNet[i]->getLength() - min( vRoutedNet[i]->getLength(), routeNet_ideal( vRoutedNet[i] ) ) ; 
+		mLengthTable[ vRoutedNet[i] ] = 0 ; 
+	}
+
+	for( int i=0; i<m_vBackupNet.size(); i++ )
+	{
+		sBackupNet.insert( m_vBackupNet[i].getName() );
+	}
+
+	for( int i=0; i<vOGrid.size(); i++ )
+	{
+		if( vOGrid[i]->getRemand() < 0 )
+		{
+			//cout << "Num overflow: "<< vOGrid.size() << " at: "<< i << ": "; 
+			bOverflow = true;
+			gGrid_C* pOGrid = vOGrid[i];
+			int nOX, nOY, nOZ;
+			pOGrid->getPosition( nOX, nOY, nOZ );
+			//cout << "Overflow at: "<< nOX << " " << nOY << " " << nOZ << endl;
+			vector< net_C* > vONet = pOGrid->getNet();
+			vector< instance_C* > vInst = getGrid(m_pDesign, nOX, nOY, m_nOffsetZ )->getInstance();
+			set< net_C* > sPinNet;
+			/*
+			for( int j=0; j<vInst.size(); j++ )
+			{
+				instance_C* pInst = vInst[j];
+				forced_C* pF = &m_vForced[ pInst->getId() ];
+				vector< networkForced_C* > &vNF = pF->m_vNetwork;
+				for( int n=0; n<vNF.size(); n++ )
+					sPinNet.insert( vNF[n]->m_pNet );
+			}
+			*/
+			for( int j=0; j<vInst.size(); j++ )
+			{
+				instance_C* pInst = vInst[j];
+				vector< pin_C > vPin = pInst->getPin();
+				for( int k=0; k<vPin.size(); k++ )
+				{
+					if( vPin[k].getNet() == NULL )
+						continue;
+					int nLayer = vPin[k].getLayerId();
+					int nLayerConstraint = vPin[k].getNet()->getConstraintLayerId();
+					if( nLayerConstraint >= nOZ && nLayer <= nOZ || nLayer == nOZ )
+						sPinNet.insert( vPin[k].getNet() );
+				}
+			}
+
+			vector< net_C* > vCanRip;
+			queue< net_C* > qCanRip;
+			vector< int > vDetourLength;
+			vector< int > vIdealLength;
+			//cout << "Net at grid " << nOX << " " << nOY << " " << nOZ <<" : ";
+			for( int j=0; j<vONet.size(); j++ )
+			{
+				//cout << vONet[j]->getName() << " ";
+				if( sPinNet.count( vONet[j] ) == 0 )
+				{
+					vCanRip.push_back( vONet[j] );
+					//vIdealLength.push_back( routeNet_ideal( vONet[j] ) );
+					vIdealLength.push_back( vONet[j]->getIdealLength() );
+					vDetourLength.push_back( vONet[j]->getLength() - vIdealLength.back() );
+					mLengthTable[ vONet[j] ] = vDetourLength.back();
+				}
+			}
+			//cout << endl;
+			//cout << "Candidate nets: " << vCanRip.size() << endl;
+			if( vCanRip.size() == 0 )
+			{
+				cout << "No net can rip" << endl;
+				break;
+			}
+			else
+			{
+				
+				for( int j=1; j<vCanRip.size(); j++ )
+				{
+					for( int k=j-1; k>=0; k-- )
+					{
+						net_C* pFNet = vCanRip[k];
+						net_C* pBNet = vCanRip[k+1];
+						if( vDetourLength[k] > vDetourLength[k+1] )
+						{
+							break;
+						}
+						else if( vDetourLength[k] == vDetourLength[k+1] )
+						{
+							//if( vIdealLength[k] > vIdealLength[k+1] )
+							if( pFNet->getLength() > pBNet->getLength() )
+							{
+								break;
+							}
+							else
+							{
+								vCanRip[k] = pBNet;
+								vCanRip[k+1] = pFNet;
+								
+								int nTmpLength = vDetourLength[k];
+								vDetourLength[k] = vDetourLength[k+1];
+								vDetourLength[k+1] = nTmpLength;
+								
+								nTmpLength = vIdealLength[k];
+								vIdealLength[k] = vIdealLength[k+1];
+								vIdealLength[k+1] = nTmpLength;
+							}
+						}
+						else
+						{
+							vCanRip[k] = pBNet;
+							vCanRip[k+1] = pFNet;
+							
+							int nTmpLength = vDetourLength[k];
+							vDetourLength[k] = vDetourLength[k+1];
+							vDetourLength[k+1] = nTmpLength;
+							
+							nTmpLength = vIdealLength[k];
+							vIdealLength[k] = vIdealLength[k+1];
+							vIdealLength[k+1] = nTmpLength;
+						}
+					}
+					
+				}
+				
+				for( int j=0; j<vCanRip.size(); j++ )
+					qCanRip.push( vCanRip[j] );
+
+				do
+				{
+					net_C* pRipNet = NULL;
+					int nMaxLength = 0;
+					int nMinDLength = INT_MAX;
+					//int nMinDLength = 0;
+					pRipNet = qCanRip.front();
+					qCanRip.pop();
+					nMinDLength = mLengthTable[pRipNet];
+					nMaxLength = pRipNet->getLength();
+
+					//cout << "Rip: " << pRipNet->getName() << " in length " << nMaxLength << endl;
+					//cout << "Reroute net: " << pRipNet->getName() << endl;
+					nLengthConstraint = nLengthConstraint + nMaxLength;
+					if( sLocalBackupNet.count( pRipNet->getName() ) == 0 )
+					{
+						backupNet( vLocalBackup, pRipNet );
+						sLocalBackupNet.insert( pRipNet->getName() );
+					}
+					ripupNet( pRipNet );
+					pRipNet->cleanWire();
+					//cout << "Detour length: " << nMinDLength << endl;	
+					//vector< vector< gGrid_C* > > vReroute = routeNet_length_constraint_ver3( pRipNet, nLengthConstraint, nMinDLength );
+					//vector< vector< gGrid_C* > > vReroute = routeNet_length_constraint_ver4( pRipNet, nMaxLength + nMinDLength );
+					//int nIdealLength = routeNet_ideal( pRipNet );
+					int nIdealLength = pRipNet->getIdealLength();
+					vector< vector< gGrid_C* > > vReroute = routeNet_length_constraint_ver4( pRipNet, nIdealLength + nMinDLength );
+					if( vReroute.size() != 0 )
+					{
+						
+						/*
+						for( int p=0; p<vReroute.size(); p++ )
+						{
+							for( int pp=0; pp<vReroute[p].size(); pp++ )
+							{
+								gGrid_C* pPGrid = vReroute[p][pp];
+								int nPX, nPY, nPZ;
+								pPGrid->getPosition( nPX, nPY, nPZ );
+								cout << "("<<nPX << " " << nPY << " " << nPZ << ") ";
+							}
+							cout << endl;
+						}
+						cout << endl;
+						*/
+						vRerouteNet.push_back( pRipNet );
+						sRerouteNet.insert( pRipNet );
+						saveNet( pRipNet, vReroute );
+						addNetOnGraph( m_pDesign, pRipNet );
+						nLengthConstraint = nLengthConstraint - pRipNet->getLength();
+						
+						vector< gGrid_C* > vNewOGrid = checkOverflow( vReroute );
+						if( vNewOGrid.size() == 0 )
+							bOverflow = false;
+							
+						else if( vOGrid[i]->getRemand() < 0 )
+						{
+							bOverflow = true;
+						}
+						else
+						{
+							bOverflow = false;
+							for( int o=0; o<vNewOGrid.size(); o++ )
+								vOGrid.push_back( vNewOGrid[o] );
+						}
+						break;
+					}
+					else // recover the net
+					{
+						nLengthConstraint = nLengthConstraint - nMaxLength;
+						nMinDLength = nMinDLength + max( 1, ( nLengthConstraint - nMinDLength - 1 ) );
+						//nMinDLength = nMinDLength + 1;
+						mLengthTable[ pRipNet ] = nMinDLength;
+						//cout << pRipNet->getName() << " " << nMinDLength << " " << nLengthConstraint << endl;
+						if( nMinDLength > nLengthConstraint )
+						{
+							//vCanRip.erase( vCanRip.begin() + nIndex );
+						}
+						else
+						{
+							qCanRip.push( pRipNet );
+						}
+						recoverNet( vLocalBackup, pRipNet );
+						addNetOnGraph( m_pDesign, pRipNet );
+						vLocalBackup.erase( vLocalBackup.end() - 1 );
+						sLocalBackupNet.erase( pRipNet->getName() );
+						if( qCanRip.size() == 0 )
+						{
+							cout << "No net can ripup" << endl;
+							break;
+						}
+					}
+				}
+				while( bOverflow );
+
+			}
+			if( bOverflow )
+				break;
+
+		}
+	}
+
+	if( bOverflow )
+	{
+		ripupNet( vRerouteNet );
+		recoverNet( vLocalBackup, vRerouteNet );
+		//cout << "RRR recover: "<<endl;
+		for( int i=0; i<vRerouteNet.size(); i++ )
+		{
+			//cout << vRerouteNet[i]->getName() << endl;
+			addNetOnGraph( m_pDesign, vRerouteNet[i] );
+		}
+	}
+	else
+	{
+		for( int i=0; i<vLocalBackup.size(); i++ )
+		{
+			if( sBackupNet.count( vLocalBackup[i].getName() ) == 0 )
+			{
+				//cout << "Add " << vLocalBackup[i].getName() << " in Backup Lib" << endl; 
+				m_vBackupNet.push_back( vLocalBackup[i] );
+				for( int j=0; j<vRerouteNet.size(); j++ )
+				{
+					if( vRerouteNet[j]->getName() == vLocalBackup[i].getName() )
+					{
+						vTmpRip.push_back( vRerouteNet[j] );
+						break;
+					}
+				}
+			}
+		}
+		for( int i=0; i<vRerouteNet.size(); i++ )
+		{
+			if( sRoutedNet.count( vRerouteNet[i] ) == 0 )
+			{
+				vRoutedNet.push_back( vRerouteNet[i] );
+				sRoutedNet.insert( vRerouteNet[i] );
+			}
+		}
+	}
+	
+	return bOverflow;
+}
+
+
 bool router_C::rrr_ver2( vector< net_C* > &vRoutedNet, vector< gGrid_C* > &vOGrid, unordered_map< net_C*, int > &mLengthTable, int &nLengthConstraint, vector< net_C* > &vTmpRip )
 {
 	bool bOverflow = true;
@@ -3772,6 +4371,7 @@ bool router_C::rrr_ver2( vector< net_C* > &vRoutedNet, vector< gGrid_C* > &vOGri
 					net_C* pRipNet = NULL;
 					int nMaxLength = 0;
 					int nMinDLength = INT_MAX;
+					//int nMinDLength = 0;
 					int nIndex = -1;
 					for( int j=0; j<vCanRip.size(); j++ )
 					{
@@ -3783,6 +4383,7 @@ bool router_C::rrr_ver2( vector< net_C* > &vRoutedNet, vector< gGrid_C* > &vOGri
 						int nDLength = mLengthTable.find( vCanRip[j] )->second;
 						
 						if( nDLength < nMinDLength )
+						//if( nDLength > nMinDLength )
 						{
 							nMinDLength = nDLength;
 							nMaxLength = vCanRip[j]->getLength();
@@ -3810,7 +4411,8 @@ bool router_C::rrr_ver2( vector< net_C* > &vRoutedNet, vector< gGrid_C* > &vOGri
 					cout << "Detour length: " << nMinDLength << endl;	
 					//vector< vector< gGrid_C* > > vReroute = routeNet_length_constraint_ver3( pRipNet, nLengthConstraint, nMinDLength );
 					//vector< vector< gGrid_C* > > vReroute = routeNet_length_constraint_ver4( pRipNet, nMaxLength + nMinDLength );
-					int nIdealLength = routeNet_ideal( pRipNet );
+					//int nIdealLength = routeNet_ideal( pRipNet );
+					int nIdealLength = pRipNet->getIdealLength();
 					vector< vector< gGrid_C* > > vReroute = routeNet_length_constraint_ver4( pRipNet, nIdealLength + nMinDLength );
 					if( vReroute.size() != 0 )
 					{
@@ -5094,7 +5696,7 @@ int router_C::routeNet_ideal(net_C *pNet, set< instance_C* > &sUnplacedInst )
 		{
 			for (int i = nHistoryIndex; i < vHistory.size(); i++)
 			{
-				for (int j = i - 1; j >= 0; j--)
+				for (int j = i - 1; j >= nHistoryIndex; j--)
 				{
 					if (vHistory[j]->m_nCost > vHistory[j + 1]->m_nCost)
 					{
@@ -5102,6 +5704,20 @@ int router_C::routeNet_ideal(net_C *pNet, set< instance_C* > &sUnplacedInst )
 						rGrid_C *pBGrid = vHistory[j + 1];
 						vHistory[j] = pBGrid;
 						vHistory[j + 1] = pFGrid;
+					}
+					else if (vHistory[j]->m_nCost ==  vHistory[j + 1]->m_nCost)
+					{
+						rGrid_C *pFGrid = vHistory[j];
+						rGrid_C *pBGrid = vHistory[j + 1];
+						if( pFGrid->m_nZ == pCurRGrid->m_nZ )
+							break;
+						else if( pBGrid->m_nZ == pCurRGrid->m_nZ )
+						{	
+							vHistory[j] = pBGrid;
+							vHistory[j + 1] = pFGrid;	
+						}
+						else
+							break;
 					}
 					else
 						break;
@@ -13452,6 +14068,7 @@ bool router_C::calForcedNetwork_ver3(networkForced_C &cNF)
 {
 	net_C* pNet = cNF.m_pNet;
 	vector< instance_C* > vInst = pNet->getInst();
+	pNet->setIdealLength( routeNet_ideal( pNet ) );
 
 	int nTmpX = -1;
 	int nTmpY = -1;
@@ -15437,7 +16054,9 @@ gGrid_C* router_C::findPlaceToMove( instance_C* pInst )
 }
 */
 
+
 // added at 0705 02:00
+
 vector<gGrid_C *> router_C::findPlaceToMove_ver4(instance_C *pInst, set< net_C* > &sNet, set< instance_C* > &sInst )
 {
 	int nOrigX = pInst->getPlacedX();
@@ -15693,7 +16312,7 @@ vector<gGrid_C *> router_C::findPlaceToMove_ver4(instance_C *pInst)
 	return vBestGrid;
 }
 
-vector<gGrid_C *> router_C::findPlaceToMove_ver4(instance_C *pInst, boundry_C* pBound, set< instance_C* > &sUnplacedInst )
+vector<gGrid_C *> router_C::findPlaceToMove_ver5(instance_C *pInst, boundry_C* pBound, set< instance_C* > &sUnplacedInst )
 {
 	int nOrigX = pInst->getPlacedX();
 	int nOrigY = pInst->getPlacedY();
@@ -15885,10 +16504,293 @@ vector<gGrid_C *> router_C::findPlaceToMove_ver4(instance_C *pInst, boundry_C* p
 		int nTmpX, nTmpY, nTmpZ;
 		gGrid_C *pG = vBestGrid[i];
 		pG->getPosition(nTmpX, nTmpY, nTmpZ);
+		pInst->setPlaced( nTmpX, nTmpY );
+		
+		int nCost = 0;
+		for( int j=0; j<vNet.size(); j++ )
+		{
+			nCost = nCost + routeNet_ideal( vNet[j], sUnplacedInst );
+		}
+//		
+		vBestGridCost.push_back(nCost);
+	}
+
+	// added at 0706 19:30
+	for (int i = 1; i < vBestGrid.size(); i++)
+	{
+		for (int j = i - 1; j >= 0; j--)
+		{
+			//if( !cF.m_bLockInX )
+			//	nDX = cF.m_nR - cF.m_nL;
+			//if( !cF.m_bLockInY )
+			//	nDY = cF.m_nT - cF.m_nD;
+
+			//int nTmpX, nTmpY, nTmpZ, nTmpB, nTmpF;
+			gGrid_C *pBG = vBestGrid[j + 1];
+			//pBG->getPosition( nTmpX, nTmpY, nTmpZ );
+
+			//int nBCost = boundingBoxCost( nTmpX, vMinX, vMaxX )
+			//	   + boundingBoxCost( nTmpY, vMinY, vMaxY ) ;
+			int nBCost = vBestGridCost[j + 1];
+			int nFCost = vBestGridCost[j];
+			int nBDelta = vDelta[j+1];
+			int nFDelta = vDelta[j];
+
+			gGrid_C *pFG = vBestGrid[j];
+			//pFG->getPosition( nTmpX, nTmpY, nTmpZ );
+
+			//int nFCost = boundingBoxCost( nTmpX, vMinX, vMaxX )
+			//	   + boundingBoxCost( nTmpY, vMinY, vMaxY ) ;
+
+			if (nFCost >= nBCost)
+			{
+				//if( pBound->m_nMove == 1 )
+				//{
+				/*
+					if( nFDelta <= nBDelta )
+						break;
+					else
+					{
+						vBestGrid[j + 1] = pFG;
+						vBestGrid[j] = pBG;
+						vBestGridCost[j + 1] = nFCost;
+						vBestGridCost[j] = nBCost;
+						vDelta[j + 1] = nFDelta;
+						vDelta[j] = nBDelta;	
+					}
+				*/
+				//}
+				//else // == -1
+				//{
+				/*
+					if( nFDelta >= nBDelta )
+						break;
+					else
+					{
+						vBestGrid[j + 1] = pFG;
+						vBestGrid[j] = pBG;
+						vBestGridCost[j + 1] = nFCost;
+						vBestGridCost[j] = nBCost;
+						vDelta[j + 1] = nFDelta;
+						vDelta[j] = nBDelta;	
+					}	
+				*/
+				//}
+				break;
+			}
+			else
+			{
+				vBestGrid[j + 1] = pFG;
+				vBestGrid[j] = pBG;
+				vBestGridCost[j + 1] = nFCost;
+				vBestGridCost[j] = nBCost;
+				//vDelta[j + 1] = nFDelta;
+				//vDelta[j] = nBDelta;
+			}
+		}
+	}
+	// endadded at 0706 19:30
+
+	pInst->setPlaced(nOrigX, nOrigY);
+	sUnplacedInst.insert( pInst );
+	//return pBestGrid;
+	return vBestGrid;
+}
+
+vector<gGrid_C *> router_C::findPlaceToMove_ver4(instance_C *pInst, boundry_C* pBound, set< instance_C* > &sUnplacedInst )
+{
+	int nOrigX = pInst->getPlacedX();
+	int nOrigY = pInst->getPlacedY();
+	sUnplacedInst.erase( pInst );
+	vector<gGrid_C *> vBestGrid;
+
+	forced_C *cF;
+	if (pInst == m_vForced[pInst->getId()].m_pInstance)
+	{
+		cF = &m_vForced[pInst->getId()];
+	}
+	else
+	{
+		for (int i = 0; i < m_vForced.size(); i++)
+		{
+			if (m_vForced[i].m_pInstance == pInst)
+			{
+				cF = &m_vForced[i];
+				break;
+			}
+		}
+	}
+
+	int nStartX = cF->m_nBoundX1;
+	int nEndX = cF->m_nBoundX2;
+	int nStartY = cF->m_nBoundY1;
+	int nEndY = cF->m_nBoundY2;
+//
+	vector< net_C* > vNet;
+	vector< int > vExtraCost;
+	for( int i=0; i<cF->m_vNetwork.size(); i++ )
+	{
+		vNet.push_back( cF->m_vNetwork[i]->m_pNet );
+		vExtraCost.push_back( cF->m_vNetwork[i]->m_pNet->getConstraintLayerId() );
+	}
+//
+
+	if( pBound->m_cType == 'T' || pBound->m_cType =='D' )
+	{
+		nStartX = pBound->m_nBoundX1;
+		nEndX = pBound->m_nBoundX2;
+		/*
+		if( pBound->m_cType == 'T' && pBound->m_nMove == 1 )
+			nEndX--;
+		else if( pBound->m_cType == 'T' && pBound->m_nMove == -1 )
+			nStartX++;
+		
+		if( pBound->m_cType == 'D' && pBound->m_nMove == 1 )
+			nStartX++;
+		else if( pBound->m_cType == 'D' && pBound->m_nMove == -1 )
+			nEndX--;
+		*/
+		/*
+		if( pBound->m_nBoundX1 > cF->m_nBoundX1 )
+			nStartX = pBound->m_nBoundX1;
+		else if( pBound->m_nBoundX2 < cF->m_nBoundX1 )
+			nStartX = pBound->m_nBoundX2;
+		else
+			nStartX = cF->m_nBoundX1;
+		if( pBound->m_nBoundX2 < cF->m_nBoundX2 )
+			nEndX = pBound->m_nBoundX2;
+		else if( pBound->m_nBoundX1 > cF->m_nBoundX2 )
+			nEndX = pBound->m_nBoundX1;
+		else
+			nEndX = cF->m_nBoundX2;
+		*/
+		
+		//if( pBound->m_nBoundY1 > cF->m_nBoundY1 )
+		//	nStartY = pBound->m_nBoundY1;
+		//else if( pBound->m_nBoundY2 < cF->m_nBoundY1 )
+		//	nStartY = pBound->m_nBoundY2;
+		//else
+		//	nStartY = cF->m_nBoundY1;
+		
+		nStartY = pBound->m_nBoundY1;
+		
+		//if( pBound->m_nBoundY2 < cF->m_nBoundY2 )
+		//	nEndY = pBound->m_nBoundY2;
+		//else if( pBound->m_nBoundY1 > cF->m_nBoundY2 )
+		//	nEndY = pBound->m_nBoundY1;
+		//else
+		//	nEndY = cF->m_nBoundY2;
+		
+		nEndY = pBound->m_nBoundY2;
+	}
+	else
+	{
+		nStartY = pBound->m_nBoundY1;
+		nEndY = pBound->m_nBoundY2;
+		/*	
+		if( pBound->m_cType == 'R' && pBound->m_nMove == 1 )
+			nEndY--;
+		else if( pBound->m_cType == 'R' && pBound->m_nMove == -1 )
+			nStartY++;
+		
+		if( pBound->m_cType == 'L' && pBound->m_nMove == 1 )
+			nStartY++;
+		else if( pBound->m_cType == 'L' && pBound->m_nMove == -1 )
+			nEndY--;
+		*/
+		/*
+		if( pBound->m_nBoundY1 > cF->m_nBoundY1 )
+			nStartY = pBound->m_nBoundY1;
+		else if( pBound->m_nBoundY2 < cF->m_nBoundY1 )
+			nStartY = pBound->m_nBoundY2;
+		else
+			nStartY = cF->m_nBoundY1;
+		if( pBound->m_nBoundY2 < cF->m_nBoundY2 )
+			nEndY = pBound->m_nBoundY2;
+		else if( pBound->m_nBoundY1 > cF->m_nBoundY2 )
+			nEndY = pBound->m_nBoundY1;
+		else
+			nEndY = cF->m_nBoundY2;
+		*/
+		
+		//if( pBound->m_nBoundX1 > cF->m_nBoundX1 )
+		//	nStartX = pBound->m_nBoundX1;
+		//else if( pBound->m_nBoundX2 < cF->m_nBoundX1 )
+		//	nStartX = pBound->m_nBoundX2;
+		//else
+		//	nStartX = cF->m_nBoundX1;
+		
+		nStartX = pBound->m_nBoundX1;
+		
+		//if( pBound->m_nBoundX2 < cF->m_nBoundX2 )
+		//	nEndX = pBound->m_nBoundX2;
+		//else if( pBound->m_nBoundX1 > cF->m_nBoundX2 )
+		//	nEndX = pBound->m_nBoundX1;
+		//else
+		//	nEndX = cF->m_nBoundX2;
+		
+		nEndX = pBound->m_nBoundX2;
+	}
+	//if( pInst->getName() == "C1200" )
+		cout<<"Range: "<<nStartX<<" "<<nStartY<<" "<<nEndX<<" "<<nEndY<<endl;
+
+	for (int nX = nStartX; nX <= nEndX; nX++)
+	{
+		for (int nY = nStartY; nY <= nEndY; nY++)
+		{
+			gGrid_C *pPGrid = getGrid(m_pDesign, nX, nY, m_nOffsetZ);
+			vector< net_C* > vRipNet;
+			//if( isPlaceable_ver5( pPGrid, pInst, vRipNet ) )
+				vBestGrid.push_back(pPGrid);
+		}
+	}
+	// end added at 0711 02:00
+	/*
+	vector<int> &vMinX = cF->m_vMinX;
+	vector<int> &vMaxX = cF->m_vMaxX;
+
+	vector<int> &vMinY = cF->m_vMinY;
+	vector<int> &vMaxY = cF->m_vMaxY;
+	*/
+	/*
+	vector<int> &vMinX = pBound->m_vMinX;
+	vector<int> &vMaxX = pBound->m_vMaxX;
+
+	vector<int> &vMinY = pBound->m_vMinY;
+	vector<int> &vMaxY = pBound->m_vMaxY;
+	*/
+	vector<int> vMinX;
+	vector<int> vMaxX;
+
+	vector<int> vMinY;
+	vector<int> vMaxY;
+
+	for( int i=0; i<cF->m_vNetwork.size(); i++ )
+	{
+		for( int j=0; j<pBound->m_vNetwork.size(); j++ )
+		{
+			if( cF->m_vNetwork[i] == pBound->m_vNetwork[j] )
+			{
+				vMinX.push_back( pBound->m_vMinX[j] );
+				vMaxX.push_back( pBound->m_vMaxX[j] );
+				vMinY.push_back( pBound->m_vMinY[j] );
+				vMaxY.push_back( pBound->m_vMaxY[j] );
+				break;
+			}
+		}
+	}
+
+	vector<int> vBestGridCost;
+	vector<int> vDelta;
+	for (int i = 0; i < vBestGrid.size(); i++)
+	{
+		int nTmpX, nTmpY, nTmpZ;
+		gGrid_C *pG = vBestGrid[i];
+		pG->getPosition(nTmpX, nTmpY, nTmpZ);
 
 		int nCost = boundingBoxCost(nTmpX, vMinX, vMaxX) + boundingBoxCost(nTmpY, vMinY, vMaxY);
 
-//		
+//			
 		int nExtra = 0;
 		vector< instance_C* > vTmpInst = vBestGrid[i]->getInstance();
 		vector< bool > vNetInfo;
@@ -15919,14 +16821,13 @@ vector<gGrid_C *> router_C::findPlaceToMove_ver4(instance_C *pInst, boundry_C* p
 		nCost = nCost + nExtra;
 //
 
-		pInst->setPlaced( nTmpX, nTmpY );
-		/*
+/*
 		int nCost = 0;
 		for( int j=0; j<vNet.size(); j++ )
 		{
-			nCost = nCost + routeNet_ideal( vNet[j], sUnplacedInst );
+			nCost = nCost + routeNet_ideal( vNet[j] );
 		}
-		*/
+*/
 		vBestGridCost.push_back(nCost);
 		if( pBound->m_cType == 'T' || pBound->m_cType == 'D' )
 			vDelta.push_back( abs( nOrigX - nTmpX ) );
@@ -16015,6 +16916,7 @@ vector<gGrid_C *> router_C::findPlaceToMove_ver4(instance_C *pInst, boundry_C* p
 	//return pBestGrid;
 	return vBestGrid;
 }
+
 
 
 vector<gGrid_C *> router_C::findPlaceToMove_ver4(instance_C *pInst, boundry_C* pBound )
@@ -20790,6 +21692,7 @@ bool router_C::multipleCellMovement_ver4_2( vector< instance_C* > &vInst, boundr
 		//vector< gGrid_C* > vBestGrid = findPlaceToMove_ver3( pInst );		
 		//vector< gGrid_C* > vBestGrid = findPlaceToMove_ver3( pInst, pBound );		
 		vector< gGrid_C* > vBestGrid = findPlaceToMove_ver4( pInst, pBound, sUnplacedInst );		
+		//vector< gGrid_C* > vBestGrid = findPlaceToMove_ver5( pInst, pBound, sUnplacedInst );		
 			
 		cout << "Choice "<< vBestGrid.size() << endl;
 		for( int i=vBestGrid.size()-1; i>=0; i-- )
@@ -20833,6 +21736,7 @@ bool router_C::multipleCellMovement_ver4_2( vector< instance_C* > &vInst, boundr
 			bool bPlace = false;
 			vector< net_C *> vTmpRip;
 			for( int b=vBestGrid.size() - 1; b>=0; b-- )
+			//for( int b=vBestGrid.size() - 1; b>=vBestGrid.size()/2; b-- )
 			{
 				int nX, nY, nZ;
 				pBGrid = vBestGrid[b];
@@ -20875,15 +21779,17 @@ bool router_C::multipleCellMovement_ver4_2( vector< instance_C* > &vInst, boundr
 					break;
 				}
 					
-				else if( pBGrid != pOGrid && nSwapCost > 0 )
+				else if( pBGrid != pOGrid )
 				{
 					vector<instance_C *> vSwapInstance = findSwapInstance_ver2(pBGrid, pOGrid, pInst);
 					cout << "Swap Instance: ";
 					for( int s=0; s<vSwapInstance.size(); s++ )
 						cout << vSwapInstance[s]->getName() << " ";
 					cout << endl;
-					for (int s = 0; s < vSwapInstance.size(); s++)
+					for (int s = 0; s < vSwapInstance.size() ; s++)
 					{
+						if( nSwapCost == 0 && !vSwapInstance[s]->hasBeenMoved() )					
+							continue;
 						bool bHasSwap = false;
 						for( int t=0; t<vTmpSwap.size(); t++ )
 						{
@@ -20903,8 +21809,9 @@ bool router_C::multipleCellMovement_ver4_2( vector< instance_C* > &vInst, boundr
 							}
 						}
 						if( bHasSwap )
+						{
 							continue;
-
+						}
 						vTmpRip.clear();
 						instance_C *pSInst = vSwapInstance[s];
 						instance_C cLocalBackupInstance;
@@ -20983,7 +21890,8 @@ bool router_C::multipleCellMovement_ver4_2( vector< instance_C* > &vInst, boundr
 							vInst.push_back( pSInst );
 							m_vBackupInstance.push_back( cLocalBackupInstance );
 							bPlace = true;
-							nSwapCost--;
+							if( !vSwapInstance[s]->hasBeenMoved() )
+								nSwapCost--;
 							cout << "Place at: " << nX << ", "<< nY <<", "<< nZ << endl;
 							cout << "Swap from: " << pSInst->getPlacedX() << ", "<< pSInst->getPlacedY() <<", "<< nZ << endl;
 							break;
@@ -26646,6 +27554,7 @@ vector<instance_C *> router_C::findSwapInstance_ver2(gGrid_C *pSGrid, gGrid_C *p
 	for (int i = 0; i < vInst.size(); i++)
 	{
 		forced_C *pF = &m_vForced[vInst[i]->getId()];
+		/*
 		if (!pInst->hasBeenMoved() && m_vMovedInstance.size() < m_pDesign->getMaxCellConstraint() - 1)
 			if (pF->m_pInstance->isMovable())
 				vForced.push_back(pF);
@@ -26654,6 +27563,9 @@ vector<instance_C *> router_C::findSwapInstance_ver2(gGrid_C *pSGrid, gGrid_C *p
 					vForced.push_back(pF);
 				else if (pF->m_pInstance->isMovable() && pF->m_pInstance->hasBeenMoved())
 					vForced.push_back(pF);
+		*/
+		if (pF->m_pInstance->isMovable())
+			vForced.push_back(pF);
 	}
 
 	for (int i = 0; i < vForced.size(); i++)
@@ -26750,16 +27662,30 @@ vector<instance_C *> router_C::findSwapInstance_ver2(gGrid_C *pSGrid, gGrid_C *p
 		{
 			int nFCost = vScore[j];
 			int nBCost = vScore[j + 1];
-			if (nFCost <= nBCost)
-				break;
-			else
+			instance_C *pFInst = vCandidate[j];
+			instance_C *pBInst = vCandidate[j + 1];
+			if( pFInst->hasBeenMoved() )
+			{ 
+				break; 
+			}
+			else if( pBInst->hasBeenMoved() )
 			{
-				instance_C *pFInst = vCandidate[j];
-				instance_C *pBInst = vCandidate[j + 1];
 				vCandidate[j] = pBInst;
 				vCandidate[j + 1] = pFInst;
 				vScore[j] = nBCost;
 				vScore[j + 1] = nFCost;
+			}
+			else
+			{
+				if (nFCost <= nBCost)
+					break;
+				else
+				{
+					vCandidate[j] = pBInst;
+					vCandidate[j + 1] = pFInst;
+					vScore[j] = nBCost;
+					vScore[j + 1] = nFCost;
+				}
 			}
 		}
 	}
@@ -27145,9 +28071,10 @@ bool router_C::startOpt()
 	//if( !globalRoute( vTmpNet ) )
 	//{
 	tStartRoute = time(NULL);
-	//cout<<"End sorting"<<endl;
-	
 	pre_route_ver3(vTmpNet);
+	tEndRoute = time(NULL);
+	tRequiredTime = tEndRoute - tStartRoute;
+	
 	pre_route_ver4(vTmpNet);
 	
 	//pre_route_ver3(vTmpNet);
@@ -27155,8 +28082,6 @@ bool router_C::startOpt()
 	
 	cout << "After pre reroute: " << calTotalWireLength() << endl;
 	//rrr( vTmpNet );
-	tEndRoute = time(NULL);
-	tRequiredTime = tEndRoute - tStartRoute;
 #ifdef _DEBUG_MODE
 	vector<bool> vProcessResult;
 	vector<int> vNumCellMovement;
@@ -27343,12 +28268,12 @@ bool router_C::startOpt()
 		int nDiff = nOrigin - calTotalWireLength();
 		cout << "Reduce: " << nDiff << endl;
 		cout << endl;
-		checkPseudoPin();
+		//checkPseudoPin();
 		//checkOverflow();
-		if( !checkOverflow() )
+		//if( !checkOverflow() )
 			//cout << "Error" << endl;
-			break;
-		checkLength();
+			//break;
+		//checkLength();
 
 
 		/*
@@ -27513,7 +28438,8 @@ bool router_C::startOpt()
 		}
 		for (int i = 0; i < vNet.size(); i++)
 		{
-			vIdealLength.push_back( routeNet_ideal( vNet[i] ) );
+			//vIdealLength.push_back( routeNet_ideal( vNet[i] ) );
+			vIdealLength.push_back( vNet[i]->getIdealLength() );
 		}
 
 		for (int i = 0; i < vNet.size(); i++)
@@ -27551,7 +28477,8 @@ bool router_C::startOpt()
 			for (int r = 0; r < vRerouteNet.size(); r++)
 			{
 				//vector< gGrid_C* > vResult = routeNet_length_constraint( vRerouteNet[r], nPreviousLength );
-				vector<vector<gGrid_C *>> vResult = routeNet_length_constraint_ver2(vRerouteNet[r], nPreviousLength);
+				//vector<vector<gGrid_C *>> vResult = routeNet_length_constraint_ver2(vRerouteNet[r], nPreviousLength);
+				vector<vector<gGrid_C *>> vResult = routeNet_length_constraint_ver4(vRerouteNet[r], nPreviousLength);
 				if (vResult.size() == 0)
 				{
 					//cout<<"Routing failed"<<endl;
@@ -27688,12 +28615,13 @@ bool router_C::startOpt()
 					bool bOverflow = false;
 					if( vOGrid.size() > 0  )
 					{
-						cout << "Fix overflow"<<endl;
-						bOverflow = rrr_ver2( vRerouteNet, vOGrid, mLengthTable, nLengthConstraint, vRRRNet );
+						//cout << "Fix overflow"<<endl;
+						bOverflow = rrr_ver3( vRerouteNet, vOGrid, mLengthTable, nLengthConstraint, vRRRNet );
+						//bOverflow = rrr_ver4( vRerouteNet, vOGrid, mLengthTable, nLengthConstraint, vRRRNet );
 					}
 					if( bOverflow )
 					{
-						cout << "Still overflow"<<endl;
+						//cout << "Still overflow"<<endl;
 						bFail = true;
 						break;
 					}
@@ -27781,7 +28709,8 @@ bool router_C::startOpt()
 		}
 		for (int i = 0; i < vNet.size(); i++)
 		{
-			vIdealLength.push_back( routeNet_ideal( vNet[i] ) );
+			//vIdealLength.push_back( routeNet_ideal( vNet[i] ) );
+			vIdealLength.push_back( vNet[i]->getIdealLength() );
 		}
 
 		for (int i = 0; i < vNet.size(); i++)
@@ -27819,7 +28748,8 @@ bool router_C::startOpt()
 			for (int r = 0; r < vRerouteNet.size(); r++)
 			{
 				//vector< gGrid_C* > vResult = routeNet_length_constraint( vRerouteNet[r], nPreviousLength );
-				vector<vector<gGrid_C *>> vResult = routeNet_length_constraint_ver2(vRerouteNet[r], nPreviousLength);
+				//vector<vector<gGrid_C *>> vResult = routeNet_length_constraint_ver2(vRerouteNet[r], nPreviousLength);
+				vector<vector<gGrid_C *>> vResult = routeNet_length_constraint_ver4(vRerouteNet[r], nPreviousLength);
 				if (vResult.size() == 0)
 				{
 					//cout<<"Routing failed"<<endl;
@@ -27956,12 +28886,13 @@ bool router_C::startOpt()
 					bool bOverflow = false;
 					if( vOGrid.size() > 0  )
 					{
-						cout << "Fix overflow"<<endl;
-						bOverflow = rrr_ver2( vRerouteNet, vOGrid, mLengthTable, nLengthConstraint, vRRRNet );
+						//cout << "Fix overflow"<<endl;
+						bOverflow = rrr_ver3( vRerouteNet, vOGrid, mLengthTable, nLengthConstraint, vRRRNet );
+						//bOverflow = rrr_ver4( vRerouteNet, vOGrid, mLengthTable, nLengthConstraint, vRRRNet );
 					}
 					if( bOverflow )
 					{
-						cout << "Still overflow"<<endl;
+						//cout << "Still overflow"<<endl;
 						bFail = true;
 						break;
 					}
@@ -28049,7 +28980,8 @@ bool router_C::startOpt()
 		}
 		for (int i = 0; i < vNet.size(); i++)
 		{
-			vIdealLength.push_back( routeNet_ideal( vNet[i] ) );
+			//vIdealLength.push_back( routeNet_ideal( vNet[i] ) );
+			vIdealLength.push_back( vNet[i]->getIdealLength() );
 		}
 
 		for (int i = 0; i < vNet.size(); i++)
@@ -28291,7 +29223,8 @@ bool router_C::startOpt()
 		}
 		for (int i = 0; i < vNet.size(); i++)
 		{
-			vIdealLength.push_back( routeNet_ideal( vNet[i] ) );
+			//vIdealLength.push_back( routeNet_ideal( vNet[i] ) );
+			vIdealLength.push_back( vNet[i]->getIdealLength() );
 		}
 
 		for (int i = 0; i < vNet.size(); i++)
