@@ -76,6 +76,8 @@ class boundry_C
 	int m_nPosF;
 	int m_nGain;
 	int m_nMove;
+	
+	int m_nLimit;
 
 	vector< int > m_vMinX;
 	vector< int > m_vMaxX;
@@ -85,7 +87,9 @@ class boundry_C
 	int m_nBoundX1, m_nBoundY1;
 	int m_nBoundX2, m_nBoundY2;
 
-	boundry_C():m_bLock(false){}
+	int m_nFullGrid;
+
+	boundry_C():m_bLock(false), m_nLimit(1){}
 };
 
 class networkForced_C
@@ -326,6 +330,7 @@ class router_C
 	bool swapInstance( gGrid_C*, gGrid_C*, vector< instance_C* > &, vector< instance_C* > &, vector< net_C* > & );
 	vector< instance_C* > findSwapInstance( gGrid_C*, gGrid_C*, instance_C* );
 	vector< instance_C* > findSwapInstance_ver2( gGrid_C*, gGrid_C*, instance_C* );
+	vector< instance_C* > findSwapInstance_ver3( gGrid_C*, gGrid_C*, instance_C* );
 
 	// other operation
 	bool isExchangable( gGrid_C*, instance_C*, instance_C* ); // target grid, to place instance, to remove instance.
@@ -356,27 +361,19 @@ class router_C
 	vector< forced_C* > moveingCellCollection( int );
 	vector< forced_C* > moveingCellCollection_ver2( int );
 
-
-	bool singleCellMovement( instance_C* );
-	bool singleCellMovement_ver2( instance_C* );
-// added at 0705 02:00
-	bool singleCellMovement_ver3( instance_C* );
-	bool singleCellMovement_ver3( instance_C*, char  );
 	bool singleCellMovement_ver3( instance_C*, boundry_C*  );
 // end added
-	bool multipleCellMovement( vector< instance_C* > & );
-	bool multipleCellMovement_ver2( vector< instance_C* > & );
-	bool multipleCellMovement_ver3( vector< instance_C* > & );
-	bool multipleCellMovement_ver4( vector< instance_C* > & ); // with multiNet ripup & reroute
 	bool multipleCellMovement_ver4( vector< instance_C* > &, boundry_C* ); // with multiNet ripup & reroute
 	bool multipleCellMovement_ver4_2( vector< instance_C* > &, boundry_C* ); // with multiNet ripup & reroute
-	bool multipleCellMovement_ver5( vector< instance_C* > &, boundry_C* ); // with multiNet ripup & reroute
-	bool multipleCellMovement( net_C* );
 	bool moveCell( vector< instance_C* >&, boundry_C* );
 	int calDistanceFromPath( rGrid_C*, int );
 	bool reduceOverflow( vector< net_C* > &, gGrid_C*, int & );
 
 	unordered_map< instance_C*, vector< instance_C > > m_vInstHistory;
+
+	unordered_map< gGrid_C*, set< boundry_C* > > m_vUnMovedHistory;
+
+	void calNetForced();
 
 	public:
 	router_C( design_C* pDesign ):m_pDesign(pDesign), m_nIteration(0), m_nFailed(0), m_nSuccess(0), m_nNumRefinement(0){};
@@ -391,6 +388,7 @@ class router_C
 	bool dumpResult( char* );
 	bool dumpDetailInfo();
 	bool showSummary();
+	int findGroup();
 };
 
 inline int boundingBoxCost( int, vector<int> &, vector<int> & ); // cur, min, max 

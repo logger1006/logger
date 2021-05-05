@@ -31,6 +31,9 @@ int main(int argc, char **argv)
 	router_C *pRouter;
 	pRouter = new router_C(pDesign);
 	pRouter->init();
+	
+	//pRouter->findGroup()	
+	//return 0;
 	//pRouter->test();
 	cout << endl;
 	pRouter->startOpt();
