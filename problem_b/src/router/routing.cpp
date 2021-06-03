@@ -20543,6 +20543,18 @@ unordered_map< pin_C*, vector< pin_C* > > router_C::findConnection( net_C* pNet 
 		nPY = ((instance_C*)pPin->getCell())->getPlacedY()-1;
 		sTmpGrid.push( m_vRoutingGraph2D[nPY][nPX] );
 		set< gGrid_C* > sRoutedGrid;
+		if( (mPin[ m_vRoutingGraph2D[nPY][nPX] ]).size() > 1 )
+		{
+			vector< pin_C* > vConnection;
+			vector< pin_C* > vTmpPin = mPin[ m_vRoutingGraph2D[nPY][nPX] ];
+			for( int i=0; i<vTmpPin.size(); i++ )
+			{
+				if( vTmpPin[i] != pPin )
+					vConnection.push_back( vTmpPin[i] );
+			}
+			mConnection[ pPin ] = vConnection;
+		}
+
 		while( sTmpGrid.size() != 0 )
 		{
 			//cout << sTmpGrid.size() << endl;
