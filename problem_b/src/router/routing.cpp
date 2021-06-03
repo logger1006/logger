@@ -12,6 +12,7 @@
 #include "3Dresult.h"
 #include "assistant.h"
 #include <queue>
+#include <stack>
 //#include "omp.h"
 
 using namespace std;
@@ -105,6 +106,7 @@ bool router_C::init()
 		//calBoundryModel_ver2( &m_vNetworkForced[i].m_cDB );
 		m_vBoundry.push_back( &m_vNetworkForced[i].m_cDB );
 	}
+
 	/*
 	for( int i=0; i< m_vNetForced.size(); i++ )
 	{
@@ -166,6 +168,18 @@ bool router_C::create2DGraph()
 	{
 		m_v2DGraph.push_back( vBoolGraph );
 		m_vTargetGraph.push_back( vIntGraph );
+	}
+	for( int y = m_nDY; y<= m_nTY; y++ )
+	{
+		vector< gGrid_C* > vGrid;
+		for( int x = m_nDX; x<=m_nTX; x++ )
+		{
+			gGrid_C* pGrid = new gGrid_C;
+			pGrid->m_nX = x-1;
+			pGrid->m_nY = y-1;
+			vGrid.push_back( pGrid );
+		}
+		m_vRoutingGraph2D.push_back( vGrid );
 	}
 	return true;
 }
@@ -20443,6 +20457,373 @@ bool router_C::fixConnection(net_C *pNet)
 {
 }
 
+unordered_map< pin_C*, vector< pin_C* > > router_C::findConnection( net_C* pNet )
+{
+	unordered_map< pin_C*, vector< pin_C* > > mConnection;
+	// data
+	vector< wire_C* > vWire = pNet->getWire();
+	vector< pin_C* > vPin = pNet->getPin();
+	set< gGrid_C* > sGrid2D;
+	// map 3D routing into 2D
+	//cout << pNet->getName() << " " << vWire.size() << endl;
+	for( int i=0; i<vWire.size(); i++ )
+	{
+		wire_C* pWire = vWire[i];
+		gGrid_C* pGrid_1 = pWire->getGrid1();
+		gGrid_C* pGrid_2 = pWire->getGrid2();
+		if( pGrid_1->m_nZ != pGrid_2->m_nZ )
+			continue;
+		else
+		{
+			if( pGrid_1->m_nX != pGrid_2->m_nX )
+			{
+				int nDX = ( pGrid_2->m_nX - pGrid_1->m_nX ) / abs( pGrid_2->m_nX - pGrid_1->m_nX );
+				int nStep = abs( pGrid_2->m_nX - pGrid_1->m_nX );
+				int nX = pGrid_1->m_nX;
+				int nY = pGrid_1->m_nY;
+				//cout << nX << " " << nY << endl;
+				m_vRoutingGraph2D[nY-1][nX-1]->setRouted();
+				sGrid2D.insert( m_vRoutingGraph2D[nY-1][nX-1] );
+				for( int s=0; s<nStep; s++ )
+				{
+					nX = nX + nDX;
+					m_vRoutingGraph2D[nY-1][nX-1]->setRouted();
+					sGrid2D.insert( m_vRoutingGraph2D[nY-1][nX-1] );
+				}
+			}
+			else if( pGrid_1->m_nY != pGrid_2->m_nY )
+			{
+				int nDY = ( pGrid_2->m_nY - pGrid_1->m_nY ) / abs( pGrid_2->m_nY - pGrid_1->m_nY );	
+				int nStep = abs( pGrid_2->m_nY - pGrid_1->m_nY );
+				int nX = pGrid_1->m_nX;
+				int nY = pGrid_1->m_nY;
+				//cout << nX << " " << nY << endl;
+				m_vRoutingGraph2D[nY-1][nX-1]->setRouted();
+				sGrid2D.insert( m_vRoutingGraph2D[nY-1][nX-1] );
+				for( int s=0; s<nStep; s++ )
+				{
+					nY = nY + nDY;
+					m_vRoutingGraph2D[nY-1][nX-1]->setRouted();
+					sGrid2D.insert( m_vRoutingGraph2D[nY-1][nX-1] );
+				}
+			}
+		}
+	}
+
+	// find connection
+	stack< gGrid_C* > sTmpGrid;
+	unordered_map< gGrid_C*, vector< pin_C* > > mPin;
+	for( int i=0; i<vPin.size(); i++ )
+	{
+		pin_C* pPin = vPin[i];
+		int nPX = ((instance_C*)pPin->getCell())->getPlacedX()-1;
+		int nPY = ((instance_C*)pPin->getCell())->getPlacedY()-1;
+		gGrid_C* pTmpGrid = m_vRoutingGraph2D[nPY][nPX];
+		if( mPin.find( pTmpGrid ) ==  mPin.end() )
+		{
+			vector< pin_C* > vTmpPin;
+			vTmpPin.push_back( pPin );
+			mPin[ pTmpGrid ] = vTmpPin;
+		}
+		else
+		{
+			vector< pin_C* > vTmpPin = mPin[ pTmpGrid ];
+			vTmpPin.push_back( pPin );
+			mPin[ pTmpGrid ] = vTmpPin;
+		}
+	}
+	//cout << "Here" << endl;
+	for( int p = 0; p < vPin.size(); p++ )
+	{
+		pin_C* pPin = vPin[p];
+		//cout << "Start at: " << ((instance_C*)pPin->getCell())->getName() << "/" << pPin->getName() << endl;
+		int nPX;
+		int nPY;
+		nPX = ((instance_C*)pPin->getCell())->getPlacedX()-1;
+		nPY = ((instance_C*)pPin->getCell())->getPlacedY()-1;
+		sTmpGrid.push( m_vRoutingGraph2D[nPY][nPX] );
+		set< gGrid_C* > sRoutedGrid;
+		while( sTmpGrid.size() != 0 )
+		{
+			//cout << sTmpGrid.size() << endl;
+			gGrid_C* pTmpGrid = sTmpGrid.top();
+			sTmpGrid.pop();
+			if( !pTmpGrid->isRouted() )
+				continue;
+			pTmpGrid->setUnrouted();
+			sRoutedGrid.insert( pTmpGrid );
+			//if( mPin.find( pTmpGrid ) != mPin.end() )
+			//{
+			//	pPin = (mPin[pTmpGrid])[0];
+			//}
+			int nTmpPX = pTmpGrid->m_nX;
+			int nTmpPY = pTmpGrid->m_nY;
+			vector< gGrid_C* > vNGrid;
+			int nPinCount = 0;
+			if( nTmpPX > 0 && m_vRoutingGraph2D[nTmpPY][nTmpPX-1]->isRouted() )
+			{
+				gGrid_C* pNGrid = m_vRoutingGraph2D[nTmpPY][nTmpPX-1];
+				if( mPin.find( pNGrid ) == mPin.end() )
+				{
+					sTmpGrid.push( pNGrid );
+					//vNGrid.push_back( pNGrid );
+				}
+				else
+				{
+					vector< pin_C* > vTmpPin = mPin[ pNGrid ];	
+					if( mConnection.find( pPin ) == mConnection.end() )
+					{
+						vector< pin_C* > vConnectPin;
+						vConnectPin = vTmpPin;
+						mConnection[ pPin ] = vConnectPin;
+					}
+					else
+					{
+						vector< pin_C* > vConnectPin = mConnection[ pPin ];
+						for( int j=0; j<vTmpPin.size(); j++ )
+						{
+							vConnectPin.push_back( vTmpPin[j] );
+							mConnection[ pPin ] = vConnectPin;
+						}
+					}
+					/*
+					for( int j=0; j<vTmpPin.size(); j++ )
+					{
+						if( mConnection.find( vTmpPin[j] ) == mConnection.end() )
+						{
+							vector< pin_C* > vConnectPin;
+							vConnectPin.push_back( pPin );
+							mConnection[ vTmpPin[j] ] = vConnectPin;
+						}
+						else
+						{
+							vector< pin_C* > vConnectPin = mConnection[ vTmpPin[j] ];
+							vConnectPin.push_back( pPin );	
+							mConnection[ vTmpPin[j] ] = vConnectPin;
+						}
+					}
+					*/
+					//vNGrid.insert( vNGrid.begin(), pNGrid );
+					//nPinCount++;
+					//sTmpGrid.push( pNGrid );
+				}
+				//pNGrid->setUnrouted();
+			}
+
+			if( nTmpPY > 0 && m_vRoutingGraph2D[nTmpPY-1][nTmpPX]->isRouted() )
+			{
+				gGrid_C* pNGrid = m_vRoutingGraph2D[nTmpPY-1][nTmpPX];
+				if( mPin.find( pNGrid ) == mPin.end() )
+				{
+					sTmpGrid.push( pNGrid );
+					//vNGrid.push_back( pNGrid );
+				}
+				else
+				{
+					vector< pin_C* > vTmpPin = mPin[ pNGrid ];	
+					if( mConnection.find( pPin ) == mConnection.end() )
+					{
+						vector< pin_C* > vConnectPin;
+						vConnectPin = vTmpPin;
+						mConnection[ pPin ] = vConnectPin;
+					}
+					else
+					{
+						vector< pin_C* > vConnectPin = mConnection[ pPin ];
+						for( int j=0; j<vTmpPin.size(); j++ )
+						{
+							vConnectPin.push_back( vTmpPin[j] );
+							mConnection[ pPin ] = vConnectPin;
+						}
+					}
+					/*
+					for( int j=0; j<vTmpPin.size(); j++ )
+					{
+						if( mConnection.find( vTmpPin[j] ) == mConnection.end() )
+						{
+							vector< pin_C* > vConnectPin;
+							vConnectPin.push_back( pPin );
+							mConnection[ vTmpPin[j] ] = vConnectPin;
+						}
+						else
+						{
+							vector< pin_C* > vConnectPin = mConnection[ vTmpPin[j] ];
+							vConnectPin.push_back( pPin );	
+							mConnection[ vTmpPin[j] ] = vConnectPin;
+						}
+					}
+					*/
+					//vNGrid.insert( vNGrid.begin(), pNGrid );
+					//nPinCount++;
+					//sTmpGrid.push( pNGrid );
+				}
+				//pNGrid->setUnrouted();
+			
+			}
+			
+			if( nTmpPX < m_vRoutingGraph2D[0].size() - 1  && m_vRoutingGraph2D[nTmpPY][nTmpPX+1]->isRouted() )
+			{
+				gGrid_C* pNGrid = m_vRoutingGraph2D[nTmpPY][nTmpPX+1];
+				if( mPin.find( pNGrid ) == mPin.end() )
+				{
+					sTmpGrid.push( pNGrid );
+					//vNGrid.push_back( pNGrid );
+				}
+				else
+				{
+					vector< pin_C* > vTmpPin = mPin[ pNGrid ];	
+					if( mConnection.find( pPin ) == mConnection.end() )
+					{
+						vector< pin_C* > vConnectPin;
+						vConnectPin = vTmpPin;
+						mConnection[ pPin ] = vConnectPin;
+					}
+					else
+					{
+						vector< pin_C* > vConnectPin = mConnection[ pPin ];
+						for( int j=0; j<vTmpPin.size(); j++ )
+						{
+							vConnectPin.push_back( vTmpPin[j] );
+							mConnection[ pPin ] = vConnectPin;
+						}
+					}
+					/*
+					for( int j=0; j<vTmpPin.size(); j++ )
+					{
+						if( mConnection.find( vTmpPin[j] ) == mConnection.end() )
+						{
+							vector< pin_C* > vConnectPin;
+							vConnectPin.push_back( pPin );
+							mConnection[ vTmpPin[j] ] = vConnectPin;
+						}
+						else
+						{
+							vector< pin_C* > vConnectPin = mConnection[ vTmpPin[j] ];
+							vConnectPin.push_back( pPin );	
+							mConnection[ vTmpPin[j] ] = vConnectPin;
+						}
+					}
+					*/
+					//vNGrid.insert( vNGrid.begin(), pNGrid );
+					//nPinCount++;
+					//sTmpGrid.push( pNGrid );
+				}
+				//pNGrid->setUnrouted();
+			
+			}
+			
+			if( nTmpPY < m_vRoutingGraph2D.size() - 1  && m_vRoutingGraph2D[nTmpPY+1][nTmpPX]->isRouted() )
+			{
+				gGrid_C* pNGrid = m_vRoutingGraph2D[nTmpPY+1][nTmpPX];
+				if( mPin.find( pNGrid ) == mPin.end() )
+				{
+					sTmpGrid.push( pNGrid );
+					//vNGrid.push_back( pNGrid );
+				}
+				else
+				{
+					vector< pin_C* > vTmpPin = mPin[ pNGrid ];	
+					if( mConnection.find( pPin ) == mConnection.end() )
+					{
+						vector< pin_C* > vConnectPin;
+						vConnectPin = vTmpPin;
+						mConnection[ pPin ] = vConnectPin;
+					}
+					else
+					{
+						vector< pin_C* > vConnectPin = mConnection[ pPin ];
+						for( int j=0; j<vTmpPin.size(); j++ )
+						{
+							vConnectPin.push_back( vTmpPin[j] );
+							mConnection[ pPin ] = vConnectPin;
+						}
+					}
+					/*
+					for( int j=0; j<vTmpPin.size(); j++ )
+					{
+						if( mConnection.find( vTmpPin[j] ) == mConnection.end() )
+						{
+							vector< pin_C* > vConnectPin;
+							vConnectPin.push_back( pPin );
+							mConnection[ vTmpPin[j] ] = vConnectPin;
+						}
+						else
+						{
+							vector< pin_C* > vConnectPin = mConnection[ vTmpPin[j] ];
+							vConnectPin.push_back( pPin );	
+							mConnection[ vTmpPin[j] ] = vConnectPin;
+						}
+					}
+					*/
+					//vNGrid.insert( vNGrid.begin(), pNGrid );
+					//nPinCount++;
+					//sTmpGrid.push( pNGrid );
+				}
+				//pNGrid->setUnrouted();
+			
+			}
+			/*
+			vector< gGrid_C* > vTmpGrid;
+			while( sTmpGrid.size() != 0 )
+			{
+				gGrid_C* pNPGrid = sTmpGrid.top();
+				if( mPin.find( pNPGrid ) == mPin.end() )
+				{
+					vTmpGrid.push_back( pNPGrid );
+					sTmpGrid.pop();
+				}
+				else
+					break;
+			}
+
+			for( int j = 0; j < nPinCount; j++ )
+			{
+				sTmpGrid.push( vNGrid[j] );
+			}
+
+			for( int j=(int)vTmpGrid.size() - 1 ; j >= 0 ; j-- )
+			{
+				sTmpGrid.push( vTmpGrid[j] );
+			}
+
+			for( int j=nPinCount; j<vNGrid.size(); j++ )
+			{
+				sTmpGrid.push( vNGrid[j] );
+			}
+			*/
+		}
+		for( set< gGrid_C* >::iterator it = sRoutedGrid.begin(); it != sRoutedGrid.end(); it++ )
+		{
+			gGrid_C* pTmpGrid =  *it;
+			pTmpGrid->setRouted();
+		}
+
+
+	}
+	// recover 2D routing graph
+	
+	for( set< gGrid_C* >::iterator it = sGrid2D.begin(); it != sGrid2D.end(); it++ )
+	{
+		gGrid_C* pTmpGrid =  *it;
+		pTmpGrid->setUnrouted();
+	}
+	
+	cout << "Check connection: "<< pNet->getName() << endl;
+	for( unordered_map< pin_C*, vector< pin_C* > >::iterator it = mConnection.begin(); it != mConnection.end(); it++ )
+	{
+		pin_C* pPin = it->first;
+		cout <<  ((instance_C*)pPin->getCell())->getName() << "/" << pPin->getName() << " -> " ;
+		vector< pin_C* > vPin = it->second;
+		for( int i=0; i<vPin.size(); i++ )
+		{
+			cout << ((instance_C*)vPin[i]->getCell())->getName() << "/" << vPin[i]->getName() << " " ;
+		}
+		cout << endl;
+	}
+
+	return mConnection;	
+}
+
 bool router_C::isExchangable(gGrid_C *pGrid, instance_C *pPInst, instance_C *pRInst)
 {
 	int nPX = pPInst->getPlacedX();
@@ -24290,6 +24671,12 @@ bool router_C::startOpt()
 	//pre_route_ver2(vTmpNet);
 	
 	cout << "After pre reroute: " << calTotalWireLength() << endl;
+	for( int i=0; i<m_vNetworkForced.size(); i++ )
+	{
+		net_C* pNet = m_vNetworkForced[i].m_pNet;
+		unordered_map< pin_C*, vector< pin_C* > > mConnection = findConnection( pNet );
+		m_vConnection[ pNet ] = mConnection;
+	}
 	//rrr( vTmpNet );
 #ifdef _DEBUG_MODE
 	vector<bool> vProcessResult;

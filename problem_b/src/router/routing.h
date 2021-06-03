@@ -112,6 +112,11 @@ class networkForced_C
 	int m_n2MinX, m_n2MaxX;
 	int m_n2MinY, m_n2MaxY;
 
+// connection
+
+
+//
+
 	vector< forced_C* > m_vForced;
 	unordered_map< forced_C*, int > m_mPLF;
 	unordered_map< forced_C*, int > m_mPRF;
@@ -180,7 +185,8 @@ class router_C
 	
 	GRAPH2D_INT m_vTargetGraph;
 	GRAPH2D_BOOL m_v2DGraph;
-	
+	vector< vector< gGrid_C* > > m_vRoutingGraph2D;
+
 	int m_nDX, m_nTX, m_nDY, m_nTY, m_nDZ, m_nTZ;
 	int m_nOffsetX, m_nOffsetY, m_nOffsetZ;
 
@@ -214,6 +220,9 @@ class router_C
 	int estimateHPWLwithoutLayer( net_C* );
 	int calTotalWireLength();
 
+	// net connection
+	unordered_map< net_C*, unordered_map< pin_C*, vector< pin_C* > > > m_vConnection;
+		
 	// instance operation
 // change at 0704 2230
 	vector< gGrid_C* > findPlaceToMove( instance_C* );
@@ -240,6 +249,7 @@ class router_C
 	bool resetPseudoPinDemand( instance_C*, int, int, int );
 	bool calForceDirection( vector< instance_C* > & );
 	bool evaluateForceDirection( net_C* );
+	unordered_map< pin_C*, vector< pin_C* > > findConnection( net_C* ); 
 	instance_C* pickInstanceToMove();
 	instance_C* pickInstanceToMove_ver2();
 	boundry_C* pickInstanceToMove_ver3();
