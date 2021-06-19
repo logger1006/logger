@@ -68,6 +68,11 @@ bool parser(design_C *pDesign, char *pFileName)
 			parseRoute(pDesign, fin);
 			cout << "parser route complete" << endl;
 		}
+		else if (strBuffer == "NumVoltageAreas")
+		{
+			parseVoltageArea( pDesign, fin );
+			cout << "VoltageArea complete" << endl;
+		}
 	}
 
 	//dumpGraph( pDesign );
@@ -392,10 +397,11 @@ bool parseNet(design_C *pDesign, ifstream &fin)
 	string strNetName;
 	int nNumPin;
 	string strConstraint;
+	double dWeight;
 
 	for (int i = 0; i < nNumNet; i++)
 	{
-		fin >> strBuf >> strNetName >> nNumPin >> strConstraint;
+		fin >> strBuf >> strNetName >> nNumPin >> strConstraint >> dWeight;
 		net_C *pNet = new net_C;
 		pNet->setName(strNetName);
 		pNet->setConstraint(strConstraint);
@@ -416,6 +422,7 @@ bool parseNet(design_C *pDesign, ifstream &fin)
 		}
 		pNet->setConstraintLayerId( nLayerConstraint );
 		pNet->setId(i);
+		pNet->setWeight( dWeight );
 		string strInst;
 		string strPin;
 		for (int p = 0; p < nNumPin; p++)
@@ -537,4 +544,47 @@ bool parseRoute(design_C *pDesign, ifstream &fin)
 	}
 
 	return true;
+}
+
+bool parseVoltageArea( design_C* pDesign, ifstream &fin )
+{
+	vector< voltageArea_C* > vVolArea;
+	string strName;
+	string strInst;
+	string strBuffer;
+	int nNumVolArea = 0;
+	int nX, nY;
+	int nNumGrid = 0;
+	int nNumInst = 0;
+	
+
+	fin >> nNumVolArea;
+	for( int i=0; i<nNumVolArea; i++ )
+	{
+		set< gGrid_C* > sGrid;
+		set< instance_C* > sInst;
+		fin >> strName;
+		fin >> strBuffer >> nNumGrid;
+		for( int g=0; g<nNumGrid; g++ )
+		{
+			fin >> nX >> nY;
+			gGrid_C* pGrid = getGrid( pDesign, nX, nY, 1 );
+			sGrid.insert( pGrid );
+		}
+		fin >> strBuffer >> nNumInst;
+		for( int n=0; n<nNumInst; n++ )
+		{
+			fin >> strInst;
+			instance_C* pInst = pDesign->getInst_map()[ strInst ];
+			sInst.insert( pInst );
+		}
+		voltageArea_C* pVolArea = new voltageArea_C;
+		pVolArea->name() = strName;
+		pVolArea->grid() = sGrid;
+		pVolArea->inst() = sInst;
+		vVolArea.push_back( pVolArea );
+	}
+	pDesign->setVolateArea( vVolArea );
+	return true;
+
 }

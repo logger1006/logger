@@ -7,6 +7,7 @@
 #include <fstream>
 #include <unordered_map>
 #include <iostream>
+#include <set>
 
 using namespace std;
 
@@ -21,6 +22,7 @@ class layer_C;
 class instance_C;
 class wire_C;
 class design_C;
+class voltageArea_C;
 
 class wire_C
 {
@@ -61,6 +63,7 @@ private:
 	string m_strConstraint;
 	int m_nConstraintLayerId;
 	int m_nId;
+	double m_dWeight;
 
 protected:
 	vector<pin_C *> m_vPin;
@@ -72,7 +75,7 @@ protected:
 	int m_nIdealLength;
 
 public:
-	net_C() : m_nNumNet(0), m_nReroute(0), m_nLength(0), m_nIdealLength(0){};
+	net_C() : m_nNumNet(0), m_nReroute(0), m_nLength(0), m_nIdealLength(0), m_dWeight(0.0){};
 	~net_C(){};
 	// set data
 	void setName(string strName) { m_strName = strName; }
@@ -89,7 +92,7 @@ public:
 	void setLength(int nLength) { m_nLength = nLength; }
 	void setConstraintLayerId( int nLayerId ){ m_nConstraintLayerId = nLayerId; }
 	void setIdealLength( int nLength ){ m_nIdealLength = nLength; }
-
+	void setWeight( double dWeight ){ m_dWeight = dWeight; }
 	// get data
 	string getName()
 	{
@@ -119,6 +122,7 @@ public:
 		}
 		m_vWire.clear();
 	}
+	double getWeight(){ return m_dWeight; }
 
 	//vector<bool> m_vFL;
 	//vector<bool> m_vFR;
@@ -582,6 +586,26 @@ typedef struct extra_demand_
 	vector<int> value;	 //demand
 } extra_demand;
 
+
+class voltageArea_C
+{
+private:
+	string m_strName;
+
+protected:
+	set< gGrid_C* > m_sGrid;
+	set< instance_C* > m_sInstance;
+
+public:
+	voltageArea_C(){};
+	~voltageArea_C(){};
+	string& name(){ return m_strName; }
+	set< gGrid_C* >& grid(){ return m_sGrid; }
+	set< instance_C* >& inst(){ return m_sInstance; }
+
+	bool hasInstConstraint( instance_C* pInst ){ if( m_sInstance.count( pInst ) == 0 ) return false; else return true; }
+	bool islegal( gGrid_C* pGrid ){ if( m_sGrid.count( pGrid ) == 0 ) return false; else return true; }
+};
 // typedef struct instance_
 // {
 // 	string maseterCellName;
@@ -622,7 +646,7 @@ protected:
 	vector<layer_C *> m_vLayer;
 	vector<instance_C *> m_vInstance;
 	vector<net_C *> m_vNet;
-
+	vector< voltageArea_C* > m_vVoltageArea;
 	// graph & map
 	vector<vector<vector<gGrid_C *>>> m_vGraph;
 
@@ -657,6 +681,7 @@ public:
 	void setNumCell(int nC) { m_nNumCell = nC; }
 	void setNumNet(int nNet) { m_nNumNet = nNet; }
 	void setExtraDemandCell(vector<extraDemandCell_C *> vExtra) { m_vExtraDemandCell = vExtra; }
+	void setVolateArea( vector< voltageArea_C* > vVolArea ){ m_vVoltageArea = vVolArea; }
 	void addExtraDemandCell(extraDemandCell_C *pE) { m_vExtraDemandCell.push_back(pE); }
 	void addCell(cell_C *pCell) { m_vCell.push_back(pCell); }
 	void setCell(vector<cell_C *> vCell) { m_vCell = vCell; }
@@ -702,6 +727,7 @@ public:
 	unordered_map<string, instance_C *> getInst_map() { return inst_map; }
 	unordered_map<string, net_C *> getNet_map() { return net_map; }
 	gGrid_C *getGrid(int nX, int nY, int nZ) { return m_vGraph[nZ - m_vLayer.front()->getId()][nY - m_nGGridColBegin][nX - m_nGGridRowBegin]; }
+	vector< voltageArea_C* > getVoltageArea(){ return m_vVoltageArea; }
 	// other information
 	bool checkInfo();
 	void dumpInfo();

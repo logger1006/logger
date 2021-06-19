@@ -220,6 +220,8 @@ class router_C
 	int estimateHPWLwithoutLayer( net_C* );
 	int calTotalWireLength();
 
+	unordered_map< instance_C*, voltageArea_C* > m_vVoltageAreaIndex;
+
 	// net connection
 	unordered_map< net_C*, unordered_map< pin_C*, vector< pin_C* > > > m_vConnection;
 		
@@ -240,7 +242,8 @@ class router_C
 	vector< gGrid_C* >findPlaceToMove_ver5( instance_C*, boundry_C*, set< instance_C* > & );
 	bool iterPlaceInst( int &, int, vector< instance_C* > &, vector< vector< gGrid_C* > > &, vector< net_C* >, int, vector< instance_C* >, vector< int > );
 	bool iterPlaceInst_ver2( int &, int, vector< instance_C* > &, vector< vector< gGrid_C* > > &, vector< net_C* >, int, vector< instance_C* >, vector< int >, vector< instance_C* > &, const int );
-// end change 
+// end change
+	vector< instance_C* > collectInst( instance_C* );
 	bool removeInstOnGraph( instance_C* );
 	bool putInstOnGraph( instance_C*, int, int, int );
 	bool calPseudoPinDemand( instance_C*, int, int, int );
@@ -300,6 +303,7 @@ class router_C
 	bool globalRoute( vector< net_C* >  &);
 
 	// analysis
+	bool createVoltageAreaIndex();
 	bool createForcedModel();
 	bool createForcedNetwork();
 	bool createNetForcedModel();
@@ -312,6 +316,7 @@ class router_C
 	bool calForcedModel_ver2( forced_C& );
 	bool calForcedModel_ver3( forced_C& );
 	bool calForcedModel_ver4( forced_C& );
+	bool calForcedModel_ver5( forced_C& );
 	bool calForcedModel( forced_C&, set< net_C* > & );
 	bool calForcedModel_ver4( forced_C&, set< net_C* > & );
 	bool calForcedModel_ver4( forced_C&, set< net_C* > &, char );
@@ -401,6 +406,7 @@ class router_C
 	int findGroup();
 };
 
+inline instance_C* getPinInst( pin_C* );
 inline int boundingBoxCost( int, vector<int> &, vector<int> & ); // cur, min, max 
 inline int nEularDistance( gGrid_C*, gGrid_C*, layer_C* );
 inline int nEularDistance( vector< gGrid_C* >, gGrid_C*, layer_C* );
