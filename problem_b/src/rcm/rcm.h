@@ -494,6 +494,7 @@ protected:
 	int m_nId;
 	char m_cDirection;
 	int m_nSupply;
+	double m_dWeight;
 
 public:
 	layer_C(){};
@@ -503,12 +504,14 @@ public:
 	void setId(int nId) { m_nId = nId; }
 	void setDir(char cDir) { m_cDirection = cDir; }
 	void setSupply(int nSup) { m_nSupply = nSup; }
+	void setWeight( double dW ){ m_dWeight = dW; }
 
 	// get data
 	string getName() { return m_strName; }
 	int getId() { return m_nId; }
 	char getDir() { return m_cDirection; }
 	int getSupply() { return m_nSupply; }
+	double getWeight(){ return m_dWeight; }
 };
 
 class instance_C : public cell_C

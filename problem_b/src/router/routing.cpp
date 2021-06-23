@@ -16366,12 +16366,15 @@ vector<gGrid_C *> router_C::findPlaceToMove_ver4(instance_C *pInst, set< net_C* 
 	//if( pInst->getName() == "C1200" )
 	//	cout<<"Range: "<<nStartX<<" "<<nStartY<<" "<<nEndX<<" "<<nEndY<<endl;
 
+	set< gGrid_C* > vVoltageArea = ( m_vVoltageAreaIndex[ pInst ] )->grid();
+
 	for (int nX = nStartX; nX <= nEndX; nX++)
 	{
 		for (int nY = nStartY; nY <= nEndY; nY++)
 		{
 			gGrid_C *pPGrid = getGrid(m_pDesign, nX, nY, m_nOffsetZ);
-			vBestGrid.push_back(pPGrid);
+			if( vVoltageArea.count( pPGrid ) == 1 )
+				vBestGrid.push_back(pPGrid);
 		}
 	}
 	// end added at 0711 02:00

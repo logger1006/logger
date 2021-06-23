@@ -108,15 +108,17 @@ bool parseLayer(design_C *pDesign, ifstream &fin)
 	int nIndex;
 	char cDir;
 	int nSupply;
+	double dWeight;
 	unordered_map<string, int> layer_map_temp;
 	for (int i = 0; i < nNumLayer; i++)
 	{
-		fin >> strBuf >> strLayer >> nIndex >> cDir >> nSupply;
+		fin >> strBuf >> strLayer >> nIndex >> cDir >> nSupply >> dWeight ;
 		layer_C *pLayer = new layer_C;
 		pLayer->setName(strLayer);
 		pLayer->setId(nIndex);
 		pLayer->setDir(cDir);
 		pLayer->setSupply(nSupply);
+		pLayer->setWeight( dWeight );
 		pDesign->addLayer(pLayer);
 
 		//chouchou
