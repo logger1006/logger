@@ -171,12 +171,15 @@ bool router_C::init()
 bool router_C::createVoltageAreaIndex()
 {
 	vector< voltageArea_C* > vVolArea = m_pDesign->getVoltageArea();
+	cout << vVolArea.size() << endl;
 	for( int i=0; i<vVolArea.size(); i++ )
 	{
-		set< instance_C* > sInst = vVolArea[i]->inst();
+		set< instance_C* > sInst = vVolArea[i]->getInst();
+		cout << sInst.size() << endl;
 		for( set< instance_C* >::iterator it = sInst.begin(); it != sInst.end(); it++ )
 		{
 			instance_C* pInst = *it;
+			cout << pInst->getName() << endl;
 			m_vVoltageAreaIndex[ pInst ] = vVolArea[i];
 		}
 	}
@@ -10168,7 +10171,8 @@ bool router_C::updateForcedModel_ver2( instance_C *pInst )
 
 	for (int i = 0; i < vForced.size(); i++)
 	{
-		calForcedModel_ver4(*vForced[i]);
+		//calForcedModel_ver4(*vForced[i]);
+		calForcedModel_ver5(*vForced[i]);
 	}
 
 	for (int i = 0; i < vNetwork.size(); i++)
@@ -11609,6 +11613,12 @@ bool router_C::calForcedModel_ver5(forced_C &cF)
 	{
 		networkForced_C *pNF = vNetWork[i];
 		unordered_map< pin_C*, vector< pin_C* > > vConnection = m_vConnection[ pNF->m_pNet ];
+		int nTmpTF = 0;
+		int nTmpDF = 0;
+		int nTmpRF = 0;
+		int nTmpLF = 0;
+		int nTmpCX = 0;
+		int nTmpCY = 0;
 		for( unordered_map< pin_C*, vector< pin_C* > >::iterator it = vConnection.begin(); it != vConnection.end(); it++ )
 		{
 			pin_C* pPin = it->first;
@@ -11620,21 +11630,45 @@ bool router_C::calForcedModel_ver5(forced_C &cF)
 					int nTmpX = getPinInst( vPin[p] )->getPlacedX();	
 					int nTmpY = getPinInst( vPin[p] )->getPlacedY();	
 					if( nTmpX > nX )
-						nTF++;
+						nTmpTF = 1;
+						//nTF++;
 					else if( nTmpX < nX )
-						nDF++;
-					else
-						nCX++;
+						nTmpDF = 1;
+						//nDF++;
+					//else
+					//	nTmpCX = 1;
+						//nCX++;
 
 					if( nTmpY > nY )
-						nRF++;
+						nTmpRF = 1;
+						//nRF++;
 					else if( nTmpY < nY )
-						nLF++;
-					else
-						nCY++;
+						nTmpLF = 1;
+						//nLF++;
+					//else
+					//	nTmpCY = 1;
+						//nCY++;
+					
+					if( nTmpY == nY && nTmpX == nX )
+					{
+						nTmpCY = 1;
+						nTmpCX = 1;
+					}
+
 				}
 			}
 		}
+		if( nTmpLF == 0 && nTmpRF == 0 )
+			nTmpCY = 1;
+
+		if( nTmpTF == 0 && nTmpDF == 0 )
+			nTmpCX = 1;
+		nTF = nTF + nTmpTF;
+		nDF = nDF + nTmpDF;
+		nRF = nRF + nTmpRF;
+		nLF = nLF + nTmpLF;
+		nCX = nCX + nTmpCX;
+		nCY = nCY + nTmpCY;
 	}
 	
 	cF.m_nT = nTF;
@@ -14595,6 +14629,9 @@ bool router_C::calForcedNetwork_ver3(networkForced_C &cNF)
 	cNF.m_mMaxX = mMaxX;
 	cNF.m_mMinY = mMinY;
 	cNF.m_mMaxY = mMaxY;
+	
+	unordered_map< pin_C*, vector< pin_C* > > mConnection = findConnection( pNet );
+	m_vConnection[ pNet ] = mConnection;
 
 	return true;
 }
@@ -15616,6 +15653,63 @@ vector< forced_C* > router_C::recalForced( int nForcedId )
 
 }
 
+instance_C* router_C::pickInstanceToMove_ver6()
+{
+	cout<<"Picking Instances..."<<endl;
+	int nMaxForced = 0;
+	int nMaxSForced = 0;
+	int nLength = 0;
+	int nSecondForced = 0;
+	vector< instance_C* > vInst;
+	int nPickId = -1;
+	vector< int > vSumOfForced;
+	vector< int > vMaxForced;
+
+	for (int i = 0; i < m_vForced.size(); i++)
+	{
+		forced_C *pF = &m_vForced[i];
+		int nFX;
+		if (pF->m_bLockInX)
+			nFX = 0;
+		else
+			nFX = max( abs(pF->m_nT - pF->m_nD) - pF->m_nCX, 0 );
+		int nFY;
+		if (pF->m_bLockInY)
+			nFY = 0;
+		else
+			nFY = max( abs(pF->m_nR - pF->m_nL) - pF->m_nCY, 0 );
+		int nSumOfForced = nFX + nFY;
+		int nMaxForced = max(nFX, nFY);
+		cout << pF->m_pInstance->getName() << " " << nFX << "+"<< nFY << "=" << nSumOfForced << endl;
+		//int nArea = ( pF->m_nBoundX2 - pF->m_nBoundX1 +1 )*( pF->m_nBoundY2 - pF->m_nBoundY1 + 1 );
+		//nMaxSForced = max(nMaxSForced, nSumOfForced);
+		//cout << nArea <<endl;
+		if( nMaxSForced < nSumOfForced )
+		{
+			nMaxSForced = nSumOfForced;
+			//nMinConnection = pF->m_vNetwork.size();
+			nPickId = i;
+			//nMaxArea = nArea;
+		}
+		vSumOfForced.push_back(nSumOfForced);
+		vMaxForced.push_back(nMaxForced);
+	}
+	//cout<<nPickMaxForced<<endl;
+	//int nPickId = nMinAreaId;
+	if (nPickId < 0)
+	{
+		//cout<<"No instances are picked"<<endl;
+		return NULL;
+	}
+	cout<<"Pick instance: "<<m_vForced[nPickId].m_pInstance->getName() << " Max forced: " << nMaxSForced <<endl;
+	//cout<<nPickId<<endl;
+	//vInst = collectInst_ver2( m_vForced[nPickId].m_pInstance );
+	//return vInst;
+	return m_vForced[ nPickId ].m_pInstance;
+
+}
+
+
 boundry_C* router_C::pickInstanceToMove_ver5()
 {
 	cout<<"Picking Instances..."<<endl;
@@ -16366,7 +16460,7 @@ vector<gGrid_C *> router_C::findPlaceToMove_ver4(instance_C *pInst, set< net_C* 
 	//if( pInst->getName() == "C1200" )
 	//	cout<<"Range: "<<nStartX<<" "<<nStartY<<" "<<nEndX<<" "<<nEndY<<endl;
 
-	set< gGrid_C* > vVoltageArea = ( m_vVoltageAreaIndex[ pInst ] )->grid();
+	set< gGrid_C* > vVoltageArea = ( m_vVoltageAreaIndex[ pInst ] )->getGrid();
 
 	for (int nX = nStartX; nX <= nEndX; nX++)
 	{
@@ -16876,6 +16970,218 @@ vector<gGrid_C *> router_C::findPlaceToMove_ver5(instance_C *pInst, boundry_C* p
 	//return pBestGrid;
 	return vBestGrid;
 }
+
+
+vector<gGrid_C *> router_C::findPlaceToMove_ver4(instance_C *pInst, set< instance_C* > &sUnplacedInst )
+{
+	cout << "Find Place to Move"<<endl;
+	int nOrigX = pInst->getPlacedX();
+	int nOrigY = pInst->getPlacedY();
+	sUnplacedInst.erase( pInst );
+	vector<gGrid_C *> vBestGrid;
+	vector< int > vBestGridCost;
+
+	forced_C *cF;
+	if (pInst == m_vForced[pInst->getId()].m_pInstance)
+	{
+		cF = &m_vForced[pInst->getId()];
+	}
+	else
+	{
+		for (int i = 0; i < m_vForced.size(); i++)
+		{
+			if (m_vForced[i].m_pInstance == pInst)
+			{
+				cF = &m_vForced[i];
+				break;
+			}
+		}
+	}
+
+	vector< vector< instance_C* > > vPlacedInst;	
+
+	int nStartX = pInst->getPlacedX();
+	int nEndX = pInst->getPlacedX();
+	int nStartY = pInst->getPlacedY();
+	int nEndY = pInst->getPlacedY();
+
+	
+	for( int i=0; i<cF->m_vNetwork.size(); i++ )
+	{
+		vector< instance_C* > vTmpPInst;
+		for( int j=0; j<cF->m_vNetwork[i]->m_vForced.size(); j++ )
+		{
+			if( sUnplacedInst.count( cF->m_vNetwork[i]->m_vForced[j]->m_pInstance ) == 0 && cF->m_vNetwork[i]->m_vForced[j]->m_pInstance != pInst )
+			{
+				vTmpPInst.push_back( cF->m_vNetwork[i]->m_vForced[j]->m_pInstance );	
+				int nTmpX = cF->m_vNetwork[i]->m_vForced[j]->m_pInstance->getPlacedX();
+				int nTmpY = cF->m_vNetwork[i]->m_vForced[j]->m_pInstance->getPlacedY();
+				nStartX = min( nTmpX, nStartX );
+				nEndX = max( nTmpX, nEndX );
+				nStartY = min( nTmpY, nStartY );
+				nEndY = max( nTmpY, nEndY );
+			}
+		}
+		if( vTmpPInst.size() != 0 )
+			vPlacedInst.push_back( vTmpPInst );
+	}
+
+	vector< int > vBoundMinX;
+	vector< int > vBoundMaxX;
+	vector< int > vBoundMinY;
+	vector< int > vBoundMaxY;
+	
+	for( int i=0; i<vPlacedInst.size(); i++ )
+	{
+		cout << vPlacedInst[i].size() << endl;
+		int nMinX = vPlacedInst[i][0]->getPlacedX();
+		int nMaxX = vPlacedInst[i][0]->getPlacedX();
+		int nMinY = vPlacedInst[i][0]->getPlacedY();
+		int nMaxY = vPlacedInst[i][0]->getPlacedY();
+		for( int j=1; j<vPlacedInst[i].size(); j++ )
+		{
+			nMinX = min( nMinX, vPlacedInst[i][j]->getPlacedX() );
+			nMaxX = max( nMaxX, vPlacedInst[i][j]->getPlacedX() );
+			nMinY = min( nMinY, vPlacedInst[i][j]->getPlacedY() );
+			nMaxY = max( nMaxY, vPlacedInst[i][j]->getPlacedY() );
+		}
+		vBoundMinX.push_back( nMinX );
+		vBoundMaxX.push_back( nMaxX );
+		vBoundMinY.push_back( nMinY );
+		vBoundMaxY.push_back( nMaxY );
+
+	}
+
+	cout << "Here" << endl;
+	set< gGrid_C* > vVoltageArea;
+	if( m_vVoltageAreaIndex.find( pInst ) != m_vVoltageAreaIndex.end() )
+	{
+		cout << "Has constraint"<<endl;
+		vVoltageArea = ( m_vVoltageAreaIndex[ pInst ] )->getGrid();
+	}
+	cout << "Voltage Area: " << vVoltageArea.size() << endl;
+	for( int y=nStartY; y<=nEndY; y++ )
+	{
+		for( int x=nStartX; x<=nEndX; x++ )
+		{
+			gGrid_C* gGrid = getGrid( m_pDesign, x, y, m_nOffsetZ );
+			int nCost = 0;
+			for( int i=0; i<vBoundMinX.size(); i++ )
+			{
+				nCost = nCost + ( max( x, vBoundMaxX[i] ) - min( x, vBoundMinX[i] ) ) + ( max( y, vBoundMaxY[i] ) - min( y, vBoundMinY[i] ) );
+			}
+			if( vVoltageArea.size() != 0 )
+			{
+				if( vVoltageArea.count( gGrid ) == 1 )
+				{
+					vBestGrid.push_back( gGrid );
+					vBestGridCost.push_back( nCost );
+				}
+			}
+			else
+			{
+				vBestGrid.push_back( gGrid );
+				vBestGridCost.push_back( nCost );
+			}
+		}
+	}
+//
+	vector< net_C* > vNet;
+	vector< int > vExtraCost;
+	for( int i=0; i<cF->m_vNetwork.size(); i++ )
+	{
+		vNet.push_back( cF->m_vNetwork[i]->m_pNet );
+		vExtraCost.push_back( cF->m_vNetwork[i]->m_pNet->getConstraintLayerId() );
+	}
+//
+
+	// added at 0706 19:30
+	for (int i = 1; i < vBestGrid.size(); i++)
+	{
+		for (int j = i - 1; j >= 0; j--)
+		{
+			//if( !cF.m_bLockInX )
+			//	nDX = cF.m_nR - cF.m_nL;
+			//if( !cF.m_bLockInY )
+			//	nDY = cF.m_nT - cF.m_nD;
+
+			//int nTmpX, nTmpY, nTmpZ, nTmpB, nTmpF;
+			gGrid_C *pBG = vBestGrid[j + 1];
+			//pBG->getPosition( nTmpX, nTmpY, nTmpZ );
+
+			//int nBCost = boundingBoxCost( nTmpX, vMinX, vMaxX )
+			//	   + boundingBoxCost( nTmpY, vMinY, vMaxY ) ;
+			int nBCost = vBestGridCost[j + 1];
+			int nFCost = vBestGridCost[j];
+			gGrid_C *pFG = vBestGrid[j];
+			//pFG->getPosition( nTmpX, nTmpY, nTmpZ );
+
+			//int nFCost = boundingBoxCost( nTmpX, vMinX, vMaxX )
+			//	   + boundingBoxCost( nTmpY, vMinY, vMaxY ) ;
+
+			if (nFCost >= nBCost)
+			{
+				//if( pBound->m_nMove == 1 )
+				//{
+				/*
+					if( nFDelta <= nBDelta )
+						break;
+					else
+					{
+						vBestGrid[j + 1] = pFG;
+						vBestGrid[j] = pBG;
+						vBestGridCost[j + 1] = nFCost;
+						vBestGridCost[j] = nBCost;
+						vDelta[j + 1] = nFDelta;
+						vDelta[j] = nBDelta;	
+					}
+				*/
+				//}
+				//else // == -1
+				//{
+				/*
+					if( nFDelta >= nBDelta )
+						break;
+					else
+					{
+						vBestGrid[j + 1] = pFG;
+						vBestGrid[j] = pBG;
+						vBestGridCost[j + 1] = nFCost;
+						vBestGridCost[j] = nBCost;
+						vDelta[j + 1] = nFDelta;
+						vDelta[j] = nBDelta;	
+					}	
+				*/
+				//}
+				break;
+			}
+			else
+			{
+				vBestGrid[j + 1] = pFG;
+				vBestGrid[j] = pBG;
+				vBestGridCost[j + 1] = nFCost;
+				vBestGridCost[j] = nBCost;
+				//vDelta[j + 1] = nFDelta;
+				//vDelta[j] = nBDelta;
+			}
+		}
+	}
+	// endadded at 0706 19:30
+
+	for( int i=vBestGrid.size()-1; i>=0; i-- )
+	{
+		cout<<vBestGridCost[i]<<" ";
+	}
+	cout << endl;
+
+	pInst->setPlaced(nOrigX, nOrigY);
+	sUnplacedInst.insert( pInst );
+	//return pBestGrid;
+	return vBestGrid;
+}
+
+
+
 
 vector<gGrid_C *> router_C::findPlaceToMove_ver4(instance_C *pInst, boundry_C* pBound, set< instance_C* > &sUnplacedInst )
 {
@@ -20711,6 +21017,440 @@ bool router_C::fixConnection(net_C *pNet)
 {
 }
 
+unordered_map< pin_C*, vector< pin_C* > > router_C::findConnection_ver2( net_C* pNet )
+{
+	unordered_map< pin_C*, vector< pin_C* > > mConnection;
+	// data
+	vector< wire_C* > vWire = pNet->getWire();
+	vector< pin_C* > vPin = pNet->getPin();
+	set< gGrid_C* > sGrid2D;
+	// map 3D routing into 2D
+	//cout << pNet->getName() << " " << vWire.size() << endl;
+	for( int i=0; i<vWire.size(); i++ )
+	{
+		wire_C* pWire = vWire[i];
+		gGrid_C* pGrid_1 = pWire->getGrid1();
+		gGrid_C* pGrid_2 = pWire->getGrid2();
+		if( pGrid_1->m_nZ != pGrid_2->m_nZ )
+			continue;
+		else
+		{
+			if( pGrid_1->m_nX != pGrid_2->m_nX )
+			{
+				int nDX = ( pGrid_2->m_nX - pGrid_1->m_nX ) / abs( pGrid_2->m_nX - pGrid_1->m_nX );
+				int nStep = abs( pGrid_2->m_nX - pGrid_1->m_nX );
+				int nX = pGrid_1->m_nX;
+				int nY = pGrid_1->m_nY;
+				//cout << nX << " " << nY << endl;
+				m_vRoutingGraph2D[nY-1][nX-1]->setRouted();
+				sGrid2D.insert( m_vRoutingGraph2D[nY-1][nX-1] );
+				for( int s=0; s<nStep; s++ )
+				{
+					nX = nX + nDX;
+					m_vRoutingGraph2D[nY-1][nX-1]->setRouted();
+					sGrid2D.insert( m_vRoutingGraph2D[nY-1][nX-1] );
+				}
+			}
+			else if( pGrid_1->m_nY != pGrid_2->m_nY )
+			{
+				int nDY = ( pGrid_2->m_nY - pGrid_1->m_nY ) / abs( pGrid_2->m_nY - pGrid_1->m_nY );	
+				int nStep = abs( pGrid_2->m_nY - pGrid_1->m_nY );
+				int nX = pGrid_1->m_nX;
+				int nY = pGrid_1->m_nY;
+				//cout << nX << " " << nY << endl;
+				m_vRoutingGraph2D[nY-1][nX-1]->setRouted();
+				sGrid2D.insert( m_vRoutingGraph2D[nY-1][nX-1] );
+				for( int s=0; s<nStep; s++ )
+				{
+					nY = nY + nDY;
+					m_vRoutingGraph2D[nY-1][nX-1]->setRouted();
+					sGrid2D.insert( m_vRoutingGraph2D[nY-1][nX-1] );
+				}
+			}
+		}
+	}
+
+	// find connection
+	stack< gGrid_C* > sTmpGrid;
+	unordered_map< gGrid_C*, vector< pin_C* > > mPin;
+	for( int i=0; i<vPin.size(); i++ )
+	{
+		pin_C* pPin = vPin[i];
+		int nPX = ((instance_C*)pPin->getCell())->getPlacedX()-1;
+		int nPY = ((instance_C*)pPin->getCell())->getPlacedY()-1;
+		gGrid_C* pTmpGrid = m_vRoutingGraph2D[nPY][nPX];
+		if( mPin.find( pTmpGrid ) ==  mPin.end() )
+		{
+			vector< pin_C* > vTmpPin;
+			vTmpPin.push_back( pPin );
+			mPin[ pTmpGrid ] = vTmpPin;
+		}
+		else
+		{
+			vector< pin_C* > vTmpPin = mPin[ pTmpGrid ];
+			vTmpPin.push_back( pPin );
+			mPin[ pTmpGrid ] = vTmpPin;
+		}
+	}
+	//cout << "Here" << endl;
+	for( int p = 0; p < vPin.size(); p++ )
+	{
+		pin_C* pPin = vPin[p];
+		//cout << "Start at: " << ((instance_C*)pPin->getCell())->getName() << "/" << pPin->getName() << endl;
+		int nPX;
+		int nPY;
+		int nTF(0), nDF(0), nRF(0), nLF(0);
+		
+		nPX = ((instance_C*)pPin->getCell())->getPlacedX()-1;
+		nPY = ((instance_C*)pPin->getCell())->getPlacedY()-1;
+		sTmpGrid.push( m_vRoutingGraph2D[nPY][nPX] );
+		set< gGrid_C* > sRoutedGrid;
+		set< pin_C* > sPin;
+		if( (mPin[ m_vRoutingGraph2D[nPY][nPX] ]).size() > 1 )
+		{
+			vector< pin_C* > vConnection;
+			vector< pin_C* > vTmpPin = mPin[ m_vRoutingGraph2D[nPY][nPX] ];
+			for( int i=0; i<vTmpPin.size(); i++ )
+			{
+				if( vTmpPin[i] != pPin )
+					vConnection.push_back( vTmpPin[i] );
+			}
+			mConnection[ pPin ] = vConnection;
+		}
+
+		while( sTmpGrid.size() != 0 )
+		{
+			//cout << sTmpGrid.size() << endl;
+			gGrid_C* pTmpGrid = sTmpGrid.top();
+			sTmpGrid.pop();
+			if( !pTmpGrid->isRouted() )
+				continue;
+			pTmpGrid->setUnrouted();
+			sRoutedGrid.insert( pTmpGrid );
+			//if( mPin.find( pTmpGrid ) != mPin.end() )
+			//{
+			//	pPin = (mPin[pTmpGrid])[0];
+			//}
+			int nTmpPX = pTmpGrid->m_nX;
+			int nTmpPY = pTmpGrid->m_nY;
+			vector< gGrid_C* > vNGrid;
+			int nPinCount = 0;
+			if( nTmpPX > 0 && m_vRoutingGraph2D[nTmpPY][nTmpPX-1]->isRouted() )
+			{
+				gGrid_C* pNGrid = m_vRoutingGraph2D[nTmpPY][nTmpPX-1];
+				if( mPin.find( pNGrid ) == mPin.end() )
+				{
+					sTmpGrid.push( pNGrid );
+					//vNGrid.push_back( pNGrid );
+				}
+				else
+				{
+					vector< pin_C* > vTmpPin = mPin[ pNGrid ];	
+					if( mConnection.find( pPin ) == mConnection.end() )
+					{
+						vector< pin_C* > vConnectPin;
+						//vConnectPin = vTmpPin;
+						for( int j=0; j<vTmpPin.size(); j++ )
+						{
+							if( sPin.count( vTmpPin[j] ) == 0 )
+							{
+								vConnectPin.push_back( vTmpPin[j] );
+								//mConnection[ pPin ] = vConnectPin;
+								sPin.insert( vTmpPin[j] );
+							}
+						}
+						mConnection[ pPin ] = vConnectPin;
+					}
+					else
+					{
+						vector< pin_C* > vConnectPin = mConnection[ pPin ];
+						for( int j=0; j<vTmpPin.size(); j++ )
+						{
+							if( sPin.count( vTmpPin[j] ) == 0 )
+							{
+								vConnectPin.push_back( vTmpPin[j] );
+								mConnection[ pPin ] = vConnectPin;
+								sPin.insert( vTmpPin[j] );
+							}
+						}
+					}
+					/*
+					for( int j=0; j<vTmpPin.size(); j++ )
+					{
+						if( mConnection.find( vTmpPin[j] ) == mConnection.end() )
+						{
+							vector< pin_C* > vConnectPin;
+							vConnectPin.push_back( pPin );
+							mConnection[ vTmpPin[j] ] = vConnectPin;
+						}
+						else
+						{
+							vector< pin_C* > vConnectPin = mConnection[ vTmpPin[j] ];
+							vConnectPin.push_back( pPin );	
+							mConnection[ vTmpPin[j] ] = vConnectPin;
+						}
+					}
+					*/
+					//vNGrid.insert( vNGrid.begin(), pNGrid );
+					//nPinCount++;
+					//sTmpGrid.push( pNGrid );
+				}
+				//pNGrid->setUnrouted();
+			}
+
+			if( nTmpPY > 0 && m_vRoutingGraph2D[nTmpPY-1][nTmpPX]->isRouted() )
+			{
+				gGrid_C* pNGrid = m_vRoutingGraph2D[nTmpPY-1][nTmpPX];
+				if( mPin.find( pNGrid ) == mPin.end() )
+				{
+					sTmpGrid.push( pNGrid );
+					//vNGrid.push_back( pNGrid );
+				}
+				else
+				{
+					vector< pin_C* > vTmpPin = mPin[ pNGrid ];	
+					if( mConnection.find( pPin ) == mConnection.end() )
+					{
+						vector< pin_C* > vConnectPin;
+						//vConnectPin = vTmpPin;
+						for( int j=0; j<vTmpPin.size(); j++ )
+						{
+							if( sPin.count( vTmpPin[j] ) == 0 )
+							{
+								vConnectPin.push_back( vTmpPin[j] );
+								//mConnection[ pPin ] = vConnectPin;
+								sPin.insert( vTmpPin[j] );
+							}
+						}
+						mConnection[ pPin ] = vConnectPin;
+					}
+					else
+					{
+						vector< pin_C* > vConnectPin = mConnection[ pPin ];
+						for( int j=0; j<vTmpPin.size(); j++ )
+						{
+							if( sPin.count( vTmpPin[j] ) == 0 )
+							{
+								vConnectPin.push_back( vTmpPin[j] );
+								mConnection[ pPin ] = vConnectPin;
+								sPin.insert( vTmpPin[j] );
+							}
+						}
+					}
+					/*
+					for( int j=0; j<vTmpPin.size(); j++ )
+					{
+						if( mConnection.find( vTmpPin[j] ) == mConnection.end() )
+						{
+							vector< pin_C* > vConnectPin;
+							vConnectPin.push_back( pPin );
+							mConnection[ vTmpPin[j] ] = vConnectPin;
+						}
+						else
+						{
+							vector< pin_C* > vConnectPin = mConnection[ vTmpPin[j] ];
+							vConnectPin.push_back( pPin );	
+							mConnection[ vTmpPin[j] ] = vConnectPin;
+						}
+					}
+					*/
+					//vNGrid.insert( vNGrid.begin(), pNGrid );
+					//nPinCount++;
+					//sTmpGrid.push( pNGrid );
+				}
+				//pNGrid->setUnrouted();
+			
+			}
+			
+			if( nTmpPX < m_vRoutingGraph2D[0].size() - 1  && m_vRoutingGraph2D[nTmpPY][nTmpPX+1]->isRouted() )
+			{
+				gGrid_C* pNGrid = m_vRoutingGraph2D[nTmpPY][nTmpPX+1];
+				if( mPin.find( pNGrid ) == mPin.end() )
+				{
+					sTmpGrid.push( pNGrid );
+					//vNGrid.push_back( pNGrid );
+				}
+				else
+				{
+					vector< pin_C* > vTmpPin = mPin[ pNGrid ];	
+					if( mConnection.find( pPin ) == mConnection.end() )
+					{
+						vector< pin_C* > vConnectPin;
+						//vConnectPin = vTmpPin;
+						for( int j=0; j<vTmpPin.size(); j++ )
+						{
+							if( sPin.count( vTmpPin[j] ) == 0 )
+							{
+								vConnectPin.push_back( vTmpPin[j] );
+								//mConnection[ pPin ] = vConnectPin;
+								sPin.insert( vTmpPin[j] );
+							}
+						}
+						mConnection[ pPin ] = vConnectPin;
+					}
+					else
+					{
+						vector< pin_C* > vConnectPin = mConnection[ pPin ];
+						for( int j=0; j<vTmpPin.size(); j++ )
+						{
+							if( sPin.count( vTmpPin[j] ) == 0 )
+							{
+								vConnectPin.push_back( vTmpPin[j] );
+								mConnection[ pPin ] = vConnectPin;
+								sPin.insert( vTmpPin[j] );
+							}
+						}
+					}
+					/*
+					for( int j=0; j<vTmpPin.size(); j++ )
+					{
+						if( mConnection.find( vTmpPin[j] ) == mConnection.end() )
+						{
+							vector< pin_C* > vConnectPin;
+							vConnectPin.push_back( pPin );
+							mConnection[ vTmpPin[j] ] = vConnectPin;
+						}
+						else
+						{
+							vector< pin_C* > vConnectPin = mConnection[ vTmpPin[j] ];
+							vConnectPin.push_back( pPin );	
+							mConnection[ vTmpPin[j] ] = vConnectPin;
+						}
+					}
+					*/
+					//vNGrid.insert( vNGrid.begin(), pNGrid );
+					//nPinCount++;
+					//sTmpGrid.push( pNGrid );
+				}
+				//pNGrid->setUnrouted();
+			
+			}
+			
+			if( nTmpPY < m_vRoutingGraph2D.size() - 1  && m_vRoutingGraph2D[nTmpPY+1][nTmpPX]->isRouted() )
+			{
+				gGrid_C* pNGrid = m_vRoutingGraph2D[nTmpPY+1][nTmpPX];
+				if( mPin.find( pNGrid ) == mPin.end() )
+				{
+					sTmpGrid.push( pNGrid );
+					//vNGrid.push_back( pNGrid );
+				}
+				else
+				{
+					vector< pin_C* > vTmpPin = mPin[ pNGrid ];	
+					if( mConnection.find( pPin ) == mConnection.end() )
+					{
+						vector< pin_C* > vConnectPin;
+						//vConnectPin = vTmpPin;
+						for( int j=0; j<vTmpPin.size(); j++ )
+						{
+							if( sPin.count( vTmpPin[j] ) == 0 )
+							{
+								vConnectPin.push_back( vTmpPin[j] );
+								//mConnection[ pPin ] = vConnectPin;
+								sPin.insert( vTmpPin[j] );
+							}
+						}
+						mConnection[ pPin ] = vConnectPin;
+					}
+					else
+					{
+						vector< pin_C* > vConnectPin = mConnection[ pPin ];
+						for( int j=0; j<vTmpPin.size(); j++ )
+						{
+							if( sPin.count( vTmpPin[j] ) == 0 )
+							{
+								vConnectPin.push_back( vTmpPin[j] );
+								mConnection[ pPin ] = vConnectPin;
+								sPin.insert( vTmpPin[j] );
+							}
+						}
+					}
+					/*
+					for( int j=0; j<vTmpPin.size(); j++ )
+					{
+						if( mConnection.find( vTmpPin[j] ) == mConnection.end() )
+						{
+							vector< pin_C* > vConnectPin;
+							vConnectPin.push_back( pPin );
+							mConnection[ vTmpPin[j] ] = vConnectPin;
+						}
+						else
+						{
+							vector< pin_C* > vConnectPin = mConnection[ vTmpPin[j] ];
+							vConnectPin.push_back( pPin );	
+							mConnection[ vTmpPin[j] ] = vConnectPin;
+						}
+					}
+					*/
+					//vNGrid.insert( vNGrid.begin(), pNGrid );
+					//nPinCount++;
+					//sTmpGrid.push( pNGrid );
+				}
+				//pNGrid->setUnrouted();
+			
+			}
+			/*
+			vector< gGrid_C* > vTmpGrid;
+			while( sTmpGrid.size() != 0 )
+			{
+				gGrid_C* pNPGrid = sTmpGrid.top();
+				if( mPin.find( pNPGrid ) == mPin.end() )
+				{
+					vTmpGrid.push_back( pNPGrid );
+					sTmpGrid.pop();
+				}
+				else
+					break;
+			}
+
+			for( int j = 0; j < nPinCount; j++ )
+			{
+				sTmpGrid.push( vNGrid[j] );
+			}
+
+			for( int j=(int)vTmpGrid.size() - 1 ; j >= 0 ; j-- )
+			{
+				sTmpGrid.push( vTmpGrid[j] );
+			}
+
+			for( int j=nPinCount; j<vNGrid.size(); j++ )
+			{
+				sTmpGrid.push( vNGrid[j] );
+			}
+			*/
+		}
+		for( set< gGrid_C* >::iterator it = sRoutedGrid.begin(); it != sRoutedGrid.end(); it++ )
+		{
+			gGrid_C* pTmpGrid =  *it;
+			pTmpGrid->setRouted();
+		}
+
+
+	}
+	// recover 2D routing graph
+	
+	for( set< gGrid_C* >::iterator it = sGrid2D.begin(); it != sGrid2D.end(); it++ )
+	{
+		gGrid_C* pTmpGrid =  *it;
+		pTmpGrid->setUnrouted();
+	}
+	
+	cout << "Check connection: "<< pNet->getName() << endl;
+	for( unordered_map< pin_C*, vector< pin_C* > >::iterator it = mConnection.begin(); it != mConnection.end(); it++ )
+	{
+		pin_C* pPin = it->first;
+		cout <<  ((instance_C*)pPin->getCell())->getName() << "/" << pPin->getName() << " -> " ;
+		vector< pin_C* > vPin = it->second;
+		for( int i=0; i<vPin.size(); i++ )
+		{
+			cout << ((instance_C*)vPin[i]->getCell())->getName() << "/" << vPin[i]->getName() << " " ;
+		}
+		cout << endl;
+	}
+
+	return mConnection;	
+}
+
 unordered_map< pin_C*, vector< pin_C* > > router_C::findConnection( net_C* pNet )
 {
 	unordered_map< pin_C*, vector< pin_C* > > mConnection;
@@ -21677,6 +22417,42 @@ bool router_C::reroute(instance_C *pInst, vector<net_C *> &vRerouteNet)
 	}
 }
 
+bool router_C::moveCell( vector< instance_C* > &vInst )
+{
+	//cout << "at moveCell"<<endl;
+	bool bResult;
+	if( vInst.size() == 1 )
+	{
+		cout << "at single cell" << endl;
+		//bResult = multipleCellMovement_ver4( vInst, pBound );
+		bResult = multipleCellMovement_ver4_2( vInst );
+		if( bResult )
+			nSglCount++;
+		else
+			nSglFCount++;
+	}
+	else
+	{
+		cout << "at multiple cell" << endl;
+		//bResult = multipleCellMovement_ver4( vInst, pBound );		
+		bResult = multipleCellMovement_ver4_2( vInst );		
+	/*	
+		for( int i=0; i<vInst.size(); i++ )
+		{
+			bResult = singleCellMovement_ver3( vInst[i], pBound );
+		}
+	*/	
+		
+		if( bResult )
+			nMulCount++;
+		else
+			nMulFCount++;
+	}
+	//cout << "return moveCell result"<<endl;
+	return bResult;
+}
+
+
 bool router_C::moveCell( vector< instance_C* > &vInst, boundry_C* pBound )
 {
 	//cout << "at moveCell"<<endl;
@@ -22103,6 +22879,552 @@ bool router_C::iterPlaceInst( int &nTotalInst, int nNumInst, vector< instance_C*
 
 	return bSuccess;
 }
+
+bool router_C::multipleCellMovement_ver4_2( vector< instance_C* > &vInst )
+{	
+	cout << "at multipleCellMovement"<<endl;
+	int nMoveCount = vInst.size();
+	set< instance_C* > sInst;	
+	vector< instance_C* > vIInst = vInst;
+	for( int i=0; i<vIInst.size(); i++ )
+	{
+		sInst.insert( vIInst[i] );
+		vInst[ nMoveCount - 1 - i ] = vIInst[i];	
+	}
+	
+	vector< net_C* > vRipNet;
+	set< net_C* > sNet;
+	set< net_C* > sRipNet;
+	set< instance_C* > sUnplacedInst;
+	vector< gGrid_C* > vPseudoPinGrid;
+	for( int i=0; i<vInst.size(); i++ )
+	{
+		instance_C* pInst = vInst[i];
+		if( pInst->hasBeenMoved() )
+			nMoveCount--;
+		vector< networkForced_C* > &vTmpNF = m_vForced[ pInst->getId() ].m_vNetwork;
+		for( int j=0; j<vTmpNF.size(); j++ )
+		{
+			if( sNet.count( vTmpNF[j]->m_pNet ) == 0 )
+			{
+				sNet.insert( vTmpNF[j]->m_pNet );
+				vRipNet.push_back( vTmpNF[j]->m_pNet );
+			}
+		}
+		sUnplacedInst.insert( pInst );
+	}
+	//cout << vRipNet.size() << endl;
+	vector< instance_C* > vNonMovedInst;
+	
+	//cout << "Check 16 3 1: " << getGrid( m_pDesign, 16, 3, 1)->getRemand() << " " << getGrid( m_pDesign, 16, 3, 1 )->getPinDemand() << endl;
+	for( int i=0; i<vRipNet.size(); i++ )
+	{
+		vector< pin_C* > vPin = vRipNet[i]->getPin();
+		for( int j=0; j<vPin.size(); j++ )
+		{
+			pin_C* pPin = vPin[j];
+			instance_C* pInst = ( instance_C* )pPin->getCell();
+			if( sUnplacedInst.count( pInst ) != 0 )
+			{
+				continue;
+			}
+			int nZ = pPin->getLayerId();
+			int nX = pInst->getPlacedX();
+			int nY = pInst->getPlacedY();
+			
+			gGrid_C* pGrid = getGrid( m_pDesign, nX, nY, nZ );
+			pGrid->addPinDemand( vRipNet[i] );
+			if( nX == 16 && nY == 3 )
+				cout << pInst->getName() << " " << vRipNet[i]->getName() << endl;		
+			int nLayerConstraint = max( nZ, vRipNet[i]->getConstraintLayerId() );
+			for( int l=nZ+1; l<=nLayerConstraint; l++ )
+			{
+				pGrid = getGrid( m_pDesign, nX, nY, l );
+				pGrid->addPinDemand( vRipNet[i] );
+				vPseudoPinGrid.push_back( pGrid );
+			}
+			vNonMovedInst.push_back( pInst );
+		}
+	}
+	
+	int nSwapCost = m_pDesign->getMaxCellConstraint() - m_vMovedInstance.size() - nMoveCount;
+
+	backupInstance( vInst );
+	backupNet( vRipNet );
+	//cout << vRipNet.size() << endl;
+	//cout << "Check 16 3 1: " << getGrid( m_pDesign, 16, 3, 1)->getRemand() << " " << getGrid( m_pDesign, 16, 3, 1 )->getPinDemand() << endl;
+
+	for( int i=0; i<vInst.size(); i++ )
+	{
+		removeInstOnGraph( vInst[i] );
+	}
+	//cout << "Check 16 3 1: " << getGrid( m_pDesign, 16, 3, 1)->getRemand() << " " << getGrid( m_pDesign, 16, 3, 1 )->getPinDemand() << endl;
+	cout << "Origin Rip net: "<<endl;
+	for( int i=0; i<vRipNet.size(); i++ )
+	{
+		cout << vRipNet[i]->getName() << endl;
+		ripupNet( vRipNet[i] );
+		sRipNet.insert( vRipNet[i] );
+	}
+	cleanWire( vRipNet );
+	//cout << "Check 16 3 1: " << getGrid( m_pDesign, 16, 3, 1)->getRemand() << " " << getGrid( m_pDesign, 16, 3, 1 )->getPinDemand() << endl;
+
+	bool bFindAllPlace = true;
+	vector< instance_C* > vTmpSwap;
+	//vector< instance_C > vSwapBackup;
+	vector< instance_C* > vPlacedInst;
+
+	//cout << "place instance"<<endl;
+	// place the instance
+	int nNumInstance = vInst.size();
+	//cout << "Move Cell"<<endl;
+	vector< instance_C* > vRecordPse;
+	vector< int > vBestRecord; 
+	int nMaxBest = 0;
+	for( int i=0; i<nNumInstance; i++ )
+	{
+		instance_C* pInst = vInst[i];
+		//cout << "Place "<<pInst->getName() << " ";
+		gGrid_C* pOGrid = getGrid( m_pDesign, pInst->getPlacedX(), pInst->getPlacedY(), m_nOffsetZ );	
+			
+		//cout << "Find"<<endl;
+		//vector< gGrid_C* > vBestGrid = findPlaceToMove_ver4( pInst );		
+		//vector< gGrid_C* > vBestGrid = findPlaceToMove_ver3( pInst );		
+		//vector< gGrid_C* > vBestGrid = findPlaceToMove_ver3( pInst, pBound );		
+		vector< gGrid_C* > vBestGrid = findPlaceToMove_ver4( pInst, sUnplacedInst );		
+		//vector< gGrid_C* > vBestGrid = findPlaceToMove_ver5( pInst, pBound, sUnplacedInst );		
+			
+		cout << "Choice "<< vBestGrid.size() << endl;
+		for( int i=vBestGrid.size()-1; i>=0; i-- )
+		{
+			int nX, nY, nZ;
+			vBestGrid[i]->getPosition( nX, nY, nZ );
+			cout <<"( " << nX << " " << nY << " )";
+		}
+		cout << endl;
+		
+		gGrid_C* pBGrid = NULL;
+		if( vBestGrid.size() == 0 )
+		{
+			//lockInstance( pInst );
+			for( int j=0; j<i; j++ )
+			{
+				resetPseudoPinDemand( vInst[j], vInst[j]->getPlacedX(), vInst[j]->getPlacedY(), m_nOffsetZ );
+				removeInstOnGraph( vInst[j] );
+			}
+			for( int j=0; j<vTmpSwap.size(); j++ )
+			{
+				resetPseudoPinDemand( vTmpSwap[j], vTmpSwap[j]->getPlacedX(), vTmpSwap[j]->getPlacedY(), m_nOffsetZ );
+				removeInstOnGraph( vTmpSwap[j] );
+			}
+			/*
+			for( int n=0; n<vLocalNet.size(); n++ )
+				addNetOnGraph( m_pDesign, vLocalNet[n] );
+			*/
+			for( int n=0; n<vRipNet.size(); n++ )
+			{
+				if( sRipNet.count( vRipNet[n] ) != 0 )
+				{
+					addNetOnGraph( m_pDesign, vRipNet[n] );
+				}
+			}
+			bFindAllPlace = false;
+			break;
+		}
+		else
+		{
+			bool bPlace = false;
+			vector< net_C *> vTmpRip;
+			for( int b=vBestGrid.size() - 1; b>=0; b-- )
+			//for( int b=vBestGrid.size() - 1; b>=vBestGrid.size()/2; b-- )
+			{
+				int nX, nY, nZ;
+				pBGrid = vBestGrid[b];
+				pBGrid->getPosition( nX, nY, nZ );
+				//if( isPlaceable( pBGrid, pInst ) )
+				//if( isPlaceable_ver4( pBGrid, pInst, vTmpRip ) )
+				if( isPlaceable_ver5( pBGrid, pInst, vTmpRip ) )
+				{
+//
+					vBestRecord.push_back(b);
+//					
+					if( vTmpRip.size() != 0 )	
+					{
+						for( int n=0; n<vTmpRip.size(); n++ )
+						{
+							if( sRipNet.count( vTmpRip[n] ) != 0 )
+							{
+								vTmpRip.erase( vTmpRip.begin() + n );
+								n--;
+							}
+							else
+								sRipNet.insert( vTmpRip[n] );	
+						}
+						cout << "Local Rip "<<endl;
+						backupNet( vTmpRip );
+						for( int n=0; n<vTmpRip.size(); n++ )
+						{
+							cout << vTmpRip[n]->getName()<<endl;
+							ripupNet( vTmpRip[n] );	
+							vRipNet.push_back( vTmpRip[n] );
+						}
+						cleanWire( vTmpRip );
+					}
+
+					//cout << "Place at: " << nX << ", "<< nY <<", "<< nZ << endl;
+					putInstOnGraph( pInst, nX, nY, nZ );
+					calPseudoPinDemand( pInst, nX, nY, nZ );
+					bPlace = true;
+					sUnplacedInst.erase( pInst );
+					break;
+				}
+					
+				else if( pBGrid != pOGrid )
+				{
+					vector<instance_C *> vSwapInstance = findSwapInstance_ver2(pBGrid, pOGrid, pInst);
+					//vector<instance_C *> vSwapInstance = findSwapInstance_ver3(pBGrid, pOGrid, pInst);
+					cout << "Swap Instance: ";
+					for( int s=0; s<vSwapInstance.size(); s++ )
+						cout << vSwapInstance[s]->getName() << " ";
+					cout << endl;
+					for (int s = 0; s < vSwapInstance.size() ; s++)
+					{
+						if( nSwapCost == 0 && !vSwapInstance[s]->hasBeenMoved() )					
+							continue;
+						bool bHasSwap = false;
+						for( int t=0; t<vTmpSwap.size(); t++ )
+						{
+							if( vTmpSwap[t] == vSwapInstance[s] )
+							{
+								bHasSwap = true;
+								break;
+							}		
+						}
+
+						for( int t=0; t<vInst.size(); t++ )
+						{
+							if( vInst[t] == vSwapInstance[s] )
+							{
+								bHasSwap = true;
+								break;
+							}
+						}
+						vector< networkForced_C* > &vTmpNF = m_vForced[ vSwapInstance[s]->getId() ].m_vNetwork;
+						for( int n=0; n < vTmpNF.size(); n++ )
+						{
+							if( sRipNet.count( vTmpNF[n]->m_pNet ) != 0  )
+							{
+								bHasSwap = true;
+								break;
+							}
+						}
+
+						if( bHasSwap )
+						{
+							continue;
+						}
+						vTmpRip.clear();
+						instance_C *pSInst = vSwapInstance[s];
+						instance_C cLocalBackupInstance;
+						// local backup pSInst
+						cLocalBackupInstance.setName( pSInst->getName() );
+						cLocalBackupInstance.setPlaced(pSInst->getPlacedX(), pSInst->getPlacedY());
+						removeInstOnGraph(pSInst);
+						if( swapInstance_ver3(pBGrid, pOGrid, pInst, pSInst, vTmpRip, vRipNet ) )
+						//if( swapInstance_ver2(pBGrid, pOGrid, pInst, pSInst, vTmpRip ) )
+						{
+							//cout << "Swap: "<<pSInst->getName() << " at " << cLocalBackupInstance.getPlacedX() <<", " << cLocalBackupInstance.getPlacedY() << endl;
+							cout << "Swap Rip Net: ";
+							for( int ss=0; ss<vTmpRip.size(); ss++ )
+							{
+								cout << vTmpRip[ss]->getName() << " ";
+							}
+							cout << endl;
+							vBestRecord.push_back(b);
+//							
+							if( vTmpRip.size() != 0 )
+							{
+								for( int n=0; n<vTmpRip.size(); n++ )
+								{
+									if( sRipNet.count( vTmpRip[n] ) != 0 )
+									{
+										vTmpRip.erase( vTmpRip.begin() + n );
+										n--;
+									}
+									else
+										sRipNet.insert( vTmpRip[n] );	
+								}
+								
+								backupNet( vTmpRip );
+								for( int n=0; n<vTmpRip.size(); n++ )
+								{
+									ripupNet( vTmpRip[n] );	
+									vRipNet.push_back( vTmpRip[n] );
+								}
+								cleanWire( vTmpRip );
+								
+							}
+
+							int nTmpX, nTmpY, nTmpZ;
+							pBGrid->getPosition(nTmpX, nTmpY, nTmpZ);
+							putInstOnGraph(pInst, nTmpX, nTmpY, nTmpZ);
+							calPseudoPinDemand( pInst, nTmpX, nTmpY, nTmpZ );
+						
+							sInst.insert( pSInst );
+							pOGrid->getPosition(nTmpX, nTmpY, nTmpZ);
+							putInstOnGraph(pSInst, nTmpX, nTmpY, nTmpZ);
+							calPseudoPinDemand( pSInst, nTmpX, nTmpY, nTmpZ );
+							for( int l=0; l<vTmpRip.size(); l++ )
+							{
+								vector< pin_C* > vTmpPin = vTmpRip[l]->getPin();
+								for( int p=0; p<vTmpPin.size(); p++ )
+								{
+									instance_C* pPInst = ( instance_C* )vTmpPin[p]->getCell();
+									if( sInst.count( pPInst ) == 0 )
+									{
+										int nPX = pPInst->getPlacedX();
+										int nPY = pPInst->getPlacedY();
+										int nPZ = vTmpPin[p]->getLayerId();
+										gGrid_C* pPGrid = getGrid( m_pDesign, nPX, nPY, nPZ );
+										pPGrid->addPinDemand( vTmpPin[p]->getNet() );
+										for( int z=nPZ + 1; z<= vTmpRip[l]->getConstraintLayerId(); z++ )
+										{	
+											pPGrid = getGrid( m_pDesign, nPX, nPY, nPZ );
+											pPGrid->addPinDemand( vTmpRip[l] );
+										}
+										vNonMovedInst.push_back( pPInst );
+									}
+								}
+							}
+							
+							vTmpSwap.push_back( pSInst );
+							vInst.push_back( pSInst );
+							m_vBackupInstance.push_back( cLocalBackupInstance );
+							bPlace = true;
+							if( !vSwapInstance[s]->hasBeenMoved() )
+								nSwapCost--;
+							cout << "Place at: " << nX << ", "<< nY <<", "<< nZ << endl;
+							cout << "Swap from: " << pSInst->getPlacedX() << ", "<< pSInst->getPlacedY() <<", "<< nZ << endl;
+							break;
+						}
+						else
+						{
+							// recover instance, put instance back on the graph
+							int nTmpX, nTmpY, nTmpZ;
+							pBGrid->getPosition(nTmpX, nTmpY, nTmpZ);
+							putInstOnGraph(pSInst, nTmpX, nTmpY, nTmpZ);
+							pOGrid->getPosition( nTmpX, nTmpY, nTmpZ );
+							pInst->setPlaced(nTmpX, nTmpY);
+						}
+					}
+					if( bPlace )
+						break;	
+				}
+					
+				
+			}
+			if( !bPlace )
+			{
+				//lockInstance( pInst );
+				for( int j=0; j<i; j++ )
+				{
+					resetPseudoPinDemand( vInst[j], vInst[j]->getPlacedX(), vInst[j]->getPlacedY(), m_nOffsetZ );
+					removeInstOnGraph( vInst[j] );
+				}
+				for( int j=0; j<vTmpSwap.size(); j++ )
+				{
+					resetPseudoPinDemand( vTmpSwap[j], vTmpSwap[j]->getPlacedX(), vTmpSwap[j]->getPlacedY(), m_nOffsetZ );
+					removeInstOnGraph( vTmpSwap[j] );
+				}
+				bFindAllPlace = false;
+				/*	
+				for( int n=0; n<vLocalNet.size(); n++ )
+					addNetOnGraph( m_pDesign, vLocalNet[n] );
+				*/
+				/*
+				for( int n=0; n<vRipNet.size(); n++ )
+				{
+					addNetOnGraph( m_pDesign, vRipNet[n] );
+				}
+				*/
+				break;	
+			}
+			else
+			{
+				sUnplacedInst.erase( pInst );	
+				/*
+				for( int n=0; n<vLocalNet.size(); n++ )
+					addNetOnGraph( m_pDesign, vLocalNet[n] );
+				*/
+			}
+		}
+		//cout << "Check 16 3 1: " << getGrid( m_pDesign, 16, 3, 1)->getRemand() << " " << getGrid( m_pDesign, 16, 3, 1 )->getPinDemand() << endl;
+		
+		if( !bFindAllPlace )
+			break;
+//
+	}
+
+	bool bSuccess = false;
+	//cout << "Before reset " << getGrid( m_pDesign, 16, 3, 1)->getRemand() << " " << getGrid( m_pDesign, 16, 3, 1 )->getPinDemand() << endl;
+	
+	for( int i=0; i<vPseudoPinGrid.size(); i++ )
+	{
+		//vPseudoPinGrid[i]->delPinDemand();
+		vPseudoPinGrid[i]->resetPinDemand();
+	}
+	
+	for( int i=0; i<vNonMovedInst.size(); i++ )
+	{
+		resetPseudoPinDemand( vNonMovedInst[i], vNonMovedInst[i]->getPlacedX(), vNonMovedInst[i]->getPlacedY(), m_nOffsetZ );
+	}
+
+	//cout << "After reset " << getGrid( m_pDesign, 16, 3, 1)->getRemand() << " " << getGrid( m_pDesign, 16, 3, 1 )->getPinDemand() << endl;
+
+	if( bFindAllPlace )
+	{
+		//cout << "route net: "<< vRipNet.size() <<endl;
+		for( int i=0; i<vInst.size(); i++ )
+		{
+			resetPseudoPinDemand( vInst[i], vInst[i]->getPlacedX(), vInst[i]->getPlacedY(), m_nOffsetZ );
+		}
+		cout << "Place Result in total best: "<< nMaxBest <<endl;
+		//checkPseudoPin();
+		
+		for( int i=0; i<vInst.size(); i++ )
+		{
+			cout << vInst[i]->getName() << " " << vInst[i]->getPlacedX() << " " << vInst[i]->getPlacedY();
+			if( i < nNumInstance )
+				cout << " at " << vBestRecord[i] << endl;
+			else
+				cout << endl;
+		}
+		
+		bool bRouteAllNet = true;
+		bool bBetterSol = false;
+		//record previous result
+		int nPreviousLength = 0;
+		int nNewLength = 0;
+		for( int n=0; n<vRipNet.size(); n++ )
+		{
+			nPreviousLength = nPreviousLength + vRipNet[n]->getLength();
+		}
+
+		// route the net
+		int nSuccessCount = 0;
+		/*
+		for (int i = 1; i < vRipNet.size(); i++)
+		{
+			for (int j = i - 1; j >= 0; j--)
+			{
+				int nLength_b = vRipNet[j + 1]->getLength();
+				int nLength_f = vRipNet[j]->getLength();
+				if (nLength_f <= nLength_b)
+					break;
+				else
+				{
+					net_C *pNet = vRipNet[j + 1];
+					vRipNet[j + 1] = vRipNet[j];
+					vRipNet[j] = pNet;
+				}
+			}
+		}
+		*/
+		int nLengthConstraint = nPreviousLength;
+	
+		vector< net_C* > vTmpRip;
+		cout << "Route net"<<endl;
+		bRouteAllNet = multiNetRouting_ver2( vRipNet, nLengthConstraint, vTmpRip );
+//		bRouteAllNet = multiNetRouting( vRipNet, nLengthConstraint, nSuccessCount );
+		
+		cout << "check result" << endl;
+		// check if the new result is better
+		if( bRouteAllNet )
+			bSuccess = true;
+		else
+			bSuccess = false;
+	}
+	else
+	{
+		bSuccess = false;
+		/*
+		for( int i=0; i<vInst.size(); i++ )
+			removeInstOnGraph( vInst[i] );
+		*/
+	}
+
+	if( !bSuccess ) // recover all the information
+	{
+		cout << "recover information" << endl;
+		if( bFindAllPlace )
+		{
+			for( int i=0; i<vInst.size(); i++ )
+				removeInstOnGraph( vInst[i] );
+		}
+		
+		recoverInstance( vInst );
+		for( int i=0; i<vInst.size(); i++ )
+		{
+			instance_C* pInst = vInst[i];
+			
+			///if( i==0 )
+			//	lockInstance( pInst );
+			putInstOnGraph( pInst, pInst->getPlacedX(), pInst->getPlacedY(), m_nOffsetZ );
+			resetPseudoPinDemand( pInst, pInst->getPlacedX(), pInst->getPlacedY(), m_nOffsetZ );
+			//if( pInst->getName() == "C1" )
+			//	cout << "C1: "<<pInst->getPlacedX() <<", "<<pInst->getPlacedY() << endl;
+			//calForcedModel_ver3( m_vForced[ pInst->getId() ] );
+			calForcedModel_ver4( m_vForced[ pInst->getId() ] );
+		}
+		recoverNet( vRipNet );
+		for( int i=0; i<vRipNet.size(); i++ )
+		{
+			addNetOnGraph( m_pDesign, vRipNet[i] );	
+		}
+		/*
+		for( int i=0; i<vInst.size(); i++ )
+		{
+			updateForcedModel_ver2( vInst[i] );	
+		}
+		*/
+	}
+	else
+	{
+		cout << "update model" << endl;
+		for( int i=0; i<vInst.size(); i++ )
+		{
+			instance_C* pInst = vInst[i];
+			if ( !pInst->hasBeenMoved() && !( pInst->getPlacedX() == m_vBackupInstance[i].getPlacedX() && pInst->getPlacedY() == m_vBackupInstance[i].getPlacedY() ) )
+			//if ( !pInst->hasBeenMoved() )
+			{
+				pInst->hasMoved();
+				m_vMovedInstance.push_back(pInst);
+			}
+		
+			//m_nSuccess++;
+			updateForcedModel_ver2(pInst);
+			//freeBoundry( pInst );
+			freeForcedModel(pInst);
+		}
+		for( int i=0; i<m_vBackupInstance.size(); i++ )
+		{
+			instance_C* pInst = &m_vBackupInstance[i];
+			resetPseudoPinDemand( pInst, pInst->getPlacedX(), pInst->getPlacedY(), m_nOffsetZ );	
+		}
+		for( int i=0; i<m_vBackupNet.size(); i++ )
+		{
+			m_vBackupNet[i].cleanWire();
+		}
+		
+	}
+
+	m_vBackupNet.clear();
+	m_vBackupInstance.clear();	
+
+	cout << "return  multipleCellMovement result"<<endl;
+	return bSuccess;
+}
+
 
 
 bool router_C::multipleCellMovement_ver4_2( vector< instance_C* > &vInst, boundry_C* pBound )
@@ -23333,6 +24655,106 @@ bool router_C::multipleCellMovement_ver4( vector< instance_C* > &vInst, boundry_
 	cout << "return  multipleCellMovement result"<<endl;
 	return bSuccess;
 }
+
+vector< instance_C* > router_C::collectInst_ver2( instance_C* pInst )
+{
+	int nCanMoveCell = m_pDesign->getMaxCellConstraint() - m_vMovedInstance.size();
+	set< networkForced_C* > sNetwork;
+	forced_C* pF = &m_vForced[ pInst->getId() ];
+	vector< networkForced_C* > vNF = pF->m_vNetwork;
+	int nFX = 0;
+	int nFY = 0;
+	if( abs( pF->m_nT - pF->m_nD ) - pF->m_nCX > 0 )
+	{
+		if( pF->m_nT > pF->m_nD )
+			nFX = 1;
+		else
+			nFX = -1;
+	}
+	
+	if( abs( pF->m_nR - pF->m_nL ) - pF->m_nCY > 0 )
+	{
+		if( pF->m_nR > pF->m_nL )
+			nFY = 1;
+		else
+			nFY = -1;
+	}
+	
+	queue< instance_C* > qInst;
+	qInst.push( pInst );
+	set< instance_C* > sHasTravel;
+	vector< instance_C* > vCollectedInst;
+	set< instance_C* > sCollectedInst;
+	while( qInst.size() != 0 )
+	{
+		instance_C* pTmpInst = qInst.front();
+		qInst.pop();
+		if( nCanMoveCell > 0 )
+		{
+			if( !pTmpInst->hasBeenMoved() )
+				nCanMoveCell--;
+		}
+		else if( nCanMoveCell == 0 )
+		{
+			if( !pTmpInst->hasBeenMoved() )
+				continue;
+		}
+		vCollectedInst.push_back( pTmpInst );
+		sCollectedInst.insert( pTmpInst );
+		sHasTravel.insert( pTmpInst );
+		vector< pin_C > vPin = pTmpInst->getPin();
+		for( int p=0; p<vPin.size(); p++ )
+		{
+			pin_C* pPin = &vPin[p];
+			if( pPin->getNet() != NULL )
+			{
+				net_C* pNet = pPin->getNet();
+				//cout << pPin->getName() << " " << pNet->getName() << endl;
+				unordered_map< pin_C*, vector< pin_C* > > mTmpConnection = m_vConnection[ pNet ];
+				//vector< pin_C* > vConnectPin = (m_vConnection[ pNet ])[ pPin ].second;
+				//cout << mTmpConnection.size() << endl;
+				vector< pin_C* > vConnectPin = mTmpConnection[ getPinInst( pPin )->IgetPin( pPin->getName() ) ];
+				//cout << vConnectPin.size() << endl;
+				for( int c=0; c<vConnectPin.size(); c++ )
+				{
+					instance_C* pCInst = getPinInst( vConnectPin[c] );
+					if( sHasTravel.count( pCInst) == 1  )
+						continue;
+					if( !pCInst->isMovable() )
+						continue;
+
+					forced_C* pTmpF = &m_vForced[pCInst->getId()];
+					int nTmpFX = 0;
+					int nTmpFY = 0;
+					if( abs( pTmpF->m_nT - pTmpF->m_nD ) - pTmpF->m_nCX > 0 )
+					{
+						if( pTmpF->m_nT > pTmpF->m_nD )
+							nTmpFX = 1;
+						else
+							nTmpFX = -1;
+					}
+					
+					if( abs( pTmpF->m_nR - pTmpF->m_nL ) - pTmpF->m_nCY > 0 )
+					{
+						if( pTmpF->m_nR > pTmpF->m_nL )
+							nTmpFY = 1;
+						else
+							nTmpFY = -1;
+					}
+
+					if( nFX * nTmpFX >= 0 && nFY * nTmpFY >= 0 )
+					{
+						qInst.push( pCInst );
+					}
+				}
+				
+			}
+		}
+	}
+
+	return vCollectedInst;
+}
+
 
 vector< instance_C* > router_C::collectInst( instance_C* pInst )
 {
@@ -25095,16 +26517,30 @@ bool router_C::startOpt()
 		}
 
 		if( m_vMovedInstance.size() <= nNumMaxCell )
+		{
 			//pInst = pickInstanceToMove_ver2();
 			//pB = pickInstanceToMove_ver3();
 			//pB = pickInstanceToMove_ver4();
-			pB = pickInstanceToMove_ver5();
+			//pB = pickInstanceToMove_ver5();
+			pInst = pickInstanceToMove_ver6();
+			vector< instance_C* > vCInst; 
+			if( pInst != NULL)
+				vCInst = collectInst_ver2( pInst );
+			cout << "Collect: ";
+			for( int c=0; c<vCInst.size(); c++ )
+			{
+				cout << vCInst[c]->getName() << " ";
+				//vInst.insert( vInst.begin(), vCInst[c] );
+				vInst.push_back( vCInst[c] );
+			}
+			cout << endl;
+		}
 		//else
 			//pInst = pickHasMovedInstanceToMove();
 		else
 			break;
-		//if ( pInst == NULL )
-		if( pB == NULL )
+		if ( pInst == NULL )
+		//if( pB == NULL )
 		{
 			//if( nTmpInst == m_vMovedInstance.size() )
 			//{
@@ -25120,6 +26556,7 @@ bool router_C::startOpt()
 			//	continue;
 			//}
 		}
+		/*
 		else
 		{
 			for( int i=0; i<pB->m_vForced.size(); i++ )
@@ -25144,6 +26581,7 @@ bool router_C::startOpt()
 			}
 			cout << endl;
 		}
+		*/
 		/*
 		else
 		{
@@ -25195,7 +26633,8 @@ bool router_C::startOpt()
 		else
 		*/
 		int nOrigin = calTotalWireLength();
-		if( moveCell( vInst, pB ) )
+		//if( moveCell( vInst, pB ) )
+		if( moveCell( vInst ) )
 		{
 			//getchar();	
 			m_nSuccess++;
@@ -25219,7 +26658,8 @@ bool router_C::startOpt()
 		*/	
 		else
 		{
-			pB->m_bLock = true;
+			//pB->m_bLock = true;
+			lockInstance( pInst );	
 			cout << "lock"<<endl;
 			m_nFailed++;
 			//	vFailedInst.push_back( pInst );
@@ -25521,7 +26961,7 @@ bool router_C::startOpt()
 			}
 			else
 			{
-
+				
 				for (int b = 0; b < m_vBackupNet.size(); b++)
 				{
 					m_vBackupNet[b].cleanWire();

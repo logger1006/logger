@@ -602,9 +602,16 @@ protected:
 public:
 	voltageArea_C(){};
 	~voltageArea_C(){};
-	string& name(){ return m_strName; }
-	set< gGrid_C* >& grid(){ return m_sGrid; }
-	set< instance_C* >& inst(){ return m_sInstance; }
+	//string& name(){ return m_strName; }
+	//set< gGrid_C* >& grid(){ return m_sGrid; }
+	//set< instance_C* >& inst(){ return m_sInstance; }
+	string getName(){ return m_strName; }
+	set< instance_C* > getInst(){ return m_sInstance; }
+	set< gGrid_C* > getGrid(){ return m_sGrid; }
+
+	void setGrid( set< gGrid_C* > sGrid ){ m_sGrid = sGrid; }
+	void setInst( set< instance_C* > sInst ){ m_sInstance = sInst; }
+	void setName( string strName ){ m_strName = strName; }
 
 	bool hasInstConstraint( instance_C* pInst ){ if( m_sInstance.count( pInst ) == 0 ) return false; else return true; }
 	bool islegal( gGrid_C* pGrid ){ if( m_sGrid.count( pGrid ) == 0 ) return false; else return true; }

@@ -1,6 +1,6 @@
 NumMovedCellInst 2
-CellInst C2 2 4
 CellInst C1 2 2
+CellInst C2 2 4
 
 NumRoutes 20
 2 2 1 2 2 2 N1

@@ -239,11 +239,13 @@ class router_C
 	vector< gGrid_C* >findPlaceToMove_ver4( instance_C*, boundry_C* );
 	vector< gGrid_C* >findPlaceToMove_ver4( instance_C*, boundry_C*, set< instance_C* > & );
 	vector< gGrid_C* >findPlaceToMove_ver4( instance_C*, set< net_C* > &, set< instance_C* > &);
+	vector< gGrid_C* >findPlaceToMove_ver4( instance_C*, set< instance_C* > & );
 	vector< gGrid_C* >findPlaceToMove_ver5( instance_C*, boundry_C*, set< instance_C* > & );
 	bool iterPlaceInst( int &, int, vector< instance_C* > &, vector< vector< gGrid_C* > > &, vector< net_C* >, int, vector< instance_C* >, vector< int > );
 	bool iterPlaceInst_ver2( int &, int, vector< instance_C* > &, vector< vector< gGrid_C* > > &, vector< net_C* >, int, vector< instance_C* >, vector< int >, vector< instance_C* > &, const int );
 // end change
 	vector< instance_C* > collectInst( instance_C* );
+	vector< instance_C* > collectInst_ver2( instance_C* );
 	bool removeInstOnGraph( instance_C* );
 	bool putInstOnGraph( instance_C*, int, int, int );
 	bool calPseudoPinDemand( instance_C*, int, int, int );
@@ -253,11 +255,13 @@ class router_C
 	bool calForceDirection( vector< instance_C* > & );
 	bool evaluateForceDirection( net_C* );
 	unordered_map< pin_C*, vector< pin_C* > > findConnection( net_C* ); 
+	unordered_map< pin_C*, vector< pin_C* > > findConnection_ver2( net_C* ); 
 	instance_C* pickInstanceToMove();
 	instance_C* pickInstanceToMove_ver2();
 	boundry_C* pickInstanceToMove_ver3();
 	boundry_C* pickInstanceToMove_ver4();
 	boundry_C* pickInstanceToMove_ver5();
+	instance_C* pickInstanceToMove_ver6();
 	vector< instance_C* > pickInstanceToMove( int ); // rest of cost
 
 	instance_C* pickHasMovedInstanceToMove();
@@ -380,7 +384,9 @@ class router_C
 // end added
 	bool multipleCellMovement_ver4( vector< instance_C* > &, boundry_C* ); // with multiNet ripup & reroute
 	bool multipleCellMovement_ver4_2( vector< instance_C* > &, boundry_C* ); // with multiNet ripup & reroute
+	bool multipleCellMovement_ver4_2( vector< instance_C* > & ); // with multiNet ripup & reroute
 	bool moveCell( vector< instance_C* >&, boundry_C* );
+	bool moveCell( vector< instance_C* >& );
 	int calDistanceFromPath( rGrid_C*, int );
 	bool reduceOverflow( vector< net_C* > &, gGrid_C*, int & );
 

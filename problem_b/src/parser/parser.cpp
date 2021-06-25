@@ -565,7 +565,7 @@ bool parseVoltageArea( design_C* pDesign, ifstream &fin )
 	{
 		set< gGrid_C* > sGrid;
 		set< instance_C* > sInst;
-		fin >> strName;
+		fin >> strBuffer >> strName;
 		fin >> strBuffer >> nNumGrid;
 		for( int g=0; g<nNumGrid; g++ )
 		{
@@ -581,9 +581,11 @@ bool parseVoltageArea( design_C* pDesign, ifstream &fin )
 			sInst.insert( pInst );
 		}
 		voltageArea_C* pVolArea = new voltageArea_C;
-		pVolArea->name() = strName;
-		pVolArea->grid() = sGrid;
-		pVolArea->inst() = sInst;
+		//cout << strName << " " <<sGrid.size() << " " << sInst.size() << endl;
+		pVolArea->setName( strName );
+		pVolArea->setGrid( sGrid );
+		pVolArea->setInst( sInst );
+		//cout << strName << " " <<sGrid.size() << " " << sInst.size() << endl;
 		vVolArea.push_back( pVolArea );
 	}
 	pDesign->setVolateArea( vVolArea );
