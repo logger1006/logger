@@ -82,6 +82,7 @@ bool router_C::init()
 	//cout<<setw(COUTWIDTH)<<left<<setfill('.')<<"Creating net forced model";
 	//if( createNetForcedModel() )
 	//	cout<<"complete"<<endl;
+	/*
 	cout << "Build connection "<<endl;
 	for( int i=0; i<m_vNetworkForced.size(); i++ )
 	{
@@ -89,8 +90,7 @@ bool router_C::init()
 		unordered_map< pin_C*, vector< pin_C* > > mConnection = findConnection( pNet );
 		m_vConnection[ pNet ] = mConnection;
 	}
-
-
+	*/
 	cout << " Net Forced "<<endl;
 	for (int i = 0; i < m_vNetworkForced.size(); i++)
 	{
@@ -15664,6 +15664,10 @@ instance_C* router_C::pickInstanceToMove_ver6()
 	int nPickId = -1;
 	vector< int > vSumOfForced;
 	vector< int > vMaxForced;
+	
+	bool bHasMovedCost = true;
+	if( m_pDesign->getMaxCellConstraint() - m_vMovedInstance.size() == 0 )
+		bHasMovedCost = false;
 
 	for (int i = 0; i < m_vForced.size(); i++)
 	{
@@ -15684,6 +15688,11 @@ instance_C* router_C::pickInstanceToMove_ver6()
 		//int nArea = ( pF->m_nBoundX2 - pF->m_nBoundX1 +1 )*( pF->m_nBoundY2 - pF->m_nBoundY1 + 1 );
 		//nMaxSForced = max(nMaxSForced, nSumOfForced);
 		//cout << nArea <<endl;
+		if( !bHasMovedCost && !pF->m_pInstance->hasBeenMoved() )
+		{
+			continue;
+		}
+
 		if( nMaxSForced < nSumOfForced )
 		{
 			nMaxSForced = nSumOfForced;
@@ -15698,7 +15707,7 @@ instance_C* router_C::pickInstanceToMove_ver6()
 	//int nPickId = nMinAreaId;
 	if (nPickId < 0)
 	{
-		//cout<<"No instances are picked"<<endl;
+		cout<<"No instances are picked"<<endl;
 		return NULL;
 	}
 	cout<<"Pick instance: "<<m_vForced[nPickId].m_pInstance->getName() << " Max forced: " << nMaxSForced <<endl;
@@ -26466,6 +26475,10 @@ bool router_C::startOpt()
 	tRequiredTime = tEndRoute - tStartRoute;
 	
 	pre_route_ver4(vTmpNet);
+	for (int i = 0; i < m_vNetworkForced.size(); i++)
+	{
+		calForcedNetwork_ver3(m_vNetworkForced[i]);
+	}
 	
 	//pre_route_ver3(vTmpNet);
 	//pre_route_ver2(vTmpNet);
@@ -26523,22 +26536,10 @@ bool router_C::startOpt()
 			//pB = pickInstanceToMove_ver4();
 			//pB = pickInstanceToMove_ver5();
 			pInst = pickInstanceToMove_ver6();
-			vector< instance_C* > vCInst; 
-			if( pInst != NULL)
-				vCInst = collectInst_ver2( pInst );
-			cout << "Collect: ";
-			for( int c=0; c<vCInst.size(); c++ )
-			{
-				cout << vCInst[c]->getName() << " ";
-				//vInst.insert( vInst.begin(), vCInst[c] );
-				vInst.push_back( vCInst[c] );
-			}
-			cout << endl;
 		}
-		//else
-			//pInst = pickHasMovedInstanceToMove();
 		else
 			break;
+		
 		if ( pInst == NULL )
 		//if( pB == NULL )
 		{
@@ -26556,6 +26557,22 @@ bool router_C::startOpt()
 			//	continue;
 			//}
 		}
+		else
+		{
+			cout << "Pick: " << pInst->getName() << endl;
+			vector< instance_C* > vCInst; 
+			vCInst = collectInst_ver2( pInst );
+			cout << "Collect: ";
+			for( int c=0; c<vCInst.size(); c++ )
+			{
+				cout << vCInst[c]->getName() << " ";
+				//vInst.insert( vInst.begin(), vCInst[c] );
+				vInst.push_back( vCInst[c] );
+			}
+			cout << endl;
+		
+		}
+
 		/*
 		else
 		{
