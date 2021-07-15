@@ -72,7 +72,9 @@ protected:
 	int m_nReroute;
 	vector<int> nx, ny, nz; //pin : x,y,z
 	int m_nLength;
+	double m_dLength;
 	int m_nIdealLength;
+	double m_dIdealLength;
 
 public:
 	net_C() : m_nNumNet(0), m_nReroute(0), m_nLength(0), m_nIdealLength(0), m_dWeight(0.0){};
@@ -90,8 +92,10 @@ public:
 	void setnz(int temp) { nz.push_back(temp); }
 	void addInst(instance_C *temp) { m_vInst.push_back(temp); }
 	void setLength(int nLength) { m_nLength = nLength; }
+	void setDLength( double dLength ){ m_dLength = dLength; }
 	void setConstraintLayerId( int nLayerId ){ m_nConstraintLayerId = nLayerId; }
 	void setIdealLength( int nLength ){ m_nIdealLength = nLength; }
+	void setDIdealLength( double dLength ){ m_dIdealLength = dLength; }
 	void setWeight( double dWeight ){ m_dWeight = dWeight; }
 	// get data
 	string getName()
@@ -110,7 +114,9 @@ public:
 	vector<int> getnz() { return nz; }
 	vector<instance_C *> getInst() { return m_vInst; }
 	int getLength() { return m_nLength; }
+	double getDLength(){ return m_dLength; }
 	int getIdealLength(){ return m_nIdealLength; }
+	double getDIdealLength(){ return m_dIdealLength; }
 	// other operation
 	void cleanWire()
 	{
@@ -481,6 +487,7 @@ public:
 			cout << "No net " << pNet->getName() << "in gird "<< m_nX << " " << m_nY <<  " " << m_nZ << endl;
 		}
 	}
+	unordered_map< net_C*, int > getPinInfo(){ return m_mPseudoPinDemand; }
 	void resetPinDemand(){ m_mPseudoPinDemand.clear(); }
 	//void resetPinDemand(){ m_nPseudoPinDemand = 0; }
 };

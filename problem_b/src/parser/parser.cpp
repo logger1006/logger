@@ -404,6 +404,7 @@ bool parseNet(design_C *pDesign, ifstream &fin)
 	for (int i = 0; i < nNumNet; i++)
 	{
 		fin >> strBuf >> strNetName >> nNumPin >> strConstraint >> dWeight;
+		//cout << strNetName << endl;
 		net_C *pNet = new net_C;
 		pNet->setName(strNetName);
 		pNet->setConstraint(strConstraint);

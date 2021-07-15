@@ -1,0 +1,10 @@
+ICCAD Contest B
+Input:  ../testcase/case4.txt
+Output: ./result/case4.out
+
+Parsing input...
+Non complete
+Cell complete
+Instance complete
+Net complete
+parser route complete

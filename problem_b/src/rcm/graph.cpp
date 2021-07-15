@@ -696,7 +696,7 @@ bool removeNeighborCellDemand(design_C *pDesign, gGrid_C *pGrid, instance_C *pIn
 	{
 		cout << endl
 			 << "Remove Fail : can't find inst " << pInst->getName() << " in grid :(" << nX << "," << nY << "," << nZ << ")" << endl;
-		getchar();
+		//getchar();
 		auto test = pGrid->getInstance();
 		if (test.size() == 0)
 			cout << "zerooooooooooooo";

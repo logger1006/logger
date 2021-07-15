@@ -5,10 +5,10 @@ Output: ./result/case1.out
 Parsing input...
 Non complete
 Cell complete
-Extra complete
 Instance complete
 Net complete
 parser route complete
+VoltageArea complete
 Design boundary: 5 x 5
 Number of layer: 3
 Number of cell: 3
@@ -24,318 +24,204 @@ Creating routing graph..................complete
 Creating forced model...................complete
 Creating network........................complete
 Linking network.........................complete
-N1 L
-2 2 4 4
-2 2 2 2
-N1 L 2 1 4 3
-N1 R
-2 1 4 2
-2 2 5 5
-N1 R 2 1 4 4
-N1 T
-2 2 2 4
-2 2 2 2
-2 2 5 5
-N1 T 1 1 4 4
-N1 D
-4 1 4 4
-2 2 5 4
-N1 D 2 1 5 4
-N2 L
-2 4 4 5
-2 2 2 4
-2 2 2 2
-N2 L 2 2 5 2
-N2 R
-2 2 5 4
-2 4 2 4
-N2 R 2 3 5 5
-N2 T
-2 4 4 5
-2 2 2 4
-2 2 2 2
-N2 T 1 2 5 5
-N2 D
-3 2 5 5
-2 4 3 5
-N2 D 2 2 3 5
-N3 L
-2 4 4 5
-2 4 2 4
-2 2 2 2
-4 1 4 4
-N3 L 2 2 5 4
-N3 R
-2 2 5 2
-2 4 3 5
-N3 R 2 4 5 4
-N3 T
-2 4 4 5
-2 2 2 4
-2 2 2 2
-N3 T 1 2 5 4
-N3 D
-4 1 4 4
-5 2 5 4
-2 4 3 5
-N3 D 2 2 5 4
-N4 L
-2 2 4 4
-2 2 2 2
-N4 L 2 1 4 3
-N4 R
-4 1 4 1
-5 2 5 2
-N4 R 2 2 4 2
-N4 T
-2 2 4 4
-2 2 2 2
-N4 T 2 1 4 2
-N4 D
-4 1 4 1
-5 2 5 2
-N4 D 2 1 5 2
-N5 L
-2 4 4 5
-2 2 2 4
-2 -1 2 -1
-4 1 4 1
-N5 L 2 2 5 2
-N5 R
-2 4 4 5
-2 2 2 4
-2 -1 2 -1
-4 1 4 1
-N5 R 2 2 5 2
-N5 T
-2 4 4 5
-2 2 2 4
-2 2 2 2
-N5 T 1 2 5 2
-N5 D
-4 1 4 1
-5 2 5 2
-N5 D 2 2 5 2
-N6 L
-2 2 5 2
-2 4 3 5
-3 2 5 5
-N6 L 2 4 3 5
-N6 R
-2 2 5 4
-2 4 2 4
-N6 R 2 3 3 5
-N6 T
-2 2 5 4
-2 4 2 4
-N6 T 2 4 3 5
-N6 D
-2 2 5 2
-3 4 3 5
-3 2 5 5
-N6 D 2 4 4 5
+Creating voltage area index.............1
+2
+C1
+C3
+complete
+ Net Forced 
+Check connection: N1
+C4/P2 -> C5/P2 C1/P2 
+C5/P2 -> C1/P2 C4/P2 
+C1/P2 -> C5/P2 C4/P2 
+Check connection: N2
+C7/P1 -> C5/P1 C8/P2 
+C8/P2 -> C5/P1 C7/P1 
+C5/P1 -> C8/P2 C2/P2 C7/P1 
+C2/P2 -> C5/P1 
+Check connection: N3
+C6/P1 -> C4/P1 
+C4/P1 -> C6/P1 C2/P1 
+C2/P1 -> C4/P1 
+Check connection: N4
+C3/P2 -> C1/P1 
+C1/P1 -> C3/P2 
+Check connection: N5
+C3/P1 -> C2/P3 
+C2/P3 -> C3/P1 
+Check connection: N6
+C8/P1 -> C6/P2 C7/P2 
+C7/P2 -> C6/P2 C8/P1 
+C6/P2 -> C7/P2 C8/P1 
+Forced 
 
 Start Routing Optimization
+[1625922259] Pre route ver3_2
+[1625922259] Pre route ver4_2
+Check connection: N1
+C4/P2 -> C1/P2 
+C5/P2 -> C1/P2 
+C1/P2 -> C5/P2 C4/P2 
+Check connection: N2
+C7/P1 -> C5/P1 C8/P2 
+C8/P2 -> C7/P1 C5/P1 
+C5/P1 -> C2/P2 C7/P1 C8/P2 
+C2/P2 -> C5/P1 
+Check connection: N3
+C6/P1 -> C4/P1 
+C4/P1 -> C6/P1 C2/P1 
+C2/P1 -> C4/P1 
+Check connection: N4
+C3/P2 -> C1/P1 
+C1/P1 -> C3/P2 
+Check connection: N5
+C3/P1 -> C2/P3 
+C2/P3 -> C3/P1 
+Check connection: N6
+C8/P1 -> C6/P2 C7/P2 
+C7/P2 -> C6/P2 C8/P1 
+C6/P2 -> C7/P2 C8/P1 
+After pre reroute: 49
 Picking Instances...
-Pick: N2 T 5 F: 3 Instance: C2 (5 2) 
+Pick instance: C2 Max forced: 10
+Pick: C2
+Collect: C2 
 at single cell
-at single
-Range: 1 2 5 4
-Place at: 1 4
-N2 L
-2 4 4 5
-2 2 2 4
-2 2 2 2
-2 1 4 2
-2 4 3 5
-N2 L 1 4 4 4
-N2 R
-1 4 4 4
-2 4 2 4
-N2 R 1 4 4 5
-N2 D
-2 4 4 5
-2 2 2 4
-2 2 2 2
-N2 D 1 4 3 5
-N2 T
-2 1 4 2
-1 4 3 5
-N2 T 2 4 4 5
-N3 L
-4 1 4 4
-1 4 2 4
-N3 L 1 2 2 4
-N3 R
-2 4 4 5
-2 2 2 2
-2 2 2 2
-2 4 3 5
-N3 R 1 4 2 4
-N3 D
-2 4 4 5
-2 2 2 4
-2 2 2 2
-N3 D 1 2 3 4
-N3 T
-4 1 4 4
-1 4 2 4
-2 4 3 5
-N3 T 2 2 2 4
-N5 L
-4 1 4 1
-1 4 1 4
-N5 L 1 2 2 4
-N5 R
-2 4 4 5
-2 2 2 4
-2 2 2 2
-N5 R 1 4 2 4
-N5 D
-2 4 4 5
-2 2 2 4
-2 2 2 2
-N5 D 1 2 3 4
-N5 T
-4 1 4 1
-1 4 1 4
-N5 T 1 2 2 4
+at multipleCellMovement
+Origin Rip net: 
+N2
+N3
+N5
+Find Place to Move
+3
+2
+1
+Here
+Voltage Area: 0
+22.5 28.7 30.7 33.3 33.3 34.2 34.2 38.2 39.2 39.7 40.7 
+Choice 11
+( 2 4 )( 2 2 )( 2 3 )( 3 5 )( 4 4 )( 2 5 )( 3 4 )( 3 3 )( 3 2 )( 4 3 )( 4 2 )
+Place Result in total best: 0
+C2 2 4 at 10
+Route net
+Original Length: 42.6 New Length: 26.1
+check result
+update model
+Check connection: N2
+C7/P1 -> C2/P2 C5/P1 C8/P2 
+C8/P2 -> C2/P2 C7/P1 C5/P1 
+C5/P1 -> C2/P2 C7/P1 C8/P2 
+C2/P2 -> C7/P1 C5/P1 C8/P2 
+Check connection: N3
+C6/P1 -> C2/P1 C4/P1 
+C4/P1 -> C2/P1 C6/P1 
+C2/P1 -> C6/P1 C4/P1 
+Check connection: N5
+C3/P1 -> C2/P3 
+C2/P3 -> C3/P1 
+return  multipleCellMovement result
 Iter 1 .................................left: 1
-Pass the pseudo pin check
+Reduce: 10
+
 Picking Instances...
-Pick: N2 D 1 F: 3 Instance: C2 (1 4) 
+Pick instance: C8 Max forced: 8.5
+Pick: C8
+Collect: C8 
 at single cell
-at single
-Range: 1 4 3 4
-Place at: 2 4
-N2 L
-2 4 4 5
-2 2 2 4
-2 2 2 2
-2 1 4 2
-2 4 3 5
-N2 L 2 4 4 4
-N2 R
-2 4 4 4
-2 4 2 4
-N2 R 2 4 4 5
-N2 D
-3 4 4 5
-2 2 2 4
-2 2 2 2
-2 4 3 5
-N2 D 2 4 2 5
-N2 T
-2 1 4 2
-2 4 3 5
-N2 T 2 4 4 5
-N3 L
-4 1 4 4
-2 4 2 4
-N3 L 2 2 2 4
-N3 R
-2 4 4 5
-2 2 2 2
-2 2 2 2
-2 4 3 5
-N3 R 2 4 2 4
-N3 D
-2 4 4 5
--1 2 -1 4
-2 2 2 2
-4 1 4 4
-2 4 3 5
-N3 D 2 2 2 4
-N3 T
-2 4 4 5
--1 2 -1 4
-2 2 2 2
-4 1 4 4
-2 4 3 5
-N3 T 2 2 2 4
-N5 L
-4 1 4 1
-2 4 2 4
-N5 L 2 2 2 4
-N5 R
-2 4 4 5
-2 2 2 4
-2 2 2 2
-N5 R 2 4 2 4
-N5 D
-2 4 4 5
-2 2 2 4
--1 2 -1 2
-4 1 4 1
-N5 D 2 2 2 4
-N5 T
-2 4 4 5
-2 2 2 4
--1 2 -1 2
-4 1 4 1
-N5 T 2 2 2 4
-Iter 2 .................................left: 1
-Pass the pseudo pin check
+at multipleCellMovement
+Origin Rip net: 
+N2
+N6
+Find Place to Move
+3
+2
+Here
+Voltage Area: 0
+11.4 18.2 
+Choice 2
+( 2 4 )( 4 4 )
+Place Result in total best: 0
+C8 2 4 at 1
+Route net
+Original Length: 24 New Length: 12.6
+check result
+update model
+Check connection: N2
+C7/P1 -> C2/P2 C8/P2 C5/P1 
+C8/P2 -> C2/P2 C7/P1 C5/P1 
+C5/P1 -> C2/P2 C8/P2 C7/P1 
+C2/P2 -> C8/P2 C7/P1 C5/P1 
+Check connection: N6
+C8/P1 -> C6/P2 C7/P2 
+C7/P2 -> C6/P2 C8/P1 
+C6/P2 -> C7/P2 C8/P1 
+return  multipleCellMovement result
+Iter 2 .................................left: 0
+Reduce: 6
+
 Picking Instances...
-Pick: N1 L 1 F: 2 Instance: C1 (4 1) 
+Pick instance: C2 Max forced: 4.5
+Pick: C2
+Collect: C2 
 at single cell
-at single
-Range: 2 1 4 3
-Place at: 2 2
-N1 L
-2 4 4 4
-2 2 2 2
-2 4 2 4
-N1 L 2 2 4 4
-N1 R
-2 2 2 2
-2 4 3 5
-N1 R 2 4 4 4
-N1 D
-4 2 4 4
-2 2 2 2
-2 4 2 4
-N1 D 2 2 2 4
-N1 T
-2 2 2 2
-2 4 3 5
-N1 T 1 2 4 4
-N4 L
-2 2 4 4
-2 -1 2 -1
-2 4 2 4
-N4 L 2 2 2 4
-N4 R
-2 2 4 4
-2 -1 2 -1
-2 4 2 4
-N4 R 2 2 2 4
-N4 D
-2 2 4 4
--1 2 -1 2
-2 4 2 4
-N4 D 2 2 2 2
-N4 T
-2 2 4 4
--1 2 -1 2
-2 4 2 4
-N4 T 2 2 2 2
-Iter 3 .................................left: 0
-Pass the pseudo pin check
+at multipleCellMovement
+Origin Rip net: 
+N2
+N3
+N5
+Find Place to Move
+3
+2
+1
+Here
+Voltage Area: 0
+
+Choice 0
+
+recover information
+return  multipleCellMovement result
+lock
+Reduce: 0
+
 Picking Instances...
-Single Cell Move:   3
-Single Cell Failed Move:   0
+Pick instance: C8 Max forced: 0.5
+Pick: C8
+Collect: C8 
+at single cell
+at multipleCellMovement
+Origin Rip net: 
+N2
+N6
+Find Place to Move
+3
+2
+Here
+Voltage Area: 0
+
+Choice 0
+
+recover information
+return  multipleCellMovement result
+lock
+Reduce: 0
+
+Picking Instances...
+No instances are picked
+Single Cell Move:   2
+Single Cell Failed Move:   2
 Multiple Cell Move: 0
 Multiple Cell Failed Move: 0
-Failed Move:        0
+Failed Move:        2
 
 Start post-routing optimization
+Grid Length: 33 Calculate Length: 33(49.8)
+Ideal wire length is: 33(49.8)
 End optimization
 
 SUMMARY
-Number of Iteration:                    3
-Number of success movement:             3
-Number of failed movement:              0
+Number of Iteration:                    4
+Number of success movement:             2
+Number of failed movement:              2
 Number of routing refinement:           0
 Number of moved instance:               2
 Additional Information for debug
