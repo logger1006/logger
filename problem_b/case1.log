@@ -26,66 +26,88 @@ Creating network........................complete
 Linking network.........................complete
 Creating voltage area index.............1
 2
-C1
-C3
 complete
  Net Forced 
-Check connection: N1
-C4/P2 -> C5/P2 C1/P2 
-C5/P2 -> C1/P2 C4/P2 
-C1/P2 -> C5/P2 C4/P2 
-Check connection: N2
-C7/P1 -> C5/P1 C8/P2 
-C8/P2 -> C5/P1 C7/P1 
-C5/P1 -> C8/P2 C2/P2 C7/P1 
-C2/P2 -> C5/P1 
-Check connection: N3
-C6/P1 -> C4/P1 
-C4/P1 -> C6/P1 C2/P1 
-C2/P1 -> C4/P1 
-Check connection: N4
-C3/P2 -> C1/P1 
-C1/P1 -> C3/P2 
-Check connection: N5
-C3/P1 -> C2/P3 
-C2/P3 -> C3/P1 
-Check connection: N6
-C8/P1 -> C6/P2 C7/P2 
-C7/P2 -> C6/P2 C8/P1 
-C6/P2 -> C7/P2 C8/P1 
 Forced 
+C1 8.9
+C2 8.5
+C3 3.2
+C4 7.05
+C5 5.76
+C6 0.45
+C7 5.2
+C8 8
 
 Start Routing Optimization
-[1625922259] Pre route ver3_2
-[1625922259] Pre route ver4_2
-Check connection: N1
-C4/P2 -> C1/P2 
-C5/P2 -> C1/P2 
-C1/P2 -> C5/P2 C4/P2 
-Check connection: N2
-C7/P1 -> C5/P1 C8/P2 
-C8/P2 -> C7/P1 C5/P1 
-C5/P1 -> C2/P2 C7/P1 C8/P2 
-C2/P2 -> C5/P1 
-Check connection: N3
-C6/P1 -> C4/P1 
-C4/P1 -> C6/P1 C2/P1 
-C2/P1 -> C4/P1 
-Check connection: N4
-C3/P2 -> C1/P1 
-C1/P1 -> C3/P2 
-Check connection: N5
-C3/P1 -> C2/P3 
-C2/P3 -> C3/P1 
-Check connection: N6
-C8/P1 -> C6/P2 C7/P2 
-C7/P2 -> C6/P2 C8/P1 
-C6/P2 -> C7/P2 C8/P1 
-After pre reroute: 49
+[1627063281] Pre route ver3_2
+[0] N5 6.4 6.4 
+N5 Ideal: 6.4 Real: 6.4
+[0] N4 6.6 6.6 
+N4 Ideal: 6.6 Real: 6.6
+[0] N3 7.6 7.6 
+N3 Ideal: 7.6 Real: 7.6
+[0] N2 12.4 12.4 
+N2 Ideal: 12.4 Real: 12.4
+[0] N1 11.8 11.8 
+N1 Ideal: 11.8 Real: 11.8
+[1627063281] Pre route ver4_2
+N1 Ideal: 11.8 Real: 11.8
+N2 Ideal: 12.4 Real: 12.4
+N6 Ideal: 5.6 Real: 5.6
+N3 Ideal: 7.6 Real: 7.6
+N5 Ideal: 6.4 Real: 6.4
+N4 Ideal: 6.6 Real: 6.6
+After pre reroute: 50.4
 Picking Instances...
-Pick instance: C2 Max forced: 10
-Pick: C2
-Collect: C2 
+Pick_instance: C1 Max forced: 8.9
+Pick: C1 at 4 1
+
+at single cell
+at multipleCellMovement
+Origin Rip net: 
+N1
+N4
+Find Place to Move
+2
+1
+Here
+Has constraint
+Voltage Area: 9
+6 14 14 15.5 17.5 17.5 18 19 22.5 
+Choice 9
+( 2 2 )( 2 3 )( 3 2 )( 2 1 )( 3 3 )( 4 2 )( 4 3 )( 3 1 )( 4 1 )
+Place Result in total best: 0
+C1 2 2 at 8
+Route net
+N1 Previous: 11.8 
+Original Constraint: 24.3  New Constraint: 15.4
+N1 Ideal: 8.8 Real: 11.8
+Ideal: 8.8 After: 9
+Release: 11.1
+
+N4 Previous: 6.6 
+Original Constraint: 11.1  New Constraint: 11.1
+N4 Ideal: 1.2 Real: 6.6
+Ideal: 1.2 After: 1
+Release: 9.9
+
+Original Length: 24.3 New Length: 14.4
+check result
+update model
+C1 -0.6
+C5 5.625
+C4 3.45
+C3 -0.6
+return  multipleCellMovement result
+moveCell
+Iter 1 .................................left: 1
+Here 
+Reduce: 8.4
+
+Picking Instances...
+Pick_instance: C2 Max forced: 8.5
+Pick: C2 at 5 2
+
 at single cell
 at multipleCellMovement
 Origin Rip net: 
@@ -98,71 +120,50 @@ Find Place to Move
 1
 Here
 Voltage Area: 0
-22.5 28.7 30.7 33.3 33.3 34.2 34.2 38.2 39.2 39.7 40.7 
-Choice 11
-( 2 4 )( 2 2 )( 2 3 )( 3 5 )( 4 4 )( 2 5 )( 3 4 )( 3 3 )( 3 2 )( 4 3 )( 4 2 )
+14.2 19.4 21.9 25.4 25.4 26 26 28.9 29.4 31.9 32.4 35.4 37.4 40.9 41.4 
+Choice 15
+( 2 4 )( 2 2 )( 2 3 )( 2 5 )( 3 4 )( 3 5 )( 4 4 )( 3 3 )( 3 2 )( 4 3 )( 4 2 )( 4 5 )( 5 4 )( 5 3 )( 5 2 )
 Place Result in total best: 0
-C2 2 4 at 10
+C2 2 4 at 14
 Route net
+N2 Previous: 12.4 
+Original Constraint: 42.6  New Constraint: 16.05
+N2 Ideal: 7.8 Real: 12.4
+Ideal: 7.8 After: 7
+Release: 27
+
+N3 Previous: 7.6 
+Original Constraint: 27  New Constraint: 15.6
+N3 Ideal: 4.6 Real: 7.6
+Ideal: 4.6 After: 4
+Release: 20.1
+
+N5 Previous: 6.4 
+Original Constraint: 20.1  New Constraint: 20.1
+N5 Ideal: 3.6 Real: 6.4
+Ideal: 3.6 After: 3
+Release: 16.5
+
 Original Length: 42.6 New Length: 26.1
 check result
 update model
-Check connection: N2
-C7/P1 -> C2/P2 C5/P1 C8/P2 
-C8/P2 -> C2/P2 C7/P1 C5/P1 
-C5/P1 -> C2/P2 C7/P1 C8/P2 
-C2/P2 -> C7/P1 C5/P1 C8/P2 
-Check connection: N3
-C6/P1 -> C2/P1 C4/P1 
-C4/P1 -> C2/P1 C6/P1 
-C2/P1 -> C6/P1 C4/P1 
-Check connection: N5
-C3/P1 -> C2/P3 
-C2/P3 -> C3/P1 
+C2 0.6
+C5 6.7
+C8 8.3
+C7 0.8
+C4 1.5
+C6 0
+C3 -0.6
 return  multipleCellMovement result
-Iter 1 .................................left: 1
-Reduce: 10
-
-Picking Instances...
-Pick instance: C8 Max forced: 8.5
-Pick: C8
-Collect: C8 
-at single cell
-at multipleCellMovement
-Origin Rip net: 
-N2
-N6
-Find Place to Move
-3
-2
-Here
-Voltage Area: 0
-11.4 18.2 
-Choice 2
-( 2 4 )( 4 4 )
-Place Result in total best: 0
-C8 2 4 at 1
-Route net
-Original Length: 24 New Length: 12.6
-check result
-update model
-Check connection: N2
-C7/P1 -> C2/P2 C8/P2 C5/P1 
-C8/P2 -> C2/P2 C7/P1 C5/P1 
-C5/P1 -> C2/P2 C8/P2 C7/P1 
-C2/P2 -> C8/P2 C7/P1 C5/P1 
-Check connection: N6
-C8/P1 -> C6/P2 C7/P2 
-C7/P2 -> C6/P2 C8/P1 
-C6/P2 -> C7/P2 C8/P1 
-return  multipleCellMovement result
+moveCell
 Iter 2 .................................left: 0
-Reduce: 6
+Here 
+Reduce: 10.4
 
 Picking Instances...
-Pick instance: C2 Max forced: 4.5
-Pick: C2
-Collect: C2 
+Pick_instance: C2 Max forced: 0.6
+Pick: C2 at 2 4
+
 at single cell
 at multipleCellMovement
 Origin Rip net: 
@@ -175,38 +176,50 @@ Find Place to Move
 1
 Here
 Voltage Area: 0
-
-Choice 0
-
+14.2 
+Choice 1
+( 2 4 )
 recover information
+C2 0.6
+Rip net list: 
+N2 N3 N5 
+Backup list: 
+N2 N3 N5 
 return  multipleCellMovement result
+moveCell
 lock
 Reduce: 0
 
 Picking Instances...
-Pick instance: C8 Max forced: 0.5
-Pick: C8
-Collect: C8 
+Pick_instance: C1 Max forced: -0.6
+Pick: C1 at 2 2
+
 at single cell
 at multipleCellMovement
 Origin Rip net: 
-N2
-N6
+N1
+N4
 Find Place to Move
-3
 2
+1
 Here
-Voltage Area: 0
-
-Choice 0
-
+Has constraint
+Voltage Area: 9
+6 
+Choice 1
+( 2 2 )
 recover information
+C1 -0.6
+Rip net list: 
+N1 N4 
+Backup list: 
+N1 N4 
 return  multipleCellMovement result
+moveCell
 lock
 Reduce: 0
 
 Picking Instances...
-No instances are picked
 Single Cell Move:   2
 Single Cell Failed Move:   2
 Multiple Cell Move: 0
@@ -214,8 +227,14 @@ Multiple Cell Failed Move: 0
 Failed Move:        2
 
 Start post-routing optimization
-Grid Length: 33 Calculate Length: 33(49.8)
-Ideal wire length is: 33(49.8)
+N2 Ideal: 7.8 Real: 7.8
+N3 Ideal: 4.6 Real: 4.6
+N6 Ideal: 5.6 Real: 5.6
+N1 Ideal: 8.8 Real: 8.8
+N4 Ideal: 1.2 Real: 1.2
+N5 Ideal: 3.6 Real: 3.6
+Grid Length: 29 Calculate Length: 29(48.9)
+Ideal wire length is: 29(48.9)
 End optimization
 
 SUMMARY

@@ -131,7 +131,7 @@ bool calCellDemand(design_C *pDesign, gGrid_C *pGrid)
 	//pGrid = getGrid( pDesign, nX, nY, nZ );
 
 	int nTotalDemand = 0;
-	vector<instance_C *> vInst = pGrid->getInstance();
+	vector<instance_C *> &vInst = pGrid->getInstance();
 	vector<int> vDemand;
 	//cout<<vLayer.size()<<endl;
 	for (int i = 0; i < vLayer.size(); i++)
@@ -1317,8 +1317,8 @@ bool calNeighborCellDemand(design_C *pDesign) //check if need to calNeighborCell
 		{
 			gGrid_C *pGrid = getGrid(pDesign, x, y, nL);
 			calCellDemand(pDesign, pGrid);
-			vector<instance_C *> vInst = pGrid->getInstance();
-			bool bHasCell = false;
+			//vector<instance_C *> vInst = pGrid->getInstance();
+			//bool bHasCell = false;
 			// for (int i = 0; i < vInst.size(); i++)
 			// {
 			// 	if (sCell.count(vInst[i]->getType()) > 0)
@@ -1327,6 +1327,7 @@ bool calNeighborCellDemand(design_C *pDesign) //check if need to calNeighborCell
 			// 		break;
 			// 	}
 			// }
+			/*
 			if (vInst.size() != 0)
 			// if (bHasCell)
 			{
@@ -1341,6 +1342,7 @@ bool calNeighborCellDemand(design_C *pDesign) //check if need to calNeighborCell
 				// 	count++;
 				// }
 			}
+			*/
 		}
 	}
 	// cout<<endl<<"total  "<<count<<endl;

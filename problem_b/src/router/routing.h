@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 #include <set>
+#include <list>
 #include "rcm.h"
 
 using namespace std;
@@ -34,10 +35,15 @@ class rGrid_C
 	//int m_nH; // heuristic cost
 	double m_nH; // heuristic cost
 	int m_nMH; // minor heuristic cost
+	double m_nH_second;
+	double m_nPenalty;
 	//int m_nG; // current distance
 	double m_nG; // current distance
 	//int m_nCost; // nH + nG
 	double m_nCost; // nH + nG
+	double m_nCost_second;
+	double m_nBound;
+	
 	int m_nBend; // current bend ( optional )
 	bool isRouted;
 	bool isPath;
@@ -68,6 +74,11 @@ class forced_C
 	vector< int > m_vMinY;
 	vector< int > m_vMaxY;
 	int m_nGain;
+	FORCE m_dGain;
+	FORCE m_dFX;
+	FORCE m_dFY;
+	FORCE m_dFZ;
+
 
 	double m_dT, m_dD, m_dR, m_dL, m_dCX, m_dCY, m_dZ;
 
@@ -124,6 +135,9 @@ class networkForced_C
 	int m_n2MinX, m_n2MaxX;
 	int m_n2MinY, m_n2MaxY;
 
+	int m_nBMinX, m_nBMaxX;
+	int m_nBMinY, m_nBMaxY;
+
 // connection
 
 
@@ -176,6 +190,24 @@ class forced_net_C
 
 };
 
+
+class forcedQuerier_C
+{
+	private:
+	unordered_map< forced_C*, list< forced_C* >::iterator > m_mIndex;
+	set< forced_C* > m_sExistForced;
+	list< forced_C* > m_lForced;
+	
+	public:
+	inline void update( forced_C* );
+	inline void remove( forced_C* );
+	inline void add( forced_C* );
+	inline void sort();
+	inline void print();
+	inline forced_C* getForced( int );
+
+};
+
 class router_C
 {
 	private:
@@ -210,6 +242,11 @@ class router_C
 	vector< networkForced_C > m_vNetworkForced;
 	vector< boundry_C* > m_vBoundry;
 
+	// Query System
+	forcedQuerier_C m_cQuerySys;
+	//
+
+
 	vector< instance_C* > m_vMovedInstance;
 	unordered_map< net_C*, int > m_mLengthTable;
 	// backup data
@@ -232,6 +269,7 @@ class router_C
 	double calWireLength_ver2( net_C* );
 	int estimateHPWLwithoutLayer( net_C* );
 	int calTotalWireLength();
+	double calTotalWireLength_ver2();
 
 	unordered_map< instance_C*, voltageArea_C* > m_vVoltageAreaIndex;
 	unordered_map< int, set< forced_C*> > m_vForcedGroup;
@@ -286,6 +324,7 @@ class router_C
 	boundry_C* pickInstanceToMove_ver5();
 	instance_C* pickInstanceToMove_ver6();
 	instance_C* pickInstanceToMove_ver6_2();
+	instance_C* pickInstanceToMove_ver7();
 	vector< instance_C* > pickInstanceToMove( int ); // rest of cost
 
 	instance_C* pickHasMovedInstanceToMove();
@@ -310,6 +349,7 @@ class router_C
 	double routeNet_ideal_ver2( net_C* );
 	vector< vector< gGrid_C* > > routeNet_length_constraint_ver4( net_C*, const int );
 	vector< vector< gGrid_C* > > routeNet_length_constraint_ver4_2( net_C*, const double );
+	vector< vector< gGrid_C* > > routeNet_length_constraint_ver5_2( net_C*, double, double, double );
 	vector< gGrid_C* > routeNet_ver2( net_C* );
 	vector< gGrid_C* > routeNet( net_C*, vector< gGrid_C* > & );
 	vector< gGrid_C* > checkOverflow( vector< vector< gGrid_C* > > & );
@@ -318,11 +358,19 @@ class router_C
 	bool multiNetRouting( vector< net_C* > , const int );
 	bool multiNetRouting_ver2_2( vector< net_C* > , double &, vector< net_C* > & );
 	bool multiNetRouting_ver2( vector< net_C* > , int &, vector< net_C* > & );
+	bool multiNetRouting_ver3_2( vector< net_C* > , double &, vector< net_C* > & );
+	bool multiNetRouting_ver4_2( vector< net_C* > , double &, vector< net_C* > & );
 	bool rrr( vector< net_C* > &, vector< gGrid_C* > &, unordered_map<net_C*, int > &, int &, vector< net_C* > & );
 	bool rrr_ver2( vector< net_C* > &, vector< gGrid_C* > &, unordered_map<net_C*, int > &, int &, vector< net_C* > & );
 	bool rrr_ver3( vector< net_C* > &, vector< gGrid_C* > &, unordered_map<net_C*, int > &, int &, vector< net_C* > & );
 	bool rrr_ver3_2( vector< net_C* > &, vector< gGrid_C* > &, unordered_map<net_C*, double > &, double &, vector< net_C* > & );
+	bool rrr_ver3_3( vector< net_C* > &, vector< gGrid_C* > &, unordered_map<net_C*, double > &, double &, vector< net_C* > &, double );
+	bool rrr_ver3_4( vector< net_C* > &, vector< gGrid_C* > &, unordered_map<net_C*, double > &, double &, vector< net_C* > &, double );
+	bool rrr_ver3_5( vector< net_C* > &, vector< gGrid_C* > &, unordered_map<net_C*, double > &, double &, vector< net_C* > &, double );
+	bool rrr_ver3_6( vector< net_C* > &, vector< gGrid_C* > &, unordered_map<net_C*, double > &, double &, vector< net_C* > &, double , set< net_C* > &);
+	bool rrr_ver3_6_2( vector< net_C* > &, vector< gGrid_C* > &, unordered_map<net_C*, double > &, double &, vector< net_C* > &, double , set< net_C* > &);
 	bool rrr_ver4( vector< net_C* > &, vector< gGrid_C* > &, unordered_map<net_C*, int > &, int &, vector< net_C* > & );
+	bool rrr_ver4_3( vector< net_C* > &, vector< gGrid_C* > &, unordered_map<net_C*, double > &, double &, vector< net_C* > &, double );
 
 	bool rrr( vector< net_C* > & );
 	bool pre_route( vector< net_C* > & );
@@ -331,6 +379,9 @@ class router_C
 	bool pre_route_ver3_2( vector< net_C* > & );
 	bool pre_route_ver4( vector< net_C* > & );
 	bool pre_route_ver4_2( vector< net_C* > & );
+	bool pre_route_multi_thread( vector< net_C* > & );
+	bool pre_route_multi_thread_2( vector< net_C* > & );
+	bool pre_route_multi_thread_3( vector< net_C* > & );
 	bool saveNet( net_C*, vector< gGrid_C* > & );
 	bool saveNet( net_C*, vector< vector< gGrid_C* > > & );
 	bool setRoutingConstraint( net_C* );
@@ -406,8 +457,10 @@ class router_C
 	bool backupNet( net_C* );
 	bool backupNet( vector< net_C > &, net_C* );
 	bool recoverNet( vector< net_C* > &);
+	bool recoverNet( net_C* );
 	bool recoverNet( vector< net_C > &, vector< net_C* > &);
 	bool recoverNet( vector< net_C > &, net_C*);
+	bool recoverNet_backword( vector< net_C > &, net_C*);
 	bool cleanWire( vector< net_C* > & );
 	bool forcedAnalysis( net_C* );
 	bool forcedAnalysis( net_C*, vector< vector< gGrid_C* > > & );
@@ -422,6 +475,7 @@ class router_C
 	bool multipleCellMovement_ver4_2( vector< instance_C* > &, boundry_C* ); // with multiNet ripup & reroute
 	bool multipleCellMovement_ver4_2( vector< instance_C* > & ); // with multiNet ripup & reroute
 	bool multipleCellMovement_ver4_3( vector< instance_C* > & ); // with multiNet ripup & reroute
+	bool multipleCellMovement_ver4_4( vector< instance_C* > & ); // Hsih-Han
 	bool moveCell( vector< instance_C* >&, boundry_C* );
 	bool moveCell( vector< instance_C* >& );
 	int calDistanceFromPath( rGrid_C*, int );
@@ -457,8 +511,13 @@ inline instance_C* getPinInst( pin_C* );
 inline int boundingBoxCost( int, vector<int> &, vector<int> & ); // cur, min, max 
 inline int nEularDistance( gGrid_C*, gGrid_C*, layer_C* );
 inline double nEularDistance_ver2( gGrid_C*, gGrid_C*, layer_C* , vector< layer_C* > &);
+inline vector< double > nEularDistance_ver3( gGrid_C*, gGrid_C*, layer_C* , vector< layer_C* > &);
 inline int nEularDistance( vector< gGrid_C* >, gGrid_C*, layer_C* );
-inline double nEularDistance_ver2( vector< gGrid_C* >, gGrid_C*, layer_C* , vector< layer_C* > & );
+inline double nEularDistance_ver2( vector< gGrid_C* > &, gGrid_C*, layer_C* , vector< layer_C* > & );
+inline double nEularDistance_ver2_2( vector< gGrid_C* > &, gGrid_C*, layer_C* , vector< layer_C* > & );
+inline double nEularDistance_ver4( vector< gGrid_C* >, gGrid_C*, layer_C* , vector< layer_C* > & );
+inline double nEularDistance_bound( vector< gGrid_C* >, gGrid_C*, layer_C* , vector< layer_C* > & );
+double inline intersection( gGrid_C* pGrid, gGrid_C* pTFirst, gGrid_C* pTSecond, vector< layer_C* > &vLayer, vector< double > &, vector< double >& ); 
 // added at 0704 23:30
 inline int nEularDistance_sum( vector< gGrid_C* >, gGrid_C*, layer_C* );
 inline int nEularDistance_min( vector< gGrid_C* >, gGrid_C*, layer_C* );
@@ -466,5 +525,6 @@ inline int nEularDistance_min( vector< gGrid_C* >, gGrid_C*, layer_C* );
 inline int nEularDistance_FaS( vector< gGrid_C* >, gGrid_C*, layer_C*, rGrid_C* );
 // end added at 0706 21:00
 // end added at 0704 23:30
+inline bool compare_nonicreasing_order( forced_C* pFF, forced_C* pBF );
 
 #endif

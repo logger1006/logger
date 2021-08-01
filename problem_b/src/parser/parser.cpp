@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <map>
 #include <sstream>
+#include <ctime>
 
 using namespace std;
 
@@ -27,6 +28,7 @@ bool parser(design_C *pDesign, char *pFileName)
 		if (strBuffer == "MaxCellMove")
 		{
 			parseMaxCell(pDesign, fin);
+
 		}
 		else if (strBuffer == "GGridBoundaryIdx")
 		{
@@ -38,40 +40,54 @@ bool parser(design_C *pDesign, char *pFileName)
 		}
 		else if (strBuffer == "NumNonDefaultSupplyGGrid")
 		{
+			int start = clock();
 			parseNonDefaultSupplyGGrid(pDesign, fin);
-			cout << "Non complete" << endl;
+			int end = clock();
+			cout << "[" <<(double)(end - start) / CLOCKS_PER_SEC << "] Non complete" << endl;
 		}
 		else if (strBuffer == "NumMasterCell")
 		{
+			int start = clock();
 			parseCell(pDesign, fin);
-			cout << "Cell complete" << endl;
+			int end = clock();
+			cout << "[" <<(double)(end - start) / CLOCKS_PER_SEC << "] Cell complete" << endl;
 		}
 		else if (strBuffer == "NumNeighborCellExtraDemand")
 		{
+			int start = clock();
 			parseCellExtraDemand(pDesign, fin);
+			int end = clock();
 			//dumpGraph( pDesign );
-			cout << "Extra complete" << endl;
+			cout << "[" <<(double)(end - start) / CLOCKS_PER_SEC << "] Extra complete" << endl;
 		}
 		else if (strBuffer == "NumCellInst")
 		{
+			int start = clock();
 			parseInstance(pDesign, fin);
+			int end = clock();
 			// cout<<"instance complete at "<<time(NULL) - start<<endl;
-			cout << "Instance complete" << endl;
+			cout << "[" <<(double)(end - start) / CLOCKS_PER_SEC << "] Instance complete" << endl;
 		}
 		else if (strBuffer == "NumNets")
 		{
+			int start = clock();
 			parseNet(pDesign, fin);
-			cout << "Net complete" << endl;
+			int end = clock();
+			cout << "[" <<(double)(end - start) / CLOCKS_PER_SEC << "] Net complete" << endl;
 		}
 		else if (strBuffer == "NumRoutes")
 		{
+			int start = clock();
 			parseRoute(pDesign, fin);
-			cout << "parser route complete" << endl;
+			int end = clock();
+			cout << "[" <<(double)(end - start) / CLOCKS_PER_SEC << "] Route complete" << endl;
 		}
 		else if (strBuffer == "NumVoltageAreas")
 		{
+			int start = clock();
 			parseVoltageArea( pDesign, fin );
-			cout << "VoltageArea complete" << endl;
+			int end = clock();
+			cout << "[" <<(double)(end - start) / CLOCKS_PER_SEC << "] VoltageArea complete" << endl;
 		}
 	}
 
@@ -176,6 +192,7 @@ bool parseCell(design_C *pDesign, ifstream &fin)
 	int nNumCell = 0;
 	fin >> nNumCell;
 	pDesign->setNumCell(nNumCell);
+	unordered_map<string, cell_C *> cell_map_temp;
 
 	string strBuf;
 	string strCellName;
@@ -184,6 +201,7 @@ bool parseCell(design_C *pDesign, ifstream &fin)
 	// get layer information //
 	vector<layer_C *> vLayer;
 	vLayer = pDesign->getLayer();
+	unordered_map< string, int > layer_map = pDesign->getLayer_map();
 
 	for (int i = 0; i < nNumCell; i++)
 	{
@@ -204,6 +222,7 @@ bool parseCell(design_C *pDesign, ifstream &fin)
 			cPin.setName(strPinName);
 			cPin.setCell(pCell);
 			int nLayerId;
+			/*
 			for (int l = 0; l < vLayer.size(); l++)
 			{
 				if (vLayer[l]->getName() == strPinLayer)
@@ -212,6 +231,8 @@ bool parseCell(design_C *pDesign, ifstream &fin)
 					break;
 				}
 			}
+			*/
+			nLayerId = layer_map[ strPinLayer ];
 			cPin.setLayerId(nLayerId);
 			pCell->addPin(cPin);
 			temp_pin_map[strPinName] = nLayerId;
@@ -230,6 +251,7 @@ bool parseCell(design_C *pDesign, ifstream &fin)
 			cBlkg.setCell(pCell);
 			cBlkg.setName(strBlkgName);
 			int nLayerId;
+			/*
 			for (int l = 0; l < vLayer.size(); l++)
 			{
 				if (vLayer[l]->getName() == strBlkgLayer)
@@ -238,12 +260,17 @@ bool parseCell(design_C *pDesign, ifstream &fin)
 					break;
 				}
 			}
+			*/
+			nLayerId = layer_map[ strBlkgLayer ];
+
 			cBlkg.setLayerId(nLayerId);
 			cBlkg.setDemand(nNumDemand);
 			pCell->addBlkg(cBlkg);
 		}
 		pDesign->addCell(pCell);
+		cell_map_temp[ strCellName ] = pCell;
 	}
+	pDesign->setCell_map( cell_map_temp );
 	return true;
 }
 
@@ -341,12 +368,14 @@ bool parseInstance(design_C *pDesign, ifstream &fin)
 
 	//map
 	unordered_map<string, instance_C *> inst_map_temp;
+	unordered_map< string, cell_C* > cell_map = pDesign->getCell_map();
+	vector< layer_C* > vLayer = pDesign->getLayer();
 
 	for (int i = 0; i < nNumCell; i++)
 	{
 		fin >> strBuf >> strInstName >> strCellName >> nX >> nY >> strMovable;
 		cell_C *pCell;
-
+		/*
 		for (int c = 0; c < vCell.size(); c++)
 		{
 			if (strCellName == vCell[c]->getName())
@@ -355,6 +384,8 @@ bool parseInstance(design_C *pDesign, ifstream &fin)
 				break;
 			}
 		}
+		*/
+		pCell = cell_map[ strCellName ];
 
 		instance_C *pInst = new instance_C(pCell);
 
@@ -370,7 +401,7 @@ bool parseInstance(design_C *pDesign, ifstream &fin)
 		pDesign->addInstance(pInst);
 		inst_map_temp[strInstName] = pInst;
 		//addCellOnGraph( pDesign, pInst );
-		int nLowestLayer = pDesign->getLayer()[0]->getId();
+		int nLowestLayer = vLayer[0]->getId();
 		gGrid_C *pGrid = getGrid(pDesign, nX, nY, nLowestLayer);
 		//gGrid_C* pGrid = pDesign->getGrid( nX, nY, nLowestLayer );
 		pGrid->addInstance(pInst);
@@ -401,6 +432,8 @@ bool parseNet(design_C *pDesign, ifstream &fin)
 	string strConstraint;
 	double dWeight;
 
+	unordered_map< string, int > layer_map = pDesign->getLayer_map();
+
 	for (int i = 0; i < nNumNet; i++)
 	{
 		fin >> strBuf >> strNetName >> nNumPin >> strConstraint >> dWeight;
@@ -413,7 +446,9 @@ bool parseNet(design_C *pDesign, ifstream &fin)
 		{
 			nLayerConstraint = 1;
 		}
-
+		else
+			nLayerConstraint = layer_map[ strConstraint ];
+		/*
 		vector<layer_C *> vLayer = pDesign->getLayer();
 		for (int l = 0; l < vLayer.size(); l++)
 		{
@@ -423,11 +458,13 @@ bool parseNet(design_C *pDesign, ifstream &fin)
 				break;
 			}
 		}
+		*/
 		pNet->setConstraintLayerId( nLayerConstraint );
 		pNet->setId(i);
 		pNet->setWeight( dWeight );
 		string strInst;
 		string strPin;
+		int nMinLayer = nLayerConstraint;
 		for (int p = 0; p < nNumPin; p++)
 		{
 			fin >> strBuf >> strBuf;
@@ -466,6 +503,7 @@ bool parseNet(design_C *pDesign, ifstream &fin)
 			// }
 			pin_C *temp_p = pInst->IgetPin(strPin);
 			pNet->setnz(temp_p->getLayerId());
+			nMinLayer = min( nMinLayer, temp_p->getLayerId() );
 			/*
 			for( int n=0; n<vPin.size(); n++ )
 			{
@@ -478,6 +516,7 @@ bool parseNet(design_C *pDesign, ifstream &fin)
 			*/
 			pNet->addPin(pPin);
 		}
+		pNet->setMinLayerId( nMinLayer );
 		pDesign->addNet(pNet);
 		net_map_temp[strNetName] = pNet;
 	}
@@ -559,7 +598,8 @@ bool parseVoltageArea( design_C* pDesign, ifstream &fin )
 	int nX, nY;
 	int nNumGrid = 0;
 	int nNumInst = 0;
-	
+
+	unordered_map<string, instance_C *> mInstanceIndex = pDesign->getInst_map();
 
 	fin >> nNumVolArea;
 	for( int i=0; i<nNumVolArea; i++ )
@@ -578,7 +618,7 @@ bool parseVoltageArea( design_C* pDesign, ifstream &fin )
 		for( int n=0; n<nNumInst; n++ )
 		{
 			fin >> strInst;
-			instance_C* pInst = pDesign->getInst_map()[ strInst ];
+			instance_C* pInst = mInstanceIndex[ strInst ];
 			sInst.insert( pInst );
 		}
 		voltageArea_C* pVolArea = new voltageArea_C;

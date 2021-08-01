@@ -62,6 +62,7 @@ private:
 	int m_nNumNet;
 	string m_strConstraint;
 	int m_nConstraintLayerId;
+	int m_nMinLayerId;
 	int m_nId;
 	double m_dWeight;
 
@@ -76,8 +77,10 @@ protected:
 	int m_nIdealLength;
 	double m_dIdealLength;
 
+	double m_dXYLength;
+
 public:
-	net_C() : m_nNumNet(0), m_nReroute(0), m_nLength(0), m_nIdealLength(0), m_dWeight(0.0){};
+	net_C() : m_nNumNet(0), m_nReroute(0), m_nLength(0), m_nIdealLength(0), m_dWeight(0.0), m_dXYLength(0.0){};
 	~net_C(){};
 	// set data
 	void setName(string strName) { m_strName = strName; }
@@ -96,7 +99,9 @@ public:
 	void setConstraintLayerId( int nLayerId ){ m_nConstraintLayerId = nLayerId; }
 	void setIdealLength( int nLength ){ m_nIdealLength = nLength; }
 	void setDIdealLength( double dLength ){ m_dIdealLength = dLength; }
+	void setXYLength( double dLength ){ m_dXYLength = dLength; }
 	void setWeight( double dWeight ){ m_dWeight = dWeight; }
+	void setMinLayerId( int nId ){ m_nMinLayerId = nId; }
 	// get data
 	string getName()
 	{
@@ -117,6 +122,7 @@ public:
 	double getDLength(){ return m_dLength; }
 	int getIdealLength(){ return m_nIdealLength; }
 	double getDIdealLength(){ return m_dIdealLength; }
+	double getXYDLength(){ return m_dXYLength; }
 	// other operation
 	void cleanWire()
 	{
@@ -129,7 +135,7 @@ public:
 		m_vWire.clear();
 	}
 	double getWeight(){ return m_dWeight; }
-
+	int getMinLayerId(){ return m_nMinLayerId; }
 	//vector<bool> m_vFL;
 	//vector<bool> m_vFR;
 	//vector<bool> m_vFT;
@@ -435,7 +441,7 @@ public:
 		nY = m_nY;
 		nZ = m_nZ;
 	}
-	vector<instance_C *> getInstance() { return m_vInst; }
+	vector<instance_C *> &getInstance() { return m_vInst; }
 	bool isOverflow()
 	{
 		if ((int)(m_nSupply - m_nDemand - m_nExtraDemand - (int)m_vNet.size()) < 0)
@@ -678,6 +684,8 @@ protected:
 	unordered_map<string, instance_C *> inst_map;
 	unordered_map<string, net_C *> net_map;
 	unordered_map<string, unordered_map<string, extra_demand>> extra_map_2;
+	unordered_map<string, cell_C *> cell_map;
+	
 	//chouchou end
 
 public:
@@ -716,6 +724,7 @@ public:
 	{
 		extra_map_2 = vextra_map;
 	}
+	void setCell_map( unordered_map<string, cell_C *> vcell_map ){ cell_map = vcell_map; }
 
 	// get data
 	int getMaxCellConstraint() { return m_nMaxCellMove; }
@@ -741,6 +750,7 @@ public:
 	{
 		return layer_map;
 	}
+	unordered_map< string, cell_C* > getCell_map(){ return cell_map; }
 	unordered_map<string, instance_C *> getInst_map() { return inst_map; }
 	unordered_map<string, net_C *> getNet_map() { return net_map; }
 	gGrid_C *getGrid(int nX, int nY, int nZ) { return m_vGraph[nZ - m_vLayer.front()->getId()][nY - m_nGGridColBegin][nX - m_nGGridRowBegin]; }

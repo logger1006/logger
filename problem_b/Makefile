@@ -1,7 +1,7 @@
 
 CC	:= gcc
 CXX	:= g++
-LD	:= g++
+LD	:= g++ 
 CP	:= cp
 
 PROG	:= cell_move_router
@@ -10,7 +10,7 @@ MODULES	:= src/parser src/main src/rcm src/router src/flute
 
 default: $(PROG)
 
-OPTFLAGS	:= -g -O3 -std=c++11 
+OPTFLAGS	:= -g -O3 -std=c++11
 
 CFLAGS   += $(OPTFLAGS) $(patsubst %, -I%, $(MODULES))
 CXXFLAGS += $(CFLAGS)
